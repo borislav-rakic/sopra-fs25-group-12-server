@@ -108,7 +108,7 @@ All changes to the main branch will automatically be pushed to dockerhub and opt
 
 ### Pull and run
 Once the image is created and has been successfully pushed to dockerhub, the image can be run on any machine.\
-Ensure that [Docker](https://www.docker.com/) is installed on the machine you wish to run the container.\
+Ensure that [Docker](https://www.docker.com/) is installed on the machine you wish to run the container.
 First, pull (download) the image with the following command, replacing your username and repository name accordingly.
 
 ```docker pull <dockerhub_username>/<dockerhub_repo_name>```
