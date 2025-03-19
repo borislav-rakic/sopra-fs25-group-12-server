@@ -56,7 +56,6 @@ bootJar {
 sonar {
     properties {
         property "sonar.projectKey", "borislav-rakic_sopra-fs25-group-12-server"
-        property "sonar.projectName", "sopra-fs25-group-12-server"
         property "sonar.organization", "borislav-rakic"
         property "sonar.host.url", "https://sonarcloud.io"
     }
