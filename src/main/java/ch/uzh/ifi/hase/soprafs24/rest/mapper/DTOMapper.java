@@ -1,8 +1,10 @@
 package ch.uzh.ifi.hase.soprafs24.rest.mapper;
 
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+//import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPostDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserCreateDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserGetDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPostDTO;
+
 import org.mapstruct.*;
 import org.mapstruct.factory.Mappers;
 
@@ -22,13 +24,21 @@ public interface DTOMapper {
 
   DTOMapper INSTANCE = Mappers.getMapper(DTOMapper.class);
 
-  @Mapping(source = "name", target = "name")
+  @Mapping(source = "password", target = "password")
   @Mapping(source = "username", target = "username")
-  User convertUserPostDTOtoEntity(UserPostDTO userPostDTO);
+  @Mapping(target = "id", ignore = true)
+  @Mapping(target = "token", ignore = true)
+  @Mapping(target = "status", ignore = true)
+  @Mapping(target = "avatar", ignore = true)
+  @Mapping(target = "isGuest", ignore = true)
+  @Mapping(target = "birthday", ignore = true)
+  @Mapping(target = "userSettings", ignore = true)
+  @Mapping(target = "rating", ignore = true)
+  User convertUserCreateDTOtoEntity(UserCreateDTO userCreateDTO);
 
   @Mapping(source = "id", target = "id")
-  @Mapping(source = "name", target = "name")
   @Mapping(source = "username", target = "username")
   @Mapping(source = "status", target = "status")
   UserGetDTO convertEntityToUserGetDTO(User user);
+
 }
