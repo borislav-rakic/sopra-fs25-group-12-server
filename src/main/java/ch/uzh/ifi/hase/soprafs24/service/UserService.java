@@ -11,6 +11,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.data.domain.*;
+import org.springframework.data.jpa.domain.Specification;
 
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
@@ -158,6 +160,18 @@ public class UserService {
     user.setStatus(UserStatus.OFFLINE);
     user.setToken(null);
     userRepository.save(user);
+  }
+
+  public Page<User> findUsersForLeaderboard(String filter, Pageable pageable) {
+    Specification<User> spec = (root, query, cb) -> {
+      if (filter != null && !filter.isBlank()) {
+        // Filter by username (case-insensitive)
+        return cb.like(cb.lower(root.get("username")), "%" + filter.toLowerCase() + "%");
+      }
+      return cb.conjunction(); // No filtering
+    };
+
+    return userRepository.findAll(spec, pageable);
   }
 
 }
