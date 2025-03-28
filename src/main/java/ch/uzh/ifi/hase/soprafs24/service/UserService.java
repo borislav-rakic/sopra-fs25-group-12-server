@@ -12,6 +12,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import org.springframework.security.crypto.bcrypt.BCrypt;
+
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -31,6 +33,25 @@ public class UserService {
 
   private final UserRepository userRepository;
 
+  private String extractToken(String authHeader) {
+    if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing or malformed Authorization header");
+    }
+    return authHeader.substring(7).trim(); // remove "Bearer " prefix
+  }
+
+  public User authenticateUserAtLogin(String username, String password) {
+    User user = userRepository.findUserByUsername(username);
+    if (user == null || !BCrypt.checkpw(password, user.getPassword())) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
+    }
+    // set new token.
+    user.setToken(UUID.randomUUID().toString());
+    user.setStatus(UserStatus.ONLINE);
+    userRepository.save(user);
+    return user;
+  }
+
   @Autowired
   public UserService(@Qualifier("userRepository") UserRepository userRepository) {
     this.userRepository = userRepository;
@@ -38,6 +59,16 @@ public class UserService {
 
   public List<User> getUsers() {
     return this.userRepository.findAll();
+  }
+
+  public void logoutUserByToken(String token) {
+    User user = userRepository.findUserByToken(token);
+    if (user == null) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+    }
+    user.setToken(null); // Invalidate token
+    user.setStatus(UserStatus.OFFLINE); // Set status to OFFLINE.
+    userRepository.save(user);
   }
 
   public User createUser(User newUser) {
@@ -70,7 +101,7 @@ public class UserService {
    * @see User
    */
   private void checkIfUserExists(User userToBeCreated) {
-    User userByUsername = userRepository.findByUsername(userToBeCreated.getUsername());
+    User userByUsername = userRepository.findUserByUsername(userToBeCreated.getUsername());
 
     String baseErrorMessage = "The %s provided %s not unique. Therefore, the user could not be created!";
     if (userByUsername != null) {
@@ -80,11 +111,53 @@ public class UserService {
   }
 
   public User getUserById(Long userId) {
-    User user = userRepository.getById(userId);
+    User user = userRepository.findUserById(userId);
     if (user == null) {
       throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
     }
     return user;
+  }
+
+  public User getUserByToken(String token) {
+    User user = userRepository.findUserByToken(token);
+    if (user == null) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+    }
+    return user;
+  }
+
+  public void updateUser(Long userId, User updates) {
+    User user = userRepository.findUserById(userId);
+    if (user == null) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+    }
+
+    // Only update fields that are non-null in the DTO
+    if (updates.getUsername() != null) {
+      user.setUsername(updates.getUsername());
+    }
+    if (updates.getBirthday() != null) {
+      user.setBirthday(updates.getBirthday());
+    }
+    if (updates.getAvatar() != null) {
+      user.setAvatar(updates.getAvatar());
+    }
+    if (updates.getUserSettings() != null) {
+      user.setUserSettings(updates.getUserSettings());
+    }
+
+    userRepository.save(user);
+  }
+
+  public void logoutUser(Long id, String token) {
+    User user = userRepository.findUserById(id);
+    if (user == null || !user.getToken().equals(token)) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials for logout");
+    }
+
+    user.setStatus(UserStatus.OFFLINE);
+    user.setToken(null);
+    userRepository.save(user);
   }
 
 }

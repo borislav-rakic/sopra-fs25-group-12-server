@@ -4,23 +4,13 @@ import java.time.LocalDate;
 
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 
-// only include public inforamtion
-public class UserGetDTO {
+public class UserPutDTO {
 
-  private Long id;
   private String username;
-  private UserStatus status;
-  private int avatar;
+  private Integer avatar;
   private LocalDate birthday;
-  private int rating;
-
-  public Long getId() {
-    return id;
-  }
-
-  public void setId(Long id) {
-    this.id = id;
-  }
+  private Integer rating;
+  private String userSettings;
 
   public String getUsername() {
     return username;
@@ -30,15 +20,7 @@ public class UserGetDTO {
     this.username = username;
   }
 
-  public UserStatus getStatus() {
-    return status;
-  }
-
-  public void setStatus(UserStatus status) {
-    this.status = status;
-  }
-
-  public int getRating() {
+  public Integer getRating() {
     return rating;
   }
 
@@ -54,11 +36,19 @@ public class UserGetDTO {
     this.birthday = birthday;
   }
 
-  public int getAvatar() {
+  public Integer getAvatar() {
     return avatar;
   }
 
   public void setAvatar(int avatar) {
     this.avatar = avatar;
+  }
+
+  public String getUserSettings() {
+    return userSettings;
+  }
+
+  public void setUserSettings(String userSettings) {
+    this.userSettings = userSettings;
   }
 }

@@ -1,17 +1,23 @@
 package ch.uzh.ifi.hase.soprafs24.controller;
 
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserAuthDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserCreateDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserGetDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPrivateDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPutDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserLoginDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 import ch.uzh.ifi.hase.soprafs24.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * User Controller
@@ -33,6 +39,13 @@ public class UserController {
     return BCrypt.hashpw(plainPassword, BCrypt.gensalt());
   }
 
+  private String extractToken(String authHeader) {
+    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+      return authHeader.substring(7); // remove "Bearer "
+    }
+    throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
+  }
+
   @GetMapping("/users")
   @ResponseStatus(HttpStatus.OK)
   public List<UserGetDTO> getAllUsers() {
@@ -49,7 +62,7 @@ public class UserController {
 
   @PostMapping("/users")
   @ResponseStatus(HttpStatus.CREATED)
-  public UserGetDTO createUser(@RequestBody UserCreateDTO userCreateDTO) {
+  public UserAuthDTO createUser(@RequestBody UserCreateDTO userCreateDTO) {
     // convert API user to internal representation
     User userInput = DTOMapper.INSTANCE.convertUserCreateDTOtoEntity(userCreateDTO);
 
@@ -57,10 +70,14 @@ public class UserController {
     String hashedPassword = hashPassword(userInput.getPassword());
     userInput.setPassword(hashedPassword);
 
+    // generate token
+    userInput.setToken(UUID.randomUUID().toString());
+
     // create user
     User createdUser = userService.createUser(userInput);
-    // convert internal representation of user back to API
-    return DTOMapper.INSTANCE.convertEntityToUserGetDTO(createdUser);
+
+    // convert internal representation of user back to auth DTO
+    return DTOMapper.INSTANCE.convertEntityToUserAuthDTO(createdUser);
   }
 
   @GetMapping("/users/{userId}")
@@ -68,6 +85,35 @@ public class UserController {
   public UserGetDTO getUserById(@PathVariable Long userId) {
     User user = userService.getUserById(userId);
     return DTOMapper.INSTANCE.convertEntityToUserGetDTO(user);
+  }
+
+  @GetMapping("/users/me")
+  @ResponseStatus(HttpStatus.OK)
+  public UserPrivateDTO getOwnUser(@RequestHeader("Authorization") String authHeader) {
+    String token = extractToken(authHeader);
+    User user = userService.getUserByToken(token);
+    return DTOMapper.INSTANCE.convertEntityToUserPrivateDTO(user);
+  }
+
+  @PostMapping("/login")
+  @ResponseStatus(HttpStatus.OK)
+  public UserAuthDTO loginUser(@RequestBody UserLoginDTO loginDTO) {
+    User user = userService.authenticateUserAtLogin(loginDTO.getUsername(), loginDTO.getPassword());
+    return DTOMapper.INSTANCE.convertEntityToUserAuthDTO(user);
+  }
+
+  @PostMapping("/logout")
+  @ResponseStatus(HttpStatus.NO_CONTENT) // 204
+  public void logoutUser(@RequestHeader("Authorization") String authHeader) {
+    String token = extractToken(authHeader);
+    userService.logoutUserByToken(token);
+  }
+
+  @PutMapping("/users/{userId}")
+  @ResponseStatus(HttpStatus.NO_CONTENT)
+  public void updateUser(@PathVariable Long userId, @RequestBody UserPutDTO userPutDTO) {
+    User userUpdates = DTOMapper.INSTANCE.convertUserPutDTOtoEntity(userPutDTO);
+    userService.updateUser(userId, userUpdates);
   }
 
 }

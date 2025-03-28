@@ -29,7 +29,7 @@ public class User implements Serializable {
   @Column(nullable = false, unique = true)
   private String username;
 
-  @Column(nullable = false, unique = true)
+  @Column(nullable = true, unique = true)
   private String token;
 
   @Column(nullable = false)
@@ -41,7 +41,7 @@ public class User implements Serializable {
 
   // Avatar is null if not defined.
   @Column(nullable = true)
-  private int avatar;
+  private Integer avatar;
 
   @Column(name = "is_guest", nullable = false)
   private Boolean isGuest;
@@ -54,7 +54,7 @@ public class User implements Serializable {
   private String userSettings;
 
   @Column(nullable = false)
-  private int rating;
+  private Integer rating;
 
   public Long getId() {
     return id;
@@ -96,11 +96,11 @@ public class User implements Serializable {
     this.status = status;
   }
 
-  public int getAvatar() {
+  public Integer getAvatar() {
     return avatar;
   }
 
-  public void setAvatar(int avatar) {
+  public void setAvatar(Integer avatar) {
     this.avatar = avatar;
   }
 
@@ -128,11 +128,11 @@ public class User implements Serializable {
     this.userSettings = userSettings;
   }
 
-  public int getRating() {
+  public Integer getRating() {
     return rating;
   }
 
-  public void setRating(int rating) {
+  public void setRating(Integer rating) {
     this.rating = rating;
   }
 }

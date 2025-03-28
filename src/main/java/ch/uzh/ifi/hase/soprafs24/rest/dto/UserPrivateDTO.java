@@ -5,7 +5,7 @@ import java.time.LocalDate;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 
 // only include public inforamtion
-public class UserGetDTO {
+public class UserPrivateDTO {
 
   private Long id;
   private String username;
@@ -13,6 +13,7 @@ public class UserGetDTO {
   private int avatar;
   private LocalDate birthday;
   private int rating;
+  private String userSettings;
 
   public Long getId() {
     return id;
@@ -61,4 +62,13 @@ public class UserGetDTO {
   public void setAvatar(int avatar) {
     this.avatar = avatar;
   }
+
+  public String getUserSettings() {
+    return userSettings;
+  }
+
+  public void setUserSettings(String userSettings) {
+    this.userSettings = userSettings;
+  }
+
 }

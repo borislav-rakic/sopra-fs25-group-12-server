@@ -1,9 +1,13 @@
 package ch.uzh.ifi.hase.soprafs24.rest.mapper;
 
+import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserAuthDTO;
 //import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPostDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserCreateDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserGetDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPrivateDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPutDTO;
 
 import org.mapstruct.*;
 import org.mapstruct.factory.Mappers;
@@ -39,6 +43,45 @@ public interface DTOMapper {
   @Mapping(source = "id", target = "id")
   @Mapping(source = "username", target = "username")
   @Mapping(source = "status", target = "status")
+  @Mapping(source = "avatar", target = "avatar")
+  @Mapping(source = "birthday", target = "birthday")
+  @Mapping(source = "rating", target = "rating")
   UserGetDTO convertEntityToUserGetDTO(User user);
+
+  @Mapping(target = "id", ignore = true) // not in the DTO anyway
+  @Mapping(target = "password", ignore = true) // not in the DTO anyway
+  @Mapping(target = "token", ignore = true) // not in the DTO anyway
+  @Mapping(target = "status", ignore = true)
+  @Mapping(target = "isGuest", ignore = true)
+  @Mapping(target = "rating", ignore = true)
+  User convertUserPutDTOtoEntity(UserPutDTO userPutDTO);
+
+  @Mapping(source = "id", target = "id")
+  @Mapping(source = "username", target = "username")
+  @Mapping(source = "token", target = "token")
+  @Mapping(source = "avatar", target = "avatar")
+  @Mapping(source = "status", target = "status")
+  UserAuthDTO convertEntityToUserAuthDTO(User user);
+
+  @Mapping(source = "id", target = "id")
+  @Mapping(source = "username", target = "username")
+  @Mapping(source = "avatar", target = "avatar")
+  @Mapping(source = "status", target = "status")
+  @Mapping(source = "birthday", target = "birthday")
+  @Mapping(source = "userSettings", target = "userSettings")
+  @Mapping(source = "rating", target = "rating")
+  UserPrivateDTO convertEntityToUserPrivateDTO(User user);
+
+  @Mapping(source = "id", target = "id")
+  @Mapping(source = "username", target = "username")
+  @Mapping(source = "avatar", target = "avatar")
+  @Mapping(source = "status", target = "status")
+  @Mapping(source = "token", target = "token")
+  @Mapping(target = "password", ignore = true)
+  @Mapping(target = "isGuest", ignore = true)
+  @Mapping(target = "birthday", ignore = true)
+  @Mapping(target = "userSettings", ignore = true)
+  @Mapping(target = "rating", ignore = true)
+  User convertUserAuthDTOtoEntity(UserAuthDTO userAuthDTO);
 
 }
