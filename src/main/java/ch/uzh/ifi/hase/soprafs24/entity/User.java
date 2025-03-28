@@ -39,13 +39,15 @@ public class User implements Serializable {
   @Column(nullable = false)
   private UserStatus status;
 
-  @Column(nullable = false)
+  // Avatar is null if not defined.
+  @Column(nullable = true)
   private int avatar;
 
   @Column(name = "is_guest", nullable = false)
   private Boolean isGuest;
 
-  @Column(nullable = false)
+  // Birthday is null if not defined.
+  @Column(nullable = true)
   private LocalDate birthday;
 
   @Column(name = "user_settings", nullable = false)
@@ -66,6 +68,10 @@ public class User implements Serializable {
     return username;
   }
 
+  public void setUsername(String username) {
+    this.username = username;
+  }
+
   public String getToken() {
     return token;
   }
@@ -74,11 +80,9 @@ public class User implements Serializable {
     this.token = token;
   }
 
-  public void setUsername(String username) {
-    this.username = username;
+  public String getPassword() {
+    return password;
   }
-
-  // No getter for password.
 
   public void setPassword(String password) {
     this.password = password;

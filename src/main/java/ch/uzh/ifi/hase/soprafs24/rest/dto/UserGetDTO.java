@@ -1,5 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
+import java.time.LocalDate;
+
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 
 public class UserGetDTO {
@@ -7,6 +9,9 @@ public class UserGetDTO {
   private Long id;
   private String username;
   private UserStatus status;
+  private int avatar;
+  private LocalDate birthday;
+  private int rating;
 
   public Long getId() {
     return id;
@@ -30,5 +35,29 @@ public class UserGetDTO {
 
   public void setStatus(UserStatus status) {
     this.status = status;
+  }
+
+  public int getRating() {
+    return rating;
+  }
+
+  public void setRating(int rating) {
+    this.rating = rating;
+  }
+
+  public LocalDate getBirthday() {
+    return birthday;
+  }
+
+  public void setBirthday(LocalDate birthday) {
+    this.birthday = birthday;
+  }
+
+  public int getAvatar() {
+    return avatar;
+  }
+
+  public void setAvatar(int avatar) {
+    this.avatar = avatar;
   }
 }

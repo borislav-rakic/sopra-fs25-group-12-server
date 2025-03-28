@@ -8,6 +8,7 @@ import ch.uzh.ifi.hase.soprafs24.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.security.crypto.bcrypt.BCrypt;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,6 +27,10 @@ public class UserController {
 
   UserController(UserService userService) {
     this.userService = userService;
+  }
+
+  public String hashPassword(String plainPassword) {
+    return BCrypt.hashpw(plainPassword, BCrypt.gensalt());
   }
 
   @GetMapping("/users")
@@ -48,9 +53,21 @@ public class UserController {
     // convert API user to internal representation
     User userInput = DTOMapper.INSTANCE.convertUserCreateDTOtoEntity(userCreateDTO);
 
+    // hash password
+    String hashedPassword = hashPassword(userInput.getPassword());
+    userInput.setPassword(hashedPassword);
+
     // create user
     User createdUser = userService.createUser(userInput);
     // convert internal representation of user back to API
     return DTOMapper.INSTANCE.convertEntityToUserGetDTO(createdUser);
   }
+
+  @GetMapping("/users/{userId}")
+  @ResponseStatus(HttpStatus.OK)
+  public UserGetDTO getUserById(@PathVariable Long userId) {
+    User user = userService.getUserById(userId);
+    return DTOMapper.INSTANCE.convertEntityToUserGetDTO(user);
+  }
+
 }

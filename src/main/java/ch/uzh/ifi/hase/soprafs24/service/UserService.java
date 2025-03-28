@@ -43,9 +43,9 @@ public class UserService {
   public User createUser(User newUser) {
     newUser.setToken(UUID.randomUUID().toString());
     newUser.setStatus(UserStatus.ONLINE);
-    newUser.setAvatar(0); // default avatar
+    newUser.setAvatar(0); // default avatar is 0! (may change later)
     newUser.setIsGuest(false); // default
-    newUser.setBirthday(LocalDate.now()); // default date
+    newUser.setBirthday(null); // default date is null!
     newUser.setUserSettings("{}"); // empty settings
     newUser.setRating(0); // default rating
 
@@ -78,4 +78,13 @@ public class UserService {
           String.format(baseErrorMessage, "username", "is"));
     }
   }
+
+  public User getUserById(Long userId) {
+    User user = userRepository.getById(userId);
+    if (user == null) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+    }
+    return user;
+  }
+
 }
