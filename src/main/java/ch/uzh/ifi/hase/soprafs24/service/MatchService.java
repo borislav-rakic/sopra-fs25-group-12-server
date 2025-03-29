@@ -9,9 +9,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
+import java.util.List;
 
 /**
  * Match Service
@@ -40,5 +44,19 @@ public class MatchService {
         System.out.println("PlayerIds: " + newMatch.getPlayerIds());
 
         return newMatch;
+    }
+
+    public List<Match> getMatchesInformation() {
+        return matchRepository.findAll();
+    }
+
+    public Match getMatchInformation(Long matchId) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found");
+        }
+
+        return matchRepository.findMatchByMatchId(matchId);
     }
 }

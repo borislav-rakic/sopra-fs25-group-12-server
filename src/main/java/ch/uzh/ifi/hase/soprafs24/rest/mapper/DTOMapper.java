@@ -89,7 +89,8 @@ public interface DTOMapper {
   @Mapping(source = "playerIds", target = "playerIds")
   Match convertMatchCreateDTOtoEntity(MatchCreateDTO matchCreateDTO);
 
-  @Mapping(source = "matchId", target = "id")
-  @Mapping(source = "playerIds", target = "players")
+  @Mapping(source = "matchId", target = "matchId")
+  @Mapping(source = "playerIds", target = "playerIds")
+  @Mapping(source = "started", target = "started")
   MatchDTO convertEntityToMatchDTO(Match match);
 }
