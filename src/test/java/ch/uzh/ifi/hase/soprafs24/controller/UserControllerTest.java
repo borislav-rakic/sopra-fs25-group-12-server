@@ -48,7 +48,7 @@ public class UserControllerTest {
   public void givenUsers_whenGetUsers_thenReturnJsonArray() throws Exception {
     // given
     User user = new User();
-    // user.setName("Firstname Lastname");
+    user.setPassword("ThisIsMyBigSecret");
     user.setUsername("firstname@lastname");
     user.setStatus(UserStatus.OFFLINE);
 
@@ -74,13 +74,14 @@ public class UserControllerTest {
     // given
     User user = new User();
     user.setId(1L);
-    // user.setName("Test User");
+    user.setPassword("ThisIsMyBigSecret");
     user.setUsername("testUsername");
     user.setToken("1");
     user.setStatus(UserStatus.ONLINE);
 
     UserCreateDTO userCreateDTO = new UserCreateDTO();
     userCreateDTO.setUsername("testUsername");
+    userCreateDTO.setPassword("ThisIsMyBigSecret");
 
     given(userService.createUser(Mockito.any())).willReturn(user);
 
