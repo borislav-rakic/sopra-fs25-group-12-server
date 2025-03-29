@@ -13,8 +13,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
+import java.nio.file.attribute.UserPrincipal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -109,11 +111,19 @@ public class UserController {
     userService.logoutUserByToken(token);
   }
 
-  @PutMapping("/users/{userId}")
+  @PutMapping("/users/me")
   @ResponseStatus(HttpStatus.NO_CONTENT)
-  public void updateUser(@PathVariable Long userId, @RequestBody UserPutDTO userPutDTO) {
+  public void updateCurrentUser(@RequestHeader("Authorization") String authHeader,
+      @RequestBody UserPutDTO userPutDTO) {
+    // Extract the token from the header: "Bearer <token>"
+    String token = extractToken(authHeader);
+
+    User currentUser = userService.getUserByToken(token);
+    if (currentUser == null) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or missing token");
+    }
     User userUpdates = DTOMapper.INSTANCE.convertUserPutDTOtoEntity(userPutDTO);
-    userService.updateUser(userId, userUpdates);
+    userService.updateUser(currentUser.getId(), userUpdates);
   }
 
 }

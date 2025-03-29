@@ -45,12 +45,12 @@ public interface DTOMapper {
   @Mapping(source = "rating", target = "rating")
   UserGetDTO convertEntityToUserGetDTO(User user);
 
-  @Mapping(target = "id", ignore = true) // not in the DTO anyway
-  @Mapping(target = "password", ignore = true) // not in the DTO anyway
-  @Mapping(target = "token", ignore = true) // not in the DTO anyway
-  @Mapping(target = "status", ignore = true)
+  @Mapping(target = "id", ignore = true)
   @Mapping(target = "isGuest", ignore = true)
   @Mapping(target = "rating", ignore = true)
+  @Mapping(target = "status", ignore = true)
+  @Mapping(target = "token", ignore = true)
+  @Mapping(target = "userSettings", ignore = true)
   User convertUserPutDTOtoEntity(UserPutDTO userPutDTO);
 
   @Mapping(source = "id", target = "id")

@@ -146,6 +146,11 @@ public class UserService {
   public User getUserByToken(String token) {
     User user = userRepository.findUserByToken(token);
     if (user == null) {
+      System.out.println("[DEBUG] No user found with token: " + token);
+    } else {
+      System.out.println("[DEBUG] User found: " + user.getUsername() + " (ID: " + user.getId() + ")");
+    }
+    if (user == null) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
     }
     return user;

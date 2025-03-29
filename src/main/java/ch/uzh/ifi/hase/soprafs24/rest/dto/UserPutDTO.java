@@ -2,15 +2,13 @@ package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
 import java.time.LocalDate;
 
-import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
-
 public class UserPutDTO {
 
   private String username;
   private Integer avatar;
   private LocalDate birthday;
-  private Integer rating;
-  private String userSettings;
+  private String password;
+  private String confirmPassword;
 
   public String getUsername() {
     return username;
@@ -20,12 +18,12 @@ public class UserPutDTO {
     this.username = username;
   }
 
-  public Integer getRating() {
-    return rating;
+  public String getPassword() {
+    return password;
   }
 
-  public void setRating(int rating) {
-    this.rating = rating;
+  public void setPassword(String password) {
+    this.password = password;
   }
 
   public LocalDate getBirthday() {
@@ -44,11 +42,11 @@ public class UserPutDTO {
     this.avatar = avatar;
   }
 
-  public String getUserSettings() {
-    return userSettings;
+  public String getConfirmPassword() {
+    return confirmPassword;
   }
 
-  public void setUserSettings(String userSettings) {
-    this.userSettings = userSettings;
+  public void setConfirmPassword(String confirmPassword) {
+    this.confirmPassword = confirmPassword;
   }
 }
