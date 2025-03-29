@@ -6,7 +6,9 @@ import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 import ch.uzh.ifi.hase.soprafs24.service.UserService;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.domain.*;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -30,15 +32,23 @@ public class LeaderboardController {
             @RequestParam(defaultValue = "rating") String sortBy,
             @RequestParam(defaultValue = "desc") String order,
             @RequestParam(defaultValue = "") String filter) {
+
         Sort.Direction direction = Sort.Direction.fromString(order);
         Pageable pageable = PageRequest.of(page, pageSize, Sort.by(direction, sortBy));
 
         Page<User> users = userService.findUsersForLeaderboard(filter, pageable);
-
         List<LeaderboardDTO> dtos = users.getContent().stream()
                 .map(DTOMapper.INSTANCE::convertToLeaderboardDTO)
                 .toList();
 
         return new PageImpl<>(dtos, pageable, users.getTotalElements());
+    }
+
+    @PostMapping("/populate")
+    public ResponseEntity<Void> populateLeaderboardIfEmpty() {
+        if (userService.isUserTableEmpty()) {
+            userService.populateUsersFromSQL();
+        }
+        return ResponseEntity.noContent().build();
     }
 }

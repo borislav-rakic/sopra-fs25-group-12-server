@@ -20,6 +20,12 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.core.io.ClassPathResource;
+
+import java.nio.charset.StandardCharsets;
+import java.io.IOException;
+
 /**
  * User Service
  * This class is the "worker" and responsible for all functionality related to
@@ -34,6 +40,23 @@ public class UserService {
   private final Logger log = LoggerFactory.getLogger(UserService.class);
 
   private final UserRepository userRepository;
+
+  @Autowired
+  private JdbcTemplate jdbcTemplate;
+
+  public boolean isUserTableEmpty() {
+    return userRepository.count() == 0;
+  }
+
+  public void populateUsersFromSQL() {
+    try {
+      var resource = new ClassPathResource("sql/insert_test_users.sql");
+      String sql = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
+      jdbcTemplate.execute(sql);
+    } catch (IOException e) {
+      throw new RuntimeException("Failed to read SQL file", e);
+    }
+  }
 
   private String extractToken(String authHeader) {
     if (authHeader == null || !authHeader.startsWith("Bearer ")) {
