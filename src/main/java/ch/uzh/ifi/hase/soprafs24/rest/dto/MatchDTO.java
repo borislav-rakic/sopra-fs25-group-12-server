@@ -4,7 +4,7 @@ import java.util.List;
 
 public class MatchDTO {
     private Long id;
-    private List<PlayerDTO> players;
+    private List<Long> players;
     private boolean started;
 
     public void setId(Long id) {
@@ -15,11 +15,11 @@ public class MatchDTO {
         return id;
     }
 
-    public void setPlayers(List<PlayerDTO> players) {
+    public void setPlayers(List<Long> players) {
         this.players = players;
     }
 
-    public List<PlayerDTO> getPlayers() {
+    public List<Long> getPlayers() {
         return players;
     }
 
