@@ -3,24 +3,24 @@ package ch.uzh.ifi.hase.soprafs24.rest.dto;
 import java.util.List;
 
 public class MatchDTO {
-    private Long id;
-    private List<Long> players;
+    private Long matchId;
+    private List<Long> playerIds;
     private boolean started;
 
-    public void setId(Long id) {
-        this.id = id;
+    public void setMatchId(Long matchId) {
+        this.matchId = matchId;
     }
 
-    public Long getId() {
-        return id;
+    public Long getMatchId() {
+        return matchId;
     }
 
-    public void setPlayers(List<Long> players) {
-        this.players = players;
+    public void setPlayerIds(List<Long> playerIds) {
+        this.playerIds = playerIds;
     }
 
-    public List<Long> getPlayers() {
-        return players;
+    public List<Long> getPlayerIds() {
+        return playerIds;
     }
 
     public void setStarted(boolean started) {
