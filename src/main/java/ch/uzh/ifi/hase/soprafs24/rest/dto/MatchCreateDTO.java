@@ -1,33 +1,16 @@
 package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class MatchCreateDTO {
-    private Long matchId;
-    private String name;
-    private List<PlayerDTO> players;
+    private List<Long> playerIds;
 
-    public void setMatchId(Long matchId) {
-        this.matchId = matchId;
+    public void setPlayerIds(List<Long> playerIds) {
+        System.out.println("LIST: " + playerIds.getClass()); this.playerIds = playerIds;
     }
 
-    public Long getMatchId() {
-        return matchId;
-    }
-
-    public void setName(String name) {
-        this.name = name;
-    }
-
-    public String getName() {
-        return name;
-    }
-
-    public void setPlayers(List<PlayerDTO> players) {
-        this.players = players;
-    }
-
-    public List<PlayerDTO> getPlayers() {
-        return players;
+    public List<Long> getPlayerIds() {
+        return playerIds;
     }
 }
