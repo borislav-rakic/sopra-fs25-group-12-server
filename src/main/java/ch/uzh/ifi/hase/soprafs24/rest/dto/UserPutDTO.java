@@ -8,7 +8,7 @@ public class UserPutDTO {
   private Integer avatar;
   private LocalDate birthday;
   private String password;
-  private String confirmPassword;
+  private String passwordConfirmed;
 
   public String getUsername() {
     return username;
@@ -42,11 +42,11 @@ public class UserPutDTO {
     this.avatar = avatar;
   }
 
-  public String getConfirmPassword() {
-    return confirmPassword;
+  public String getPasswordConfirmed() {
+    return passwordConfirmed;
   }
 
-  public void setConfirmPassword(String confirmPassword) {
-    this.confirmPassword = confirmPassword;
+  public void setPasswordConfirmed(String passwordConfirmed) {
+    this.passwordConfirmed = passwordConfirmed;
   }
 }

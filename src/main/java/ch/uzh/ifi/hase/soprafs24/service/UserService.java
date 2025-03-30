@@ -146,11 +146,6 @@ public class UserService {
   public User getUserByToken(String token) {
     User user = userRepository.findUserByToken(token);
     if (user == null) {
-      System.out.println("[DEBUG] No user found with token: " + token);
-    } else {
-      System.out.println("[DEBUG] User found: " + user.getUsername() + " (ID: " + user.getId() + ")");
-    }
-    if (user == null) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
     }
     return user;
@@ -163,6 +158,9 @@ public class UserService {
     }
 
     // Only update fields that are non-null in the DTO
+    if (updates.getPassword() != null && updates.getPassword().length() > 0) {
+      user.setPassword(updates.getPassword());
+    }
     if (updates.getUsername() != null) {
       user.setUsername(updates.getUsername());
     }

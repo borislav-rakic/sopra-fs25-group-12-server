@@ -115,14 +115,30 @@ public class UserController {
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void updateCurrentUser(@RequestHeader("Authorization") String authHeader,
       @RequestBody UserPutDTO userPutDTO) {
-    // Extract the token from the header: "Bearer <token>"
     String token = extractToken(authHeader);
 
     User currentUser = userService.getUserByToken(token);
     if (currentUser == null) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or missing token");
     }
+
+    if (userPutDTO.getPassword() != null &&
+        !userPutDTO.getPassword().isEmpty() &&
+        userPutDTO.getPasswordConfirmed() != null &&
+        !userPutDTO.getPasswordConfirmed().isEmpty()) {
+
+      if (!userPutDTO.getPassword().equals(userPutDTO.getPasswordConfirmed())) {
+        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Passwords do not match");
+      }
+    }
+
     User userUpdates = DTOMapper.INSTANCE.convertUserPutDTOtoEntity(userPutDTO);
+
+    if (userPutDTO.getPassword() != null && !userPutDTO.getPassword().isEmpty()) {
+      String hashedPassword = hashPassword(userPutDTO.getPassword());
+      userUpdates.setPassword(hashedPassword);
+    }
+
     userService.updateUser(currentUser.getId(), userUpdates);
   }
 
