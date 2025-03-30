@@ -1,16 +1,11 @@
 package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class MatchCreateDTO {
-    private List<Long> playerIds;
+    private String playerToken;
 
-    public void setPlayerIds(List<Long> playerIds) {
-        System.out.println("LIST: " + playerIds.getClass()); this.playerIds = playerIds;
+    public void setPlayerToken(String playerToken) {
+        this.playerToken = playerToken;
     }
 
-    public List<Long> getPlayerIds() {
-        return playerIds;
-    }
+    public String getPlayerToken() {return playerToken;}
 }

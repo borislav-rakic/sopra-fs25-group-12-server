@@ -1,10 +1,8 @@
 package ch.uzh.ifi.hase.soprafs24.rest.mapper;
 
-import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
-//import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPostDTO;
 
 import org.mapstruct.*;
 import org.mapstruct.factory.Mappers;
@@ -85,9 +83,6 @@ public interface DTOMapper {
   @Mapping(source = "username", target = "username")
   @Mapping(source = "rating", target = "rating")
   LeaderboardDTO convertToLeaderboardDTO(User user);
-
-  @Mapping(source = "playerIds", target = "playerIds")
-  Match convertMatchCreateDTOtoEntity(MatchCreateDTO matchCreateDTO);
 
   @Mapping(source = "matchId", target = "matchId")
   @Mapping(source = "playerIds", target = "playerIds")

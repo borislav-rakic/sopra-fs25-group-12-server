@@ -28,16 +28,15 @@ public class MatchController {
 
     /**
      * Creates a new entry in the MATCH relation and returns the entry if it was successful.
-     * @param matchCreateDTO The object that was sent by a player when starting a new match (a list with 4
-     * elements, where the host's id is the first element).
+     * @param matchCreateDTO The object that was sent by a player when starting a new match (the host's token).
      * @return The created match.
      */
     @PostMapping("/matches")
     @ResponseStatus(HttpStatus.CREATED)
     public MatchDTO createNewMatch(@RequestBody MatchCreateDTO matchCreateDTO) {
-        Match match = DTOMapper.INSTANCE.convertMatchCreateDTOtoEntity(matchCreateDTO);
+        System.out.println("ID: " + matchCreateDTO.getPlayerToken());
 
-        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.createNewMatch(match));
+        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.createNewMatch(matchCreateDTO));
     }
 
     /**
