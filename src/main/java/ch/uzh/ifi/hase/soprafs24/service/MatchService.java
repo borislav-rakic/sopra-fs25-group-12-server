@@ -53,6 +53,8 @@ public class MatchService {
         playerList.add(null);
 
         match.setPlayerIds(playerList);
+        match.setHost(user.getUsername());
+        match.setLength(100);
         match.setStarted(false);
 
         matchRepository.save(match);
