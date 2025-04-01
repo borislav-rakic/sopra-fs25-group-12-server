@@ -23,20 +23,24 @@ public class UserRepositoryIntegrationTest {
   public void findByName_success() {
     // given
     User user = new User();
-    user.setName("Firstname Lastname");
-    user.setUsername("firstname@lastname");
+    user.setUsername("testUsername");
+    user.setPassword("testPassword");
     user.setStatus(UserStatus.OFFLINE);
     user.setToken("1");
+    user.setAvatar(0);
+    user.setIsGuest(false);
+    user.setBirthday(java.time.LocalDate.of(2000, 1, 1));
+    user.setUserSettings("{}");
+    user.setRating(0);
 
     entityManager.persist(user);
     entityManager.flush();
 
     // when
-    User found = userRepository.findByName(user.getName());
+    User found = userRepository.findUserByUsername(user.getUsername());
 
     // then
     assertNotNull(found.getId());
-    assertEquals(found.getName(), user.getName());
     assertEquals(found.getUsername(), user.getUsername());
     assertEquals(found.getToken(), user.getToken());
     assertEquals(found.getStatus(), user.getStatus());

@@ -1,8 +1,9 @@
 package ch.uzh.ifi.hase.soprafs24.rest.mapper;
 
+import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.UserGetDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPostDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
+
 import org.mapstruct.*;
 import org.mapstruct.factory.Mappers;
 
@@ -22,13 +23,71 @@ public interface DTOMapper {
 
   DTOMapper INSTANCE = Mappers.getMapper(DTOMapper.class);
 
-  @Mapping(source = "name", target = "name")
+  @Mapping(source = "password", target = "password")
   @Mapping(source = "username", target = "username")
-  User convertUserPostDTOtoEntity(UserPostDTO userPostDTO);
+  @Mapping(target = "id", ignore = true)
+  @Mapping(target = "token", ignore = true)
+  @Mapping(target = "status", ignore = true)
+  @Mapping(target = "avatar", ignore = true)
+  @Mapping(target = "isGuest", ignore = true)
+  @Mapping(target = "birthday", ignore = true)
+  @Mapping(target = "userSettings", ignore = true)
+  @Mapping(target = "rating", ignore = true)
+  User convertUserCreateDTOtoEntity(UserCreateDTO userCreateDTO);
 
   @Mapping(source = "id", target = "id")
-  @Mapping(source = "name", target = "name")
   @Mapping(source = "username", target = "username")
   @Mapping(source = "status", target = "status")
+  @Mapping(source = "avatar", target = "avatar")
+  @Mapping(source = "birthday", target = "birthday")
+  @Mapping(source = "rating", target = "rating")
   UserGetDTO convertEntityToUserGetDTO(User user);
+
+  @Mapping(target = "id", ignore = true)
+  @Mapping(target = "isGuest", ignore = true)
+  @Mapping(target = "rating", ignore = true)
+  @Mapping(target = "status", ignore = true)
+  @Mapping(target = "token", ignore = true)
+  @Mapping(target = "userSettings", ignore = true)
+  User convertUserPutDTOtoEntity(UserPutDTO userPutDTO);
+
+  @Mapping(source = "id", target = "id")
+  @Mapping(source = "username", target = "username")
+  @Mapping(source = "token", target = "token")
+  @Mapping(source = "avatar", target = "avatar")
+  @Mapping(source = "status", target = "status")
+  UserAuthDTO convertEntityToUserAuthDTO(User user);
+
+  @Mapping(source = "id", target = "id")
+  @Mapping(source = "username", target = "username")
+  @Mapping(source = "avatar", target = "avatar")
+  @Mapping(source = "status", target = "status")
+  @Mapping(source = "birthday", target = "birthday")
+  @Mapping(source = "userSettings", target = "userSettings")
+  @Mapping(source = "rating", target = "rating")
+  UserPrivateDTO convertEntityToUserPrivateDTO(User user);
+
+  @Mapping(source = "id", target = "id")
+  @Mapping(source = "username", target = "username")
+  @Mapping(source = "avatar", target = "avatar")
+  @Mapping(source = "status", target = "status")
+  @Mapping(source = "token", target = "token")
+  @Mapping(target = "password", ignore = true)
+  @Mapping(target = "isGuest", ignore = true)
+  @Mapping(target = "birthday", ignore = true)
+  @Mapping(target = "userSettings", ignore = true)
+  @Mapping(target = "rating", ignore = true)
+  User convertUserAuthDTOtoEntity(UserAuthDTO userAuthDTO);
+
+  @Mapping(source = "id", target = "id")
+  @Mapping(source = "username", target = "username")
+  @Mapping(source = "rating", target = "rating")
+  LeaderboardDTO convertToLeaderboardDTO(User user);
+
+  @Mapping(source = "matchId", target = "matchId")
+  @Mapping(source = "playerIds", target = "playerIds")
+  @Mapping(source = "host", target = "host")
+  @Mapping(source = "length", target = "length")
+  @Mapping(source = "started", target = "started")
+  MatchDTO convertEntityToMatchDTO(Match match);
 }

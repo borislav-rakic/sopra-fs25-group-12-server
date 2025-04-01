@@ -8,6 +8,9 @@
 *.war
 *.ear
 
+# Word Tmp Files #
+~$*.docx
+
 #Gradle temporary files
 target/
 
