@@ -22,7 +22,6 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.contains;
-import static org.hamcrest.Matchers.nullValue;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -58,7 +57,7 @@ public class MatchControllerTest {
         match.setPlayerIds(playerIdList);
 
         MatchCreateDTO matchCreateDTO = new MatchCreateDTO();
-        matchCreateDTO.setPlayerIds(playerIdList);
+        matchCreateDTO.setPlayerToken("1234");
 
         given(matchService.createNewMatch(Mockito.any())).willReturn(match);
 
@@ -129,9 +128,9 @@ public class MatchControllerTest {
     /**
      * Helper Method to convert userPostDTO into a JSON string such that the input
      * can be processed
-     * Input will look like this: {"playerIds": [1, null, null, null]}
+     * Input will look like this: {"playerToken": "1234"}
      *
-     * @param object
+     * @param object Input
      * @return string
      */
     private String asJsonString(final Object object) {
