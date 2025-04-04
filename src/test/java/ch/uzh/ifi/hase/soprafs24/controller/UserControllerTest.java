@@ -3,6 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.controller;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserCreateDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPutDTO;
 import ch.uzh.ifi.hase.soprafs24.service.UserService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -24,9 +25,11 @@ import java.util.List;
 
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.is;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.BDDMockito.given;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -235,6 +238,24 @@ public class UserControllerTest {
 
     mockMvc.perform(getRequest)
         .andExpect(status().isNotFound());
+  }
+
+  @Test
+  public void createUser_missingUsername_badRequest() throws Exception {
+    UserCreateDTO userCreateDTO = new UserCreateDTO();
+    userCreateDTO.setPassword("validPassword");
+    userCreateDTO.setUsername(null); // explicitly setting null username
+
+    // Mock the service to throw exception for invalid input
+    given(userService.createUser(Mockito.any()))
+        .willThrow(new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username is required"));
+
+    MockHttpServletRequestBuilder postRequest = post("/users")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(asJsonString(userCreateDTO));
+
+    mockMvc.perform(postRequest)
+        .andExpect(status().isBadRequest());
   }
 
 }

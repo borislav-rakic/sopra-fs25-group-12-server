@@ -36,7 +36,13 @@ public class FriendshipController {
 
     // GET /users/me/friends
     @GetMapping("/me/friends")
-    public ResponseEntity<List<UserGetDTO>> getMyFriends(@RequestHeader("Authorization") String authHeader) {
+    public ResponseEntity<List<UserGetDTO>> getMyFriends(
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+
+        if (authHeader == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
+        }
+
         String token = extractToken(authHeader);
         Long currentUserId = userService.getUserIdFromToken(token);
 

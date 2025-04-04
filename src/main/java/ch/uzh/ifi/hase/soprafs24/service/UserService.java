@@ -109,6 +109,14 @@ public class UserService {
   }
 
   public User createUser(User newUser) {
+    if (newUser.getUsername() == null || newUser.getUsername().trim().isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Username is required");
+    }
+
+    if (newUser.getPassword() == null || newUser.getPassword().trim().isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Password is required");
+    }
+
     newUser.setToken(UUID.randomUUID().toString());
     newUser.setStatus(UserStatus.ONLINE);
     newUser.setAvatar(0); // default avatar is 0! (may change later)
