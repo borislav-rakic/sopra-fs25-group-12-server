@@ -13,13 +13,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
 import java.nio.file.attribute.UserPrincipal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * User Controller
@@ -60,6 +60,14 @@ public class UserController {
       userGetDTOs.add(DTOMapper.INSTANCE.convertEntityToUserGetDTO(user));
     }
     return userGetDTOs;
+  }
+
+  @GetMapping("/users/search")
+  public List<UserGetDTO> searchUsers(@RequestParam String username) {
+    List<User> users = userService.searchUsersByUsername(username);
+    return users.stream()
+        .map(DTOMapper.INSTANCE::convertEntityToUserGetDTO)
+        .collect(Collectors.toList());
   }
 
   @PostMapping("/users")

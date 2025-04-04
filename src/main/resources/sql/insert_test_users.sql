@@ -1,4 +1,4 @@
-INSERT INTO user (id, avatar, birthday, is_guest, password, rating, status, token, user_settings, username) VALUES
+INSERT INTO `user` (id, avatar, birthday, is_guest, password, rating, status, token, user_settings, username) VALUES
 (1,1,'1964-08-04',FALSE,'$2a$10$1JLHCFKBJr/sS5a4OsH2werbW0rt/YWqMRVY5QOoKihqznhflmM5.',29,'ONLINE','616755c5-1694-4029-98f3-d6dd58b3ea55','{}','User1'),
 (2,2,'2001-01-07',FALSE,'$2a$10$5EFTA4KK5j2upXboxRsDhuc.POWRkeYPbLBBWorhSU4hJuBZmLfEK',11,'OFFLINE','b49838a9-1b72-421e-8dd5-fca3a5e72353','{}','User2'),
 (3,3,'1987-03-31',FALSE,'$2a$10$3lLh9obl1sYg1Qz1FoPP0.tAyKVXV6XjIxYnEqhDiLx2ibzFplQji',16,'OFFLINE','1617867e-faec-4ec1-8ba9-daa05ed93a88','{}','User3'),
@@ -34,3 +34,29 @@ INSERT INTO user (id, avatar, birthday, is_guest, password, rating, status, toke
 (33,33,'1959-05-12',FALSE,'$2a$10$y3/HjUUVVgDYDFzLja1o.uh2dqUaSA6sL6bY4KJxNGjr3F.SIv6dK',22,'OFFLINE','6155b320-2dbc-4482-ae55-2b8287fbe1fd','{}','Xander'),
 (34,34,'1956-02-17',FALSE,'$2a$10$cQRQP97NMP.YoPRqXgUgM.29tyqdfrl/iwImxariwBoA3s6rn6T6C',15,'ONLINE','bba78ec4-20fe-429c-8b3a-2c00224a26c10','{}','Yvan'),
 (35,35,'1972-03-14',FALSE,'$2a$10$eZOASq9YI0RYaev0YPP7kOYZHrQqJ8k1qe32XzFAECkNKGtF0vuJm',16,'OFFLINE','d3d4382b-8a1b-4fd8-2ee5-d1bf08fd5c40','{}','Zoé');
+
+INSERT INTO `friendship` (id, status, friend_id, user_id) VALUES
+-- PENDING
+(1,'PENDING',2,1),
+(2,'PENDING',3,1),
+(3,'PENDING',4,1),
+-- ACCEPTED
+(4,'ACCEPTED',5,1),
+(5,'ACCEPTED',6,1),
+(6,'ACCEPTED',7,1),
+-- DECLINED
+(7,'DECLINED',8,1),
+(8,'DECLINED',9,1),
+(9,'DECLINED',10,1),
+-- PENDING
+(10,'PENDING',1,11),
+(11,'PENDING',1,12),
+(12,'PENDING',1,13),
+-- ACCEPTED
+(13,'ACCEPTED',1,14),
+(14,'ACCEPTED',1,15),
+(15,'ACCEPTED',1,16),
+-- DECLINED
+(16,'DECLINED',1,17),
+(17,'DECLINED',1,18),
+(18,'DECLINED',1,19);

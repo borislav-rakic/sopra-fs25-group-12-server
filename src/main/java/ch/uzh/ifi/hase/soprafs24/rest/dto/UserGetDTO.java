@@ -14,6 +14,19 @@ public class UserGetDTO {
   private LocalDate birthday;
   private int rating;
 
+  public UserGetDTO(Long id, String username, UserStatus status, int avatar, LocalDate birthday, int rating) {
+    this.id = id;
+    this.username = username;
+    this.status = status;
+    this.avatar = avatar;
+    this.birthday = birthday;
+    this.rating = rating;
+  }
+
+  public UserGetDTO() {
+    // default constructor required by mapping libraries
+  }
+
   public Long getId() {
     return id;
   }

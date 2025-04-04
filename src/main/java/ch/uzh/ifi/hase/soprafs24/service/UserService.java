@@ -58,6 +58,18 @@ public class UserService {
     }
   }
 
+  public List<User> searchUsersByUsername(String username) {
+    return userRepository.findByUsernameContainingIgnoreCase(username);
+  }
+
+  public Long getUserIdFromToken(String token) {
+    User user = userRepository.findUserByToken(token);
+    if (user == null) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
+    }
+    return user.getId();
+  }
+
   private String extractToken(String authHeader) {
     if (authHeader == null || !authHeader.startsWith("Bearer ")) {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing or malformed Authorization header");
