@@ -3,6 +3,9 @@ package ch.uzh.ifi.hase.soprafs24.service;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
+import ch.uzh.ifi.hase.soprafs24.entity.Match;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteGetDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -17,8 +20,10 @@ import org.springframework.data.jpa.domain.Specification;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.Map;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.core.io.ClassPathResource;
@@ -44,11 +49,18 @@ public class UserService {
   @Autowired
   private JdbcTemplate jdbcTemplate;
 
+  @Autowired
+  private MatchRepository matchRepository;
+
+
   public boolean isUserTableEmpty() {
     return userRepository.count() == 0;
   }
 
   public void populateUsersFromSQL() {
+    if (userRepository.count() > 0) {
+      return;
+    }
     try {
       var resource = new ClassPathResource("sql/insert_test_users.sql");
       String sql = new String(resource.getInputStream().readAllBytes(), StandardCharsets.UTF_8);
@@ -219,5 +231,32 @@ public class UserService {
 
     return userRepository.findAll(spec, pageable);
   }
+
+  public List<InviteGetDTO> getPendingInvitesForUser(User user) {
+    List<InviteGetDTO> pendingInvites = new ArrayList<>();
+
+    List<Match> allMatches = matchRepository.findAll();
+
+    for (Match match : allMatches) {
+        Map<Integer, Long> invites = match.getInvites();
+        if (invites == null) continue;
+
+        for (Map.Entry<Integer, Long> entry : invites.entrySet()) {
+            Integer slot = entry.getKey();
+            Long invitedUserId = entry.getValue();
+
+            if (invitedUserId.equals(user.getId())) {
+                InviteGetDTO dto = new InviteGetDTO();
+                dto.setMatchId(match.getMatchId());
+                dto.setPlayerSlot(slot);
+                dto.setFromUsername(match.getHost()); // uses host's username
+                pendingInvites.add(dto);
+            }
+        }
+    }
+
+    return pendingInvites;
+}
+
 
 }

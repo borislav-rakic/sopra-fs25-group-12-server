@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 /**
@@ -78,4 +79,15 @@ public class MatchService {
 
         return matchRepository.findMatchByMatchId(matchId);
     }
+
+    public void deleteMatchByHost(Long matchId, String token) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+    
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+        
+        matchRepository.delete(match); 
+    }
 }
+

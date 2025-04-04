@@ -89,5 +89,6 @@ public interface DTOMapper {
   @Mapping(source = "host", target = "host")
   @Mapping(source = "length", target = "length")
   @Mapping(source = "started", target = "started")
+  @Mapping(source = "aiPlayers", target = "aiPlayers")
   MatchDTO convertEntityToMatchDTO(Match match);
 }

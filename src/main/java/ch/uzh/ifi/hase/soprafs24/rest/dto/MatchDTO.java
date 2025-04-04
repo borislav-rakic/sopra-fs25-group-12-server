@@ -1,6 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
 import java.util.List;
+import java.util.Map;
 
 public class MatchDTO {
     private Long matchId;
@@ -8,6 +9,8 @@ public class MatchDTO {
     private String host;
     private int length;
     private boolean started;
+    private Map<Integer, Long> invites;
+    private List<Integer> aiPlayers;
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -48,4 +51,21 @@ public class MatchDTO {
     public boolean getStarted() {
         return started;
     }
+
+    public Map<Integer, Long> getInvites() {
+        return invites;
+    }
+
+    public void setInvites(Map<Integer, Long> invites) {
+        this.invites = invites;
+    }
+
+    public List<Integer> getAiPlayers() {
+        return aiPlayers;
+    }
+    
+    public void setAiPlayers(List<Integer> aiPlayers) {
+        this.aiPlayers = aiPlayers;
+    }
+    
 }

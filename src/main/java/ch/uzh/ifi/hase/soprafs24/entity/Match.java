@@ -6,6 +6,9 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
+
 
 @Entity
 @Table(name = "MATCH")
@@ -29,8 +32,23 @@ public class Match implements Serializable {
     @Column
     private boolean started;
 
-    public void setMatchId(Long matchId) {
-        this.matchId = matchId;
+    @ElementCollection
+    @CollectionTable(name = "match_invites", joinColumns = @JoinColumn(name = "match_id"))
+    @MapKeyColumn(name = "slot_index")
+    @Column(name = "user_id")
+    private Map<Integer, Long> invites = new HashMap<>();
+
+    @ElementCollection
+    @CollectionTable(name = "match_ai_players", joinColumns = @JoinColumn(name = "match_id"))
+    @Column(name = "difficulty")
+    private List<Integer> aiPlayers = new ArrayList<>();
+
+    public List<Integer> getAiPlayers() {
+        return aiPlayers;
+    }
+    
+    public void setAiPlayers(List<Integer> aiPlayers) {
+        this.aiPlayers = aiPlayers;
     }
 
     public Long getMatchId() {
@@ -60,4 +78,13 @@ public class Match implements Serializable {
     public boolean getStarted() {
         return started;
     }
+
+    public Map<Integer, Long> getInvites() {
+        return invites;
+    }
+    
+    public void setInvites(Map<Integer, Long> invites) {
+        this.invites = invites;
+    }
+
 }

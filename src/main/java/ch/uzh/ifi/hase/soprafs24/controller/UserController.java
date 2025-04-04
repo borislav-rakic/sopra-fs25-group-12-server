@@ -1,13 +1,18 @@
 package ch.uzh.ifi.hase.soprafs24.controller;
 
+import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserAuthDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserCreateDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserGetDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPrivateDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPutDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserLoginDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteGetDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
+import ch.uzh.ifi.hase.soprafs24.service.MatchService;
 import ch.uzh.ifi.hase.soprafs24.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -20,6 +25,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
+import java.util.Map;
+
 
 /**
  * User Controller
@@ -32,9 +39,13 @@ import java.util.stream.Collectors;
 public class UserController {
 
   private final UserService userService;
+  private final MatchRepository matchRepository;
+  private final UserRepository userRepository;
 
-  UserController(UserService userService) {
+  UserController(UserService userService, MatchRepository matchRepository, UserRepository userRepository) {
     this.userService = userService;
+    this.matchRepository = matchRepository;
+    this.userRepository = userRepository;
   }
 
   public String hashPassword(String plainPassword) {
@@ -149,5 +160,43 @@ public class UserController {
 
     userService.updateUser(currentUser.getId(), userUpdates);
   }
+
+  @GetMapping("/users/me/invites")
+  @ResponseStatus(HttpStatus.OK)
+  public List<InviteGetDTO> getPendingInvites(@RequestHeader("Authorization") String authHeader) {
+      String token = authHeader.replace("Bearer ", "");
+      User user = userRepository.findUserByToken(token);
+
+      List<Match> matches = matchRepository.findAll();
+
+      List<InviteGetDTO> invites = new ArrayList<>();
+
+      for (Match match : matches) {
+          Map<Integer, Long> matchInvites = match.getInvites();
+          if (matchInvites != null && matchInvites.containsValue(user.getId())) {
+              Integer slot = null;
+              for (Map.Entry<Integer, Long> entry : matchInvites.entrySet()) {
+                  if (entry.getValue().equals(user.getId())) {
+                      slot = entry.getKey();
+                      break;
+                  }
+              }
+
+              if (slot != null) {
+                  InviteGetDTO dto = new InviteGetDTO();
+                  dto.setMatchId(match.getMatchId());
+                  dto.setPlayerSlot(slot);
+                  dto.setHost(match.getHost());
+                  dto.setUserId(user.getId());
+                  User hostUser = userRepository.findUserByUsername(match.getHost());
+                  dto.setFromUsername(hostUser.getUsername());
+                  invites.add(dto);
+              }
+          }
+      }
+
+      return invites;
+  }
+
 
 }
