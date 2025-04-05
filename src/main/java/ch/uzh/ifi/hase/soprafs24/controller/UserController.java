@@ -39,13 +39,9 @@ import java.util.Map;
 public class UserController {
 
   private final UserService userService;
-  private final MatchRepository matchRepository;
-  private final UserRepository userRepository;
 
-  UserController(UserService userService, MatchRepository matchRepository, UserRepository userRepository) {
+  UserController(UserService userService) {
     this.userService = userService;
-    this.matchRepository = matchRepository;
-    this.userRepository = userRepository;
   }
 
   public String hashPassword(String plainPassword) {
@@ -164,38 +160,7 @@ public class UserController {
   @GetMapping("/users/me/invites")
   @ResponseStatus(HttpStatus.OK)
   public List<InviteGetDTO> getPendingInvites(@RequestHeader("Authorization") String authHeader) {
-      String token = authHeader.replace("Bearer ", "");
-      User user = userRepository.findUserByToken(token);
-
-      List<Match> matches = matchRepository.findAll();
-
-      List<InviteGetDTO> invites = new ArrayList<>();
-
-      for (Match match : matches) {
-          Map<Integer, Long> matchInvites = match.getInvites();
-          if (matchInvites != null && matchInvites.containsValue(user.getId())) {
-              Integer slot = null;
-              for (Map.Entry<Integer, Long> entry : matchInvites.entrySet()) {
-                  if (entry.getValue().equals(user.getId())) {
-                      slot = entry.getKey();
-                      break;
-                  }
-              }
-
-              if (slot != null) {
-                  InviteGetDTO dto = new InviteGetDTO();
-                  dto.setMatchId(match.getMatchId());
-                  dto.setPlayerSlot(slot);
-                  dto.setHost(match.getHost());
-                  dto.setUserId(user.getId());
-                  User hostUser = userRepository.findUserByUsername(match.getHost());
-                  dto.setFromUsername(hostUser.getUsername());
-                  invites.add(dto);
-              }
-          }
-      }
-
-      return invites;
+      return userService.getPendingInvites(authHeader);
   }
 
 

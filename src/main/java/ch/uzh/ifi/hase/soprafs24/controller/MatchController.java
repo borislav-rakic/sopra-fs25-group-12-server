@@ -33,15 +33,11 @@ import java.util.Map;
 @RestController
 public class MatchController {
     private final MatchService matchService;
-    private final MatchRepository matchRepository;
-    private final UserRepository userRepository;
     private final Logger log = LoggerFactory.getLogger(MatchController.class);
 
 
-    MatchController(MatchService matchService, MatchRepository matchRepository, UserRepository userRepository) {
+    MatchController(MatchService matchService) {
         this.matchService = matchService;
-        this.matchRepository = matchRepository;
-        this.userRepository = userRepository;
     }
     
 
@@ -104,20 +100,7 @@ public class MatchController {
         @PathVariable Long matchId,
         @RequestBody InviteRequestDTO request
     ) {
-        Long userId = request.getUserId();
-        Integer playerSlot = request.getPlayerSlot();
-
-        Match match = matchRepository.findById(matchId).orElseThrow();
-
-        Map<Integer, Long> invites = match.getInvites();
-        if (invites == null) {
-            invites = new java.util.HashMap<>();
-        }
-
-        invites.put(playerSlot, userId);
-        match.setInvites(invites);
-
-        matchRepository.save(match);
+        matchService.invitePlayerToMatch(matchId, request);
     }
 
 
@@ -131,37 +114,10 @@ public class MatchController {
     ) {
 
         if (responseDTO == null) {
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is missing or invalid");
-    }
-
-        String token = authHeader.replace("Bearer ", "");
-        User user = userRepository.findUserByToken(token);
-
-        Match match = matchRepository.findById(matchId).orElse(null);
-
-        Map<Integer, Long> invites = match.getInvites();
-
-        Integer slot = null;
-
-        for (Map.Entry<Integer, Long> entry : invites.entrySet()) {
-            if (entry.getValue().equals(user.getId())) {
-                slot = entry.getKey();
-                break;
-            }
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is missing or invalid");
         }
 
-        if (responseDTO.isAccepted()) {
-            List<Long> players = match.getPlayerIds();
-            while (players.size() <= slot) {
-                players.add(null);
-            }
-            players.set(slot, user.getId());
-            match.setPlayerIds(players);
-        }
-        invites.remove(slot);
-        match.setInvites(invites);
-
-        matchRepository.save(match); 
+        matchService.respondToInvite(matchId, authHeader, responseDTO);
     }
 
     @PostMapping("/matches/{matchId}/length")
@@ -170,15 +126,7 @@ public class MatchController {
         @PathVariable Long matchId,
         @RequestBody Map<String, Integer> body
     ) {
-        Match match = matchRepository.findById(matchId)
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found"));
-
-        if (!body.containsKey("length")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing 'length' field");
-        }
-
-        match.setLength(body.get("length"));
-        matchRepository.save(match);
+        matchService.updateMatchLength(matchId, body);
     }
 
     @PostMapping("/matches/{matchId}/ai")
@@ -187,17 +135,17 @@ public class MatchController {
         @PathVariable Long matchId,
         @RequestBody AIPlayerDTO dto
     ) {
-        Match match = matchRepository.findById(matchId).orElseThrow();
+        matchService.addAiPlayer(matchId, dto);
+    }
 
-        List<Integer> aiPlayers = match.getAiPlayers();
-        if (aiPlayers == null) {
-            aiPlayers = new ArrayList<>();
-        }
-
-        aiPlayers.add(dto.getDifficulty());
-        match.setAiPlayers(aiPlayers);
-
-        matchRepository.save(match);
+    /**
+     * Gets only the information necessary for the player requesting the information.
+     * @return The information of the match
+     */
+    @PostMapping("/matches/{matchId}/logic")
+    @ResponseStatus(HttpStatus.OK)
+    public MatchDTO getPlayerMatchInformation(@PathVariable Long matchId, @RequestBody MatchCreateDTO matchCreateDTO) {
+        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.gameLogic(matchCreateDTO, matchId));
     }
 
 }

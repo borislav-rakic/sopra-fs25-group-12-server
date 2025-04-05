@@ -232,31 +232,66 @@ public class UserService {
     return userRepository.findAll(spec, pageable);
   }
 
-  public List<InviteGetDTO> getPendingInvitesForUser(User user) {
-    List<InviteGetDTO> pendingInvites = new ArrayList<>();
+  public List<InviteGetDTO> getPendingInvites(String authHeader) {
+      String token = authHeader.replace("Bearer ", "");
+      User user = userRepository.findUserByToken(token);
 
-    List<Match> allMatches = matchRepository.findAll();
+      List<Match> matches = matchRepository.findAll();
 
-    for (Match match : allMatches) {
-        Map<Integer, Long> invites = match.getInvites();
-        if (invites == null) continue;
+      List<InviteGetDTO> invites = new ArrayList<>();
 
-        for (Map.Entry<Integer, Long> entry : invites.entrySet()) {
-            Integer slot = entry.getKey();
-            Long invitedUserId = entry.getValue();
+      for (Match match : matches) {
+          Map<Integer, Long> matchInvites = match.getInvites();
+          if (matchInvites != null && matchInvites.containsValue(user.getId())) {
+              Integer slot = null;
+              for (Map.Entry<Integer, Long> entry : matchInvites.entrySet()) {
+                  if (entry.getValue().equals(user.getId())) {
+                      slot = entry.getKey();
+                      break;
+                  }
+              }
 
-            if (invitedUserId.equals(user.getId())) {
-                InviteGetDTO dto = new InviteGetDTO();
-                dto.setMatchId(match.getMatchId());
-                dto.setPlayerSlot(slot);
-                dto.setFromUsername(match.getHost()); // uses host's username
-                pendingInvites.add(dto);
-            }
-        }
-    }
+              if (slot != null) {
+                  InviteGetDTO dto = new InviteGetDTO();
+                  dto.setMatchId(match.getMatchId());
+                  dto.setPlayerSlot(slot);
+                  dto.setHost(match.getHost());
+                  dto.setUserId(user.getId());
+                  User hostUser = userRepository.findUserByUsername(match.getHost());
+                  dto.setFromUsername(hostUser.getUsername());
+                  invites.add(dto);
+              }
+          }
+      }
 
-    return pendingInvites;
-}
+      return invites;
+  }
+
+//  public List<InviteGetDTO> getPendingInvitesForUser(User user) {
+//    List<InviteGetDTO> pendingInvites = new ArrayList<>();
+//
+//    List<Match> allMatches = matchRepository.findAll();
+//
+//    for (Match match : allMatches) {
+//        Map<Integer, Long> invites = match.getInvites();
+//        if (invites == null) continue;
+//
+//        for (Map.Entry<Integer, Long> entry : invites.entrySet()) {
+//            Integer slot = entry.getKey();
+//            Long invitedUserId = entry.getValue();
+//
+//            if (invitedUserId.equals(user.getId())) {
+//                InviteGetDTO dto = new InviteGetDTO();
+//                dto.setMatchId(match.getMatchId());
+//                dto.setPlayerSlot(slot);
+//                dto.setFromUsername(match.getHost()); // uses host's username
+//                pendingInvites.add(dto);
+//            }
+//        }
+//    }
+//
+//    return pendingInvites;
+//}
 
 
 }

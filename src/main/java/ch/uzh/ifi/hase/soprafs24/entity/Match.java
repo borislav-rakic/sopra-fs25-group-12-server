@@ -51,6 +51,10 @@ public class Match implements Serializable {
         this.aiPlayers = aiPlayers;
     }
 
+    public void setMatchId(Long matchId) {
+        this.matchId = matchId;
+    }
+
     public Long getMatchId() {
         return matchId;
     }

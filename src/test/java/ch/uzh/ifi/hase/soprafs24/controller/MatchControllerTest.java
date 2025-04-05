@@ -18,6 +18,7 @@ import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilde
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 
 import static org.hamcrest.Matchers.is;
@@ -44,6 +45,7 @@ public class MatchControllerTest {
 
     @Test
     public void testCreateMatch() throws Exception {
+        System.out.println("TESTINGCONTROLLER");
         //given
         List<Long> playerIdList = new ArrayList<>();
         playerIdList.add(1L);
@@ -55,6 +57,10 @@ public class MatchControllerTest {
         match.setMatchId(1L);
         match.setStarted(false);
         match.setPlayerIds(playerIdList);
+        match.setHost("User");
+        match.setLength(100);
+        match.setInvites(new HashMap<>());
+        match.setAiPlayers(new ArrayList<>());
 
         MatchCreateDTO matchCreateDTO = new MatchCreateDTO();
         matchCreateDTO.setPlayerToken("1234");
