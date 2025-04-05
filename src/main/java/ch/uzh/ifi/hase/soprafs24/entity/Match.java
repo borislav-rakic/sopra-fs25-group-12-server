@@ -43,6 +43,19 @@ public class Match implements Serializable {
     @Column(name = "difficulty")
     private List<Integer> aiPlayers = new ArrayList<>();
 
+    @ElementCollection
+    @CollectionTable(name = "match_join_requests", joinColumns = @JoinColumn(name = "match_id"))
+    @Column(name = "user_id")
+    private  Map<Long, String> joinRequests = new HashMap<>();
+
+    public Map<Long, String> getJoinRequests() {
+        return joinRequests;
+    }
+
+    public void setJoinRequests(Map<Long, String> joinRequests) {
+        this.joinRequests = joinRequests;
+    }
+
     public List<Integer> getAiPlayers() {
         return aiPlayers;
     }
@@ -89,6 +102,10 @@ public class Match implements Serializable {
     
     public void setInvites(Map<Integer, Long> invites) {
         this.invites = invites;
+    }
+
+    public String getJoinRequestStatus(Long userId) {
+        return joinRequests.getOrDefault(userId, "not found");
     }
 
 }

@@ -6,11 +6,9 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.MatchDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.AIPlayerDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteRequestDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteResponseDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.JoinRequestDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 import ch.uzh.ifi.hase.soprafs24.service.MatchService;
-import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
-import ch.uzh.ifi.hase.soprafs24.entity.User;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
@@ -19,7 +17,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -94,6 +91,9 @@ public class MatchController {
         matchService.deleteMatchByHost(matchId, token);
     }
 
+    /**
+     * Sends an invitation to a player.
+     */
     @PostMapping("/matches/{matchId}/invite")
     @ResponseStatus(HttpStatus.OK)
     public void invitePlayerToMatch(
@@ -103,8 +103,9 @@ public class MatchController {
         matchService.invitePlayerToMatch(matchId, request);
     }
 
-
-
+    /**
+     * Responds to a match invite (accept/decline).
+     */
     @PostMapping("/matches/{matchId}/invite/respond")
     @ResponseStatus(HttpStatus.OK)
     public void respondToInvite(
@@ -120,6 +121,9 @@ public class MatchController {
         matchService.respondToInvite(matchId, authHeader, responseDTO);
     }
 
+    /**
+     * Updates the match length (points limits).
+     */
     @PostMapping("/matches/{matchId}/length")
     @ResponseStatus(HttpStatus.OK)
     public void updateMatchLength(
@@ -129,6 +133,9 @@ public class MatchController {
         matchService.updateMatchLength(matchId, body);
     }
 
+    /**
+     * Adds an AI player to a match.
+     */
     @PostMapping("/matches/{matchId}/ai")
     @ResponseStatus(HttpStatus.OK)
     public void addAiPlayer(
@@ -146,6 +153,41 @@ public class MatchController {
     @ResponseStatus(HttpStatus.OK)
     public MatchDTO getPlayerMatchInformation(@PathVariable Long matchId, @RequestBody MatchCreateDTO matchCreateDTO) {
         return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.gameLogic(matchCreateDTO, matchId));
+    }
+
+    /**
+     * Sends a join request.
+     */
+    @PostMapping("/matches/{matchId}/join")
+    public void sendJoinRequest(@PathVariable Long matchId, @RequestBody JoinRequestDTO joinRequestDTO) {
+        Long userId = joinRequestDTO.getUserId();
+        matchService.sendJoinRequest(matchId, userId);
+    }
+
+    /**
+     * Accepts a join request.
+     */
+    @PostMapping("/matches/{matchId}/join/accept")
+    public void acceptJoinRequest(@PathVariable Long matchId, @RequestBody JoinRequestDTO joinRequestDTO) {
+        Long userId = joinRequestDTO.getUserId();
+        matchService.acceptJoinRequest(matchId, userId);
+    }
+
+    /**
+     * Declines a join request.
+     */
+    @PostMapping("/matches/{matchId}/join/decline")
+    public void declineJoinRequest(@PathVariable Long matchId, @RequestBody JoinRequestDTO joinRequestDTO) {
+        Long userId = joinRequestDTO.getUserId();
+        matchService.declineJoinRequest(matchId, userId);
+    }
+
+    /**
+     * Retrieves the list of all join requests for a match.
+     */
+    @GetMapping("/matches/{matchId}/joinRequests")  
+    public List<JoinRequestDTO> getJoinRequests(@PathVariable Long matchId) {
+        return matchService.getJoinRequests(matchId);  
     }
 
 }

@@ -2,8 +2,6 @@ package ch.uzh.ifi.hase.soprafs24.controller;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
-import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserAuthDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserCreateDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserGetDTO;
@@ -37,8 +35,8 @@ import java.util.Map;
  */
 @RestController
 public class UserController {
-
   private final UserService userService;
+
 
   UserController(UserService userService) {
     this.userService = userService;
@@ -55,20 +53,25 @@ public class UserController {
     throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
   }
 
+
+  /**
+   * Retrieves the list of all users.
+   */
   @GetMapping("/users")
   @ResponseStatus(HttpStatus.OK)
   public List<UserGetDTO> getAllUsers() {
-    // fetch all users in the internal representation
     List<User> users = userService.getUsers();
     List<UserGetDTO> userGetDTOs = new ArrayList<>();
 
-    // convert each user to the API representation
     for (User user : users) {
       userGetDTOs.add(DTOMapper.INSTANCE.convertEntityToUserGetDTO(user));
     }
     return userGetDTOs;
   }
 
+  /**
+   * Searches users by username.
+   */
   @GetMapping("/users/search")
   public List<UserGetDTO> searchUsers(@RequestParam String username) {
     List<User> users = userService.searchUsersByUsername(username);
@@ -77,26 +80,27 @@ public class UserController {
         .collect(Collectors.toList());
   }
 
+  /**
+   * Registers a new user.
+   */
   @PostMapping("/users")
   @ResponseStatus(HttpStatus.CREATED)
   public UserAuthDTO createUser(@RequestBody UserCreateDTO userCreateDTO) {
-    // convert API user to internal representation
     User userInput = DTOMapper.INSTANCE.convertUserCreateDTOtoEntity(userCreateDTO);
 
-    // hash password
     String hashedPassword = hashPassword(userInput.getPassword());
     userInput.setPassword(hashedPassword);
 
-    // generate token
     userInput.setToken(UUID.randomUUID().toString());
 
-    // create user
     User createdUser = userService.createUser(userInput);
 
-    // convert internal representation of user back to auth DTO
     return DTOMapper.INSTANCE.convertEntityToUserAuthDTO(createdUser);
   }
 
+  /**
+   * Gets public user data for a specific user by ID.
+   */
   @GetMapping("/users/{userId}")
   @ResponseStatus(HttpStatus.OK)
   public UserGetDTO getUserById(@PathVariable Long userId) {
@@ -104,6 +108,9 @@ public class UserController {
     return DTOMapper.INSTANCE.convertEntityToUserGetDTO(user);
   }
 
+  /**
+   * Gets private data of the authenticated user.
+   */
   @GetMapping("/users/me")
   @ResponseStatus(HttpStatus.OK)
   public UserPrivateDTO getOwnUser(@RequestHeader("Authorization") String authHeader) {
@@ -112,6 +119,9 @@ public class UserController {
     return DTOMapper.INSTANCE.convertEntityToUserPrivateDTO(user);
   }
 
+  /**
+   * Logs in a user using username and password.
+   */
   @PostMapping("/login")
   @ResponseStatus(HttpStatus.OK)
   public UserAuthDTO loginUser(@RequestBody UserLoginDTO loginDTO) {
@@ -119,6 +129,9 @@ public class UserController {
     return DTOMapper.INSTANCE.convertEntityToUserAuthDTO(user);
   }
 
+  /**
+   * Logs out the currently authenticated user.
+   */
   @PostMapping("/logout")
   @ResponseStatus(HttpStatus.NO_CONTENT) // 204
   public void logoutUser(@RequestHeader("Authorization") String authHeader) {
@@ -126,6 +139,9 @@ public class UserController {
     userService.logoutUserByToken(token);
   }
 
+  /**
+   * Updates the currently authenticated user’s profile data.
+   */
   @PutMapping("/users/me")
   @ResponseStatus(HttpStatus.NO_CONTENT)
   public void updateCurrentUser(@RequestHeader("Authorization") String authHeader,
@@ -157,6 +173,9 @@ public class UserController {
     userService.updateUser(currentUser.getId(), userUpdates);
   }
 
+  /**
+   * Returns a list of all pending invites for the authenticated user.
+   */
   @GetMapping("/users/me/invites")
   @ResponseStatus(HttpStatus.OK)
   public List<InviteGetDTO> getPendingInvites(@RequestHeader("Authorization") String authHeader) {

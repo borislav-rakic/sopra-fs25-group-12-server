@@ -11,6 +11,7 @@ public class MatchDTO {
     private boolean started;
     private Map<Integer, Long> invites;
     private List<Integer> aiPlayers;
+    private Map<Long, String> joinRequests;
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -68,4 +69,11 @@ public class MatchDTO {
         this.aiPlayers = aiPlayers;
     }
     
+    public Map<Long, String> getJoinRequests() {
+        return joinRequests;
+    }
+
+    public void setJoinRequests(Map<Long, String> joinRequests) {
+        this.joinRequests = joinRequests;
+    }
 }

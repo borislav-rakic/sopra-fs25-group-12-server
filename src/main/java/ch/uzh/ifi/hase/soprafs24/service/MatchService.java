@@ -7,6 +7,7 @@ import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.AIPlayerDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteRequestDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteResponseDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.JoinRequestDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.MatchCreateDTO;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -22,6 +23,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 
 /**
  * Match Service
@@ -173,7 +175,51 @@ public class MatchService {
     }
 
     public Match gameLogic(MatchCreateDTO matchCreateDTO, Long matchId) {
-        return new Match();
+        return new Match();}
+
+        public void sendJoinRequest(Long matchId, Long userId) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        if (match != null) {
+            // Ensure the user isn't already in the match or hasn't already sent a request
+            if (!match.getPlayerIds().contains(userId) && !match.getJoinRequests().containsKey(userId)) {
+                match.getJoinRequests().put(userId, "pending"); // Add the user to joinRequests
+                matchRepository.save(match); // Save the match object with updated joinRequests
+            } else {
+                // Handle the case where the user is already in the match or has already requested
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already in match or request already sent");
+            }
+        } else {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+    }
+
+    public void acceptJoinRequest(Long matchId, Long userId) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        if (match != null) {
+                match.getJoinRequests().put(userId, "accepted");
+                match.getPlayerIds().add(userId);
+                matchRepository.save(match);
+            }
+        }
+
+    public void declineJoinRequest(Long matchId, Long userId) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        if (match != null) {
+            match.getJoinRequests().put(userId, "declined");
+            matchRepository.save(match);
+        }
+    }
+
+    public List<JoinRequestDTO> getJoinRequests(Long matchId) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        List<JoinRequestDTO> joinRequestDTOs = new ArrayList<>();
+        for (Entry<Long, String> entry : match.getJoinRequests().entrySet()) {
+            JoinRequestDTO dto = new JoinRequestDTO();
+            dto.setUserId(entry.getKey());
+            dto.setStatus(entry.getValue());
+            joinRequestDTOs.add(dto);
+        }
+        return joinRequestDTOs;
     }
 }
 
