@@ -1,11 +1,14 @@
 package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
+import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 public class MatchDTO {
     private Long matchId;
-    private List<Long> playerIds;
+    private List<Long> matchPlayerIds;
     private String host;
     private int length;
     private boolean started;
@@ -21,12 +24,18 @@ public class MatchDTO {
         return matchId;
     }
 
-    public void setPlayerIds(List<Long> playerIds) {
-        this.playerIds = playerIds;
+    public void setMatchPlayerIds(List<MatchPlayer> matchPlayers) {
+        List<Long> matchPlayerIds = new ArrayList<>();
+
+        for (MatchPlayer matchPlayer : matchPlayers) {
+            matchPlayerIds.add(matchPlayer.getMatchPlayerId());
+        }
+
+        this.matchPlayerIds = matchPlayerIds;
     }
 
-    public List<Long> getPlayerIds() {
-        return playerIds;
+    public List<Long> getMatchPlayerIds() {
+        return matchPlayerIds;
     }
 
     public void setHost(String host) {

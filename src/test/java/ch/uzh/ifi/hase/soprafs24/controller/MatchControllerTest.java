@@ -1,6 +1,8 @@
 package ch.uzh.ifi.hase.soprafs24.controller;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.MatchCreateDTO;
 import ch.uzh.ifi.hase.soprafs24.service.MatchService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -45,22 +47,24 @@ public class MatchControllerTest {
 
     @Test
     public void testCreateMatch() throws Exception {
-        System.out.println("TESTINGCONTROLLER");
-        //given
-        List<Long> playerIdList = new ArrayList<>();
-        playerIdList.add(1L);
-        playerIdList.add(null);
-        playerIdList.add(null);
-        playerIdList.add(null);
-
         Match match = new Match();
+
+        List<MatchPlayer> matchPlayers = new ArrayList<>();
+        MatchPlayer matchPlayer = new MatchPlayer();
+        matchPlayer.setPlayerId(new User());
+        matchPlayer.setMatch(match);
+        matchPlayers.add(matchPlayer);
+
         match.setMatchId(1L);
         match.setStarted(false);
-        match.setPlayerIds(playerIdList);
+        match.setMatchPlayers(matchPlayers);
         match.setHost("User");
         match.setLength(100);
         match.setInvites(new HashMap<>());
         match.setAiPlayers(new ArrayList<>());
+
+        List<Long> matchPlayerIds = new ArrayList<>();
+        matchPlayerIds.add(match.getMatchPlayers().get(0).getMatchPlayerId());
 
         MatchCreateDTO matchCreateDTO = new MatchCreateDTO();
         matchCreateDTO.setPlayerToken("1234");
@@ -75,22 +79,25 @@ public class MatchControllerTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.matchId", is(match.getMatchId().intValue())))
                 .andExpect(jsonPath("$.started", is(match.getStarted())))
-                .andExpect(jsonPath("$.playerIds", contains(is(1), Matchers.nullValue(), Matchers.nullValue(), Matchers.nullValue())));
+                .andExpect(jsonPath("$.matchPlayerIds", is(matchPlayerIds)));
     }
 
     @Test
     public void testGetMatchesInformation() throws Exception {
-        //given
-        List<Long> playerIdList = new ArrayList<>();
-        playerIdList.add(1L);
-        playerIdList.add(null);
-        playerIdList.add(null);
-        playerIdList.add(null);
-
         Match match = new Match();
+
+        List<MatchPlayer> matchPlayers = new ArrayList<>();
+        MatchPlayer matchPlayer = new MatchPlayer();
+        matchPlayer.setPlayerId(new User());
+        matchPlayer.setMatch(match);
+        matchPlayers.add(matchPlayer);
+
         match.setMatchId(1L);
         match.setStarted(false);
-        match.setPlayerIds(playerIdList);
+        match.setMatchPlayers(matchPlayers);
+
+        List<Long> matchPlayerIds = new ArrayList<>();
+        matchPlayerIds.add(match.getMatchPlayers().get(0).getMatchPlayerId());
 
         List<Match> matches = new ArrayList<>();
         matches.add(match);
@@ -103,22 +110,25 @@ public class MatchControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$[0].matchId", is(match.getMatchId().intValue())))
                 .andExpect(jsonPath("$[0].started", is(match.getStarted())))
-                .andExpect(jsonPath("$[0].playerIds", contains(is(1), Matchers.nullValue(), Matchers.nullValue(), Matchers.nullValue())));
+                .andExpect(jsonPath("$[0].matchPlayerIds", is(matchPlayerIds)));
     }
 
     @Test
     public void testGetMatchInformation() throws Exception {
-        //given
-        List<Long> playerIdList = new ArrayList<>();
-        playerIdList.add(1L);
-        playerIdList.add(null);
-        playerIdList.add(null);
-        playerIdList.add(null);
-
         Match match = new Match();
+
+        List<MatchPlayer> matchPlayers = new ArrayList<>();
+        MatchPlayer matchPlayer = new MatchPlayer();
+        matchPlayer.setPlayerId(new User());
+        matchPlayer.setMatch(match);
+        matchPlayers.add(matchPlayer);
+
         match.setMatchId(1L);
         match.setStarted(false);
-        match.setPlayerIds(playerIdList);
+        match.setMatchPlayers(matchPlayers);
+
+        List<Long> matchPlayerIds = new ArrayList<>();
+        matchPlayerIds.add(match.getMatchPlayers().get(0).getMatchPlayerId());
 
         given(matchService.getMatchInformation(Mockito.any())).willReturn(match);
 
@@ -128,7 +138,7 @@ public class MatchControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.matchId", is(match.getMatchId().intValue())))
                 .andExpect(jsonPath("$.started", is(match.getStarted())))
-                .andExpect(jsonPath("$.playerIds", contains(is(1), Matchers.nullValue(), Matchers.nullValue(), Matchers.nullValue())));
+                .andExpect(jsonPath("$.matchPlayerIds", is(matchPlayerIds)));
     }
 
     /**

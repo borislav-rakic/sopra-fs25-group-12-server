@@ -1,7 +1,9 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.AIPlayerDTO;
@@ -40,12 +42,18 @@ public class MatchService {
     private final MatchRepository matchRepository;
     private final UserService userService;
     private final UserRepository userRepository;
+    private final MatchPlayerRepository matchPlayerRepository;
 
     @Autowired
-    public MatchService(@Qualifier("matchRepository") MatchRepository matchRepository, UserService userService, @Qualifier("userRepository") UserRepository userRepository) {
+    public MatchService(
+            @Qualifier("matchRepository") MatchRepository matchRepository,
+            UserService userService,
+            @Qualifier("userRepository") UserRepository userRepository,
+            @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository) {
         this.matchRepository = matchRepository;
         this.userService = userService;
         this.userRepository = userRepository;
+        this.matchPlayerRepository = matchPlayerRepository;
     }
 
     public Match createNewMatch(MatchCreateDTO newMatch) {
@@ -57,13 +65,12 @@ public class MatchService {
 
         Match match = new Match();
 
-        List<Long> playerList = new ArrayList<>();
-        playerList.add(user.getId());
-        playerList.add(null);
-        playerList.add(null);
-        playerList.add(null);
+        List<MatchPlayer> matchPlayers = new ArrayList<>();
+        matchPlayers.add(new MatchPlayer());
+        matchPlayers.get(0).setPlayerId(user);
+        matchPlayers.get(0).setMatch(match);
 
-        match.setPlayerIds(playerList);
+        match.setMatchPlayers(matchPlayers);
         match.setHost(user.getUsername());
         match.setLength(100);
         match.setStarted(false);
@@ -71,7 +78,9 @@ public class MatchService {
         matchRepository.save(match);
         matchRepository.flush();
 
-        System.out.println(match.getMatchId());
+        System.out.println("MATCHID: " + match.getMatchId());
+
+        System.out.println("PLAYERID: " + match.getMatchPlayers().get(0).getPlayerId());
 
         return match;
     }
@@ -135,12 +144,21 @@ public class MatchService {
         }
 
         if (responseDTO.isAccepted()) {
-            List<Long> players = match.getPlayerIds();
+            List<MatchPlayer> players = match.getMatchPlayers();
+//            List<Long> players = match.getPlayerIds();
+
             while (players.size() <= slot) {
                 players.add(null);
             }
-            players.set(slot, user.getId());
-            match.setPlayerIds(players);
+
+            MatchPlayer newMatchPlayer = new MatchPlayer();
+            newMatchPlayer.setPlayerId(user);
+            newMatchPlayer.setMatch(match);
+
+            players.set(slot, newMatchPlayer);
+
+            match.setMatchPlayers(players);
+//            match.setPlayerIds(players);
         }
         invites.remove(slot);
         match.setInvites(invites);
@@ -175,32 +193,48 @@ public class MatchService {
     }
 
     public Match gameLogic(MatchCreateDTO matchCreateDTO, Long matchId) {
-        return new Match();}
+        return new Match();
+    }
 
-        public void sendJoinRequest(Long matchId, Long userId) {
+    public void sendJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
-        if (match != null) {
-            // Ensure the user isn't already in the match or hasn't already sent a request
-            if (!match.getPlayerIds().contains(userId) && !match.getJoinRequests().containsKey(userId)) {
-                match.getJoinRequests().put(userId, "pending"); // Add the user to joinRequests
-                matchRepository.save(match); // Save the match object with updated joinRequests
-            } else {
-                // Handle the case where the user is already in the match or has already requested
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already in match or request already sent");
-            }
-        } else {
+        User user = userRepository.findUserById(userId);
+
+        if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found");
+        }
+
+        MatchPlayer userToMatchPlayer = matchPlayerRepository.findMatchPlayerByUser(user);
+
+        // Ensure the user isn't already in the match or hasn't already sent a request
+        if (userToMatchPlayer == null && !match.getJoinRequests().containsKey(userId)) {
+            match.getJoinRequests().put(userId, "pending"); // Add the user to joinRequests
+            matchRepository.save(match); // Save the match object with updated joinRequests
         }
     }
 
     public void acceptJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         if (match != null) {
-                match.getJoinRequests().put(userId, "accepted");
-                match.getPlayerIds().add(userId);
-                matchRepository.save(match);
+            match.getJoinRequests().put(userId, "accepted");
+
+            User user = userRepository.findUserById(userId);
+
+            if (user == null) {
+                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
             }
+
+            MatchPlayer newMatchPlayer = new MatchPlayer();
+            newMatchPlayer.setPlayerId(user);
+            newMatchPlayer.setMatch(match);
+
+            match.getMatchPlayers().add(newMatchPlayer);
+            matchRepository.save(match);
         }
+    }
 
     public void declineJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
