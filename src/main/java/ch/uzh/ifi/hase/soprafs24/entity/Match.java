@@ -19,9 +19,12 @@ public class Match implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long matchId;
 
-    @ElementCollection
-    @Column(name = "player_id")
-    private List<Long> playerIds;
+//    @ElementCollection
+//    @Column(name = "player_id")
+//    private List<Long> playerIds;
+
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MatchPlayer> matchPlayers = new ArrayList<>();
 
     @Column(name = "host")
     private String host;
@@ -48,6 +51,9 @@ public class Match implements Serializable {
     @Column(name = "user_id")
     private  Map<Long, String> joinRequests = new HashMap<>();
 
+    @Column(name = "deck_id")
+    private int deckId;
+
     public Map<Long, String> getJoinRequests() {
         return joinRequests;
     }
@@ -72,12 +78,20 @@ public class Match implements Serializable {
         return matchId;
     }
 
-    public void setPlayerIds(List<Long> playerIds) {
-        this.playerIds = playerIds;
+//    public void setPlayerIds(List<Long> playerIds) {
+//        this.playerIds = playerIds;
+//    }
+//
+//    public List<Long> getPlayerIds() {
+//        return playerIds;
+//    }
+
+    public List<MatchPlayer> getMatchPlayers() {
+        return matchPlayers;
     }
 
-    public List<Long> getPlayerIds() {
-        return playerIds;
+    public void setMatchPlayers(List<MatchPlayer> matchPlayers) {
+        this.matchPlayers = matchPlayers;
     }
 
     public void setHost(String host) { this.host = host; }
@@ -108,4 +122,11 @@ public class Match implements Serializable {
         return joinRequests.getOrDefault(userId, "not found");
     }
 
+    public void setDeckId(int deckId) {
+        this.deckId = deckId;
+    }
+
+    public int getDeckId() {
+        return deckId;
+    }
 }
