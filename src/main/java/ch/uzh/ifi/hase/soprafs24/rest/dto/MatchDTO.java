@@ -1,6 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.User;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +16,10 @@ public class MatchDTO {
     private Map<Integer, Long> invites;
     private List<Integer> aiPlayers;
     private Map<Long, String> joinRequests;
+    private Long player1Id;
+    private Long player2Id;
+    private Long player3Id;
+    private Long player4Id;
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -84,5 +89,57 @@ public class MatchDTO {
 
     public void setJoinRequests(Map<Long, String> joinRequests) {
         this.joinRequests = joinRequests;
+    }
+
+    public Long getPlayer1Id() {
+        return player1Id;
+    }
+
+    public void setPlayer1Id(User player1) {
+        try {
+            this.player1Id = player1.getId();
+        }
+        catch (Exception e) {
+            this.player1Id = null;
+        }
+    }
+
+    public Long getPlayer2Id() {
+        return player2Id;
+    }
+
+    public void setPlayer2Id(User player2) {
+        try {
+            this.player2Id = player2.getId();
+        }
+        catch (Exception e) {
+            this.player2Id = null;
+        }
+    }
+
+    public Long getPlayer3Id() {
+        return player3Id;
+    }
+
+    public void setPlayer3Id(User player3) {
+        try {
+            this.player3Id = player3.getId();
+        }
+        catch (Exception e) {
+            this.player3Id = null;
+        }
+    }
+
+    public Long getPlayer4Id() {
+        return player4Id;
+    }
+
+    public void setPlayer4Id(User player4) {
+        try {
+            this.player4Id = player4.getId();
+        }
+        catch (Exception e) {
+            this.player4Id = null;
+        }
     }
 }

@@ -6,11 +6,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.AIPlayerDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteRequestDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteResponseDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.JoinRequestDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.MatchCreateDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,8 +52,8 @@ public class MatchService {
         this.matchPlayerRepository = matchPlayerRepository;
     }
 
-    public Match createNewMatch(MatchCreateDTO newMatch) {
-        User user = userService.getUserByToken(newMatch.getPlayerToken());
+    public Match createNewMatch(String playerToken) {
+        User user = userService.getUserByToken(playerToken);
 
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
@@ -74,6 +70,7 @@ public class MatchService {
         match.setHost(user.getUsername());
         match.setLength(100);
         match.setStarted(false);
+        match.setPlayer1(user);
 
         matchRepository.save(match);
         matchRepository.flush();
@@ -101,9 +98,19 @@ public class MatchService {
 
     public void deleteMatchByHost(Long matchId, String token) {
         Match match = matchRepository.findMatchByMatchId(matchId);
+        User user = userRepository.findUserByToken(token);
     
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+        }
+
+        String userName = user.getUsername();
+
+        if (match.getHost().equals(userName)) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can delete matches");
         }
         
         matchRepository.delete(match); 
@@ -147,17 +154,24 @@ public class MatchService {
             List<MatchPlayer> players = match.getMatchPlayers();
 //            List<Long> players = match.getPlayerIds();
 
-            while (players.size() <= slot) {
-                players.add(null);
-            }
+//            while (players.size() <= slot) {
+//                players.add(null);
+//            }
 
             MatchPlayer newMatchPlayer = new MatchPlayer();
             newMatchPlayer.setPlayerId(user);
             newMatchPlayer.setMatch(match);
 
-            players.set(slot, newMatchPlayer);
+            players.add(newMatchPlayer);
 
             match.setMatchPlayers(players);
+            if (slot == 1) {
+                match.setPlayer2(user);
+            } else if (slot == 2) {
+                match.setPlayer3(user);
+            } else if (slot == 3) {
+                match.setPlayer4(user);
+            }
 //            match.setPlayerIds(players);
         }
         invites.remove(slot);
@@ -192,8 +206,88 @@ public class MatchService {
         matchRepository.save(match);
     }
 
-    public Match gameLogic(MatchCreateDTO matchCreateDTO, Long matchId) {
-        return new Match();
+    public PlayerMatchInformationDTO getPlayerMatchInformation(String token, Long matchId) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        User user = userRepository.findUserByToken(token);
+
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+        }
+
+        MatchPlayer matchPlayer = matchPlayerRepository.findMatchPlayerByUser(user);
+
+        if (matchPlayer == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+
+//        Map<Integer, String> matchPlayers = new HashMap<>();
+//
+//        List<MatchPlayer> matchPlayerList = match.getMatchPlayers();
+//
+//        List<User> usersInMatch = new ArrayList<>();
+//        usersInMatch.add(match.getPlayer1());
+//        usersInMatch.add(match.getPlayer2());
+//        usersInMatch.add(match.getPlayer3());
+//        usersInMatch.add(match.getPlayer4());
+//
+//        for (MatchPlayer player : matchPlayerList) {
+//            User matchPlayerUser = player.getPlayerId();
+//
+//            int slot = 0;
+//
+//            for (User userInMatch : usersInMatch) {
+//                slot++;
+//                if (userInMatch == matchPlayerUser) {
+//                    break;
+//                }
+//            }
+//
+//            matchPlayers.put(slot, matchPlayerUser.getUsername());
+//        }
+
+        List<String> matchPlayers = new ArrayList<>();
+        matchPlayers.add(null);
+        matchPlayers.add(null);
+        matchPlayers.add(null);
+        matchPlayers.add(null);
+
+        List<MatchPlayer> matchPlayerList = match.getMatchPlayers();
+
+        List<User> usersInMatch = new ArrayList<>();
+        usersInMatch.add(match.getPlayer1());
+        usersInMatch.add(match.getPlayer2());
+        usersInMatch.add(match.getPlayer3());
+        usersInMatch.add(match.getPlayer4());
+
+        for (MatchPlayer player : matchPlayerList) {
+            User matchPlayerUser = player.getPlayerId();
+
+            int slot = 0;
+
+            for (User userInMatch : usersInMatch) {
+                if (userInMatch == matchPlayerUser) {
+                    break;
+                }
+                slot++;
+            }
+
+            matchPlayers.set(slot, matchPlayerUser.getUsername());
+        }
+
+        System.out.println(matchPlayers);
+
+        PlayerMatchInformationDTO dto = new PlayerMatchInformationDTO();
+        dto.setMatchId(match.getMatchId());
+        dto.setHost(match.getHost());
+        dto.setMatchPlayers(matchPlayers);
+        dto.setAiPlayers(match.getAiPlayers());
+        dto.setLength(match.getLength());
+        dto.setStarted(true);
+
+        return dto;
     }
 
     public void sendJoinRequest(Long matchId, Long userId) {
@@ -232,6 +326,15 @@ public class MatchService {
             newMatchPlayer.setMatch(match);
 
             match.getMatchPlayers().add(newMatchPlayer);
+
+            if (match.getPlayer2() == null) {
+                match.setPlayer2(user);
+            } else if (match.getPlayer3() == null) {
+                match.setPlayer3(user);
+            } else if (match.getPlayer4() == null) {
+                match.setPlayer4(user);
+            }
+
             matchRepository.save(match);
         }
     }

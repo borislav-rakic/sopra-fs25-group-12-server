@@ -19,10 +19,6 @@ public class Match implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long matchId;
 
-//    @ElementCollection
-//    @Column(name = "player_id")
-//    private List<Long> playerIds;
-
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MatchPlayer> matchPlayers = new ArrayList<>();
 
@@ -54,6 +50,22 @@ public class Match implements Serializable {
     @Column(name = "deck_id")
     private int deckId;
 
+    @ManyToOne
+    @JoinColumn(name = "player_1")
+    private User player1;
+
+    @ManyToOne
+    @JoinColumn(name = "player_2")
+    private User player2;
+
+    @ManyToOne
+    @JoinColumn(name = "player_3")
+    private User player3;
+
+    @ManyToOne
+    @JoinColumn(name = "player_4")
+    private User player4;
+
     public Map<Long, String> getJoinRequests() {
         return joinRequests;
     }
@@ -77,14 +89,6 @@ public class Match implements Serializable {
     public Long getMatchId() {
         return matchId;
     }
-
-//    public void setPlayerIds(List<Long> playerIds) {
-//        this.playerIds = playerIds;
-//    }
-//
-//    public List<Long> getPlayerIds() {
-//        return playerIds;
-//    }
 
     public List<MatchPlayer> getMatchPlayers() {
         return matchPlayers;
@@ -128,5 +132,37 @@ public class Match implements Serializable {
 
     public int getDeckId() {
         return deckId;
+    }
+
+    public User getPlayer1() {
+        return player1;
+    }
+
+    public void setPlayer1(User player1) {
+        this.player1 = player1;
+    }
+
+    public User getPlayer2() {
+        return player2;
+    }
+
+    public void setPlayer2(User player2) {
+        this.player2 = player2;
+    }
+
+    public User getPlayer3() {
+        return player3;
+    }
+
+    public void setPlayer3(User player3) {
+        this.player3 = player3;
+    }
+
+    public User getPlayer4() {
+        return player4;
+    }
+
+    public void setPlayer4(User player4) {
+        this.player4 = player4;
     }
 }

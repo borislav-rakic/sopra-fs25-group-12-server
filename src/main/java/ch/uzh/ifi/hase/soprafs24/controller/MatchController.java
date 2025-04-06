@@ -1,12 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.controller;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.MatchCreateDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.MatchDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.AIPlayerDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteRequestDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteResponseDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.JoinRequestDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 import ch.uzh.ifi.hase.soprafs24.service.MatchService;
 import org.springframework.web.bind.annotation.*;
@@ -45,10 +40,18 @@ public class MatchController {
      */
     @PostMapping("/matches")
     @ResponseStatus(HttpStatus.CREATED)
-    public MatchDTO createNewMatch(@RequestBody MatchCreateDTO matchCreateDTO) {
-        System.out.println("ID: " + matchCreateDTO.getPlayerToken());
+    public MatchDTO createNewMatch(@RequestBody MatchCreateDTO matchCreateDTO, @RequestHeader("Authorization") String authHeader) {
+        System.out.println("TOKEN: " + matchCreateDTO.getPlayerToken());
+        System.out.println("TOKEN_HEADER: " + authHeader);
+        String playerToken;
 
-        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.createNewMatch(matchCreateDTO));
+        if (authHeader != null && authHeader.startsWith("Bearer ")) {
+            playerToken = authHeader.substring(7); // remove "Bearer "
+        } else {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
+        }
+
+        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.createNewMatch(playerToken));
     }
 
     /**
@@ -151,8 +154,9 @@ public class MatchController {
      */
     @PostMapping("/matches/{matchId}/logic")
     @ResponseStatus(HttpStatus.OK)
-    public MatchDTO getPlayerMatchInformation(@PathVariable Long matchId, @RequestBody MatchCreateDTO matchCreateDTO) {
-        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.gameLogic(matchCreateDTO, matchId));
+    public PlayerMatchInformationDTO getPlayerMatchInformation(@PathVariable Long matchId, @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        return matchService.getPlayerMatchInformation(token, matchId);
     }
 
     /**

@@ -3,6 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.controller;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteRequestDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.MatchCreateDTO;
 import ch.uzh.ifi.hase.soprafs24.service.MatchService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -26,8 +27,10 @@ import java.util.List;
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.contains;
 import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -62,6 +65,7 @@ public class MatchControllerTest {
         match.setLength(100);
         match.setInvites(new HashMap<>());
         match.setAiPlayers(new ArrayList<>());
+        match.setPlayer1(new User());
 
         List<Long> matchPlayerIds = new ArrayList<>();
         matchPlayerIds.add(match.getMatchPlayers().get(0).getMatchPlayerId());
@@ -73,7 +77,8 @@ public class MatchControllerTest {
 
         MockHttpServletRequestBuilder postRequest = post("/matches")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(matchCreateDTO));
+                .content(asJsonString(matchCreateDTO))
+                .header("Authorization", "Bearer 1234");
 
         mockMvc.perform(postRequest)
                 .andExpect(status().isCreated())
@@ -139,6 +144,29 @@ public class MatchControllerTest {
                 .andExpect(jsonPath("$.matchId", is(match.getMatchId().intValue())))
                 .andExpect(jsonPath("$.started", is(match.getStarted())))
                 .andExpect(jsonPath("$.matchPlayerIds", is(matchPlayerIds)));
+    }
+
+    @Test
+    public void testDeleteMatch() throws Exception {
+        MockHttpServletRequestBuilder deleteRequest = delete("/matches/1")
+                .header("Authorization", "Bearer 1234");
+
+        mockMvc.perform(deleteRequest)
+                .andExpect(status().isNoContent());
+    }
+
+    @Test
+    public void testInvitePlayerToMatch() throws Exception {
+        InviteRequestDTO inviteRequestDTO = new InviteRequestDTO();
+        inviteRequestDTO.setPlayerSlot(0);
+        inviteRequestDTO.setUserId(1L);
+
+        MockHttpServletRequestBuilder postRequest = post("/matches/1/invite")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(inviteRequestDTO));
+
+        mockMvc.perform(postRequest)
+                .andExpect(status().isOk());
     }
 
     /**

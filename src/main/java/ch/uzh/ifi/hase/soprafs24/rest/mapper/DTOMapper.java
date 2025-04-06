@@ -91,5 +91,9 @@ public interface DTOMapper {
   @Mapping(source = "started", target = "started")
   @Mapping(source = "aiPlayers", target = "aiPlayers")
   @Mapping(source = "joinRequests", target = "joinRequests")
+  @Mapping(source = "player1", target = "player1Id")
+  @Mapping(source = "player2", target = "player2Id")
+  @Mapping(source = "player3", target = "player3Id")
+  @Mapping(source = "player4", target = "player4Id")
   MatchDTO convertEntityToMatchDTO(Match match);
 }
