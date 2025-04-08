@@ -3,8 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.controller;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteRequestDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.MatchCreateDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
 import ch.uzh.ifi.hase.soprafs24.service.MatchService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -23,10 +22,12 @@ import org.springframework.web.server.ResponseStatusException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
 import static org.hamcrest.Matchers.contains;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -167,6 +168,170 @@ public class MatchControllerTest {
 
         mockMvc.perform(postRequest)
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testRespondToInviteError() throws Exception {
+        InviteResponseDTO inviteResponseDTO = null;
+
+        MockHttpServletRequestBuilder postRequest = post("/matches/1/invite/respond")
+                .header("Authorization", "Bearer 1234")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(inviteResponseDTO));
+
+        mockMvc.perform(postRequest)
+                .andExpect(status().isBadRequest());
+    }
+
+    @Test
+    public void testRespondToInviteSuccess() throws Exception {
+        InviteResponseDTO inviteResponseDTO = new InviteResponseDTO();
+        inviteResponseDTO.setAccepted(true);
+
+        doNothing().when(matchService).respondToInvite(Mockito.any(), Mockito.any(), Mockito.any());
+
+        MockHttpServletRequestBuilder postRequest = post("/matches/1/invite/respond")
+                .header("Authorization", "Bearer 1234")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(inviteResponseDTO));
+
+        mockMvc.perform(postRequest)
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testUpdateMatchLength() throws Exception {
+        Map<String, Integer> body = new HashMap<>();
+        body.put("matchLength", 150);
+
+        doNothing().when(matchService).updateMatchLength(Mockito.any(), Mockito.any());
+
+        MockHttpServletRequestBuilder postRequest = post("/matches/1/length")
+                .header("Authorization", "Bearer 1234")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(body));
+
+        mockMvc.perform(postRequest)
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testAddAiPlayer() throws Exception {
+        AIPlayerDTO aiPlayerDTO = new AIPlayerDTO();
+        aiPlayerDTO.setDifficulty(1);
+
+        doNothing().when(matchService).addAiPlayer(Mockito.any(), Mockito.any());
+
+        MockHttpServletRequestBuilder postRequest = post("/matches/1/ai")
+                .header("Authorization", "Bearer 1234")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(aiPlayerDTO));
+
+        mockMvc.perform(postRequest)
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testGetPlayerMatchInformation() throws Exception {
+        PlayerMatchInformationDTO playerMatchInformationDTO = new PlayerMatchInformationDTO();
+        playerMatchInformationDTO.setMatchId(1L);
+
+        List<Integer> aiPlayers = new ArrayList<>();
+        aiPlayers.add(1);
+        aiPlayers.add(1);
+        aiPlayers.add(1);
+
+        playerMatchInformationDTO.setAiPlayers(aiPlayers);
+
+        List<String> matchPlayers = new ArrayList<>();
+        matchPlayers.add("User");
+
+        playerMatchInformationDTO.setMatchPlayers(matchPlayers);
+        playerMatchInformationDTO.setHost("User");
+        playerMatchInformationDTO.setLength(100);
+        playerMatchInformationDTO.setStarted(true);
+
+        given(matchService.getPlayerMatchInformation(Mockito.any(), Mockito.any())).willReturn(playerMatchInformationDTO);
+
+        MockHttpServletRequestBuilder postRequest = post("/matches/1/logic")
+                .header("Authorization", "Bearer 1234");
+
+        mockMvc.perform(postRequest)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.matchId", is(playerMatchInformationDTO.getMatchId().intValue())))
+                .andExpect(jsonPath("$.started", is(playerMatchInformationDTO.getStarted())))
+                .andExpect(jsonPath("$.matchPlayers", is(playerMatchInformationDTO.getMatchPlayers())))
+                .andExpect(jsonPath("$.aiPlayers", is(playerMatchInformationDTO.getAiPlayers())))
+                .andExpect(jsonPath("$.length", is(playerMatchInformationDTO.getLength())))
+                .andExpect(jsonPath("$.host", is(playerMatchInformationDTO.getHost())));
+    }
+
+    @Test
+    public void testSendJoinRequest() throws Exception {
+        JoinRequestDTO joinRequestDTO = new JoinRequestDTO();
+        joinRequestDTO.setUserId(1L);
+
+        doNothing().when(matchService).sendJoinRequest(Mockito.any(), Mockito.any());
+
+        MockHttpServletRequestBuilder postRequest = post("/matches/1/join")
+                .header("Authorization", "Bearer 1234")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(joinRequestDTO));
+
+        mockMvc.perform(postRequest)
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testAcceptJoinRequest() throws Exception {
+        JoinRequestDTO joinRequestDTO = new JoinRequestDTO();
+        joinRequestDTO.setUserId(1L);
+
+        doNothing().when(matchService).acceptJoinRequest(Mockito.any(), Mockito.any());
+
+        MockHttpServletRequestBuilder postRequest = post("/matches/1/join/accept")
+                .header("Authorization", "Bearer 1234")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(joinRequestDTO));
+
+        mockMvc.perform(postRequest)
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testDeclineJoinRequest() throws Exception {
+        JoinRequestDTO joinRequestDTO = new JoinRequestDTO();
+        joinRequestDTO.setUserId(1L);
+
+        doNothing().when(matchService).declineJoinRequest(Mockito.any(), Mockito.any());
+
+        MockHttpServletRequestBuilder postRequest = post("/matches/1/join/decline")
+                .header("Authorization", "Bearer 1234")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content(asJsonString(joinRequestDTO));
+
+        mockMvc.perform(postRequest)
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    public void testGetJoinRequests() throws Exception {
+        JoinRequestDTO joinRequestDTO = new JoinRequestDTO();
+        joinRequestDTO.setUserId(1L);
+        joinRequestDTO.setStatus("Accepted");
+
+        List<JoinRequestDTO> joinRequestDTOs = new ArrayList<>();
+        joinRequestDTOs.add(joinRequestDTO);
+
+        given(matchService.getJoinRequests(Mockito.any())).willReturn(joinRequestDTOs);
+
+        MockHttpServletRequestBuilder getRequest = get("/matches/1/joinRequests")
+                .header("Authorization", "Bearer 1234");
+
+        mockMvc.perform(getRequest)
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$[0].status", is(joinRequestDTO.getStatus())))
+                .andExpect(jsonPath("$[0].userId", is(joinRequestDTO.getUserId().intValue())));
     }
 
     /**

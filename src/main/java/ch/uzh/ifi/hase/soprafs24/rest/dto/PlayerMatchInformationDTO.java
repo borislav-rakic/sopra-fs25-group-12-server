@@ -43,7 +43,7 @@ public class PlayerMatchInformationDTO {
         this.length = length;
     }
 
-    public boolean isStarted() {
+    public boolean getStarted() {
         return started;
     }
 
