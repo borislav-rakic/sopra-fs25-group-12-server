@@ -7,7 +7,6 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
 import ch.uzh.ifi.hase.soprafs24.service.MatchService;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.hamcrest.Matchers;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,10 +24,8 @@ import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
-import static org.hamcrest.Matchers.contains;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
-import static org.springframework.test.web.client.match.MockRestRequestMatchers.header;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -172,12 +169,10 @@ public class MatchControllerTest {
 
     @Test
     public void testRespondToInviteError() throws Exception {
-        InviteResponseDTO inviteResponseDTO = null;
-
         MockHttpServletRequestBuilder postRequest = post("/matches/1/invite/respond")
                 .header("Authorization", "Bearer 1234")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(inviteResponseDTO));
+                .content(asJsonString(null));
 
         mockMvc.perform(postRequest)
                 .andExpect(status().isBadRequest());
@@ -347,7 +342,7 @@ public class MatchControllerTest {
             return new ObjectMapper().writeValueAsString(object);
         } catch (JsonProcessingException e) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    String.format("The request body could not be created.%s", e.toString()));
+                    String.format("The request body could not be created.%s", e));
         }
     }
 }

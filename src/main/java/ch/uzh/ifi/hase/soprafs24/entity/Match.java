@@ -1,7 +1,5 @@
 package ch.uzh.ifi.hase.soprafs24.entity;
 
-import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerDTO;
-
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.ArrayList;
