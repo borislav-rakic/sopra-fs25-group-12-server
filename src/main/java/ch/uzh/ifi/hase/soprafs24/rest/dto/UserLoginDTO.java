@@ -1,7 +1,5 @@
 package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
-import java.time.LocalDate;
-
 // only include public inforamtion
 public class UserLoginDTO {
 

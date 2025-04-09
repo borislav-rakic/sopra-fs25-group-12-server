@@ -8,6 +8,7 @@ import org.springframework.http.MediaType;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
+import org.springframework.lang.NonNull;
 
 @RestController
 @SpringBootApplication
@@ -27,8 +28,10 @@ public class Application {
   public WebMvcConfigurer corsConfigurer() {
     return new WebMvcConfigurer() {
       @Override
-      public void addCorsMappings(CorsRegistry registry) {
-        registry.addMapping("/**").allowedOrigins("http://localhost:3000", "https://sopra-fs25-group-12-client.vercel.app/").allowedMethods("*");
+      public void addCorsMappings(@NonNull CorsRegistry registry) {
+        registry.addMapping("/**")
+            .allowedOrigins("http://localhost:3000", "https://sopra-fs25-group-12-client.vercel.app/")
+            .allowedMethods("*");
       }
     };
   }

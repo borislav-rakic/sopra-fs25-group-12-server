@@ -1,6 +1,5 @@
 package ch.uzh.ifi.hase.soprafs24.controller;
 
-import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserAuthDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserCreateDTO;
@@ -10,21 +9,16 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPutDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserLoginDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteGetDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
-import ch.uzh.ifi.hase.soprafs24.service.MatchService;
 import ch.uzh.ifi.hase.soprafs24.service.UserService;
 import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
-import java.nio.file.attribute.UserPrincipal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import java.util.stream.Collectors;
-import java.util.Map;
-
 
 /**
  * User Controller
@@ -36,7 +30,6 @@ import java.util.Map;
 @RestController
 public class UserController {
   private final UserService userService;
-
 
   UserController(UserService userService) {
     this.userService = userService;
@@ -52,7 +45,6 @@ public class UserController {
     }
     throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
   }
-
 
   /**
    * Retrieves the list of all users.
@@ -179,8 +171,7 @@ public class UserController {
   @GetMapping("/users/me/invites")
   @ResponseStatus(HttpStatus.OK)
   public List<InviteGetDTO> getPendingInvites(@RequestHeader("Authorization") String authHeader) {
-      return userService.getPendingInvites(authHeader);
+    return userService.getPendingInvites(authHeader);
   }
-
 
 }

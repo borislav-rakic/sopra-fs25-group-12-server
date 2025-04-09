@@ -12,7 +12,6 @@ import org.mockito.MockitoAnnotations;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
-import java.util.Optional;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
