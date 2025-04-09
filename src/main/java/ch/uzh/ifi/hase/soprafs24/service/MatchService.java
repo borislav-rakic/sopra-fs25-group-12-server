@@ -7,8 +7,6 @@ import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -16,9 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import javax.servlet.http.HttpServletResponse;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -33,7 +29,7 @@ import java.util.Map.Entry;
 @Service
 @Transactional
 public class MatchService {
-    private final Logger log = LoggerFactory.getLogger(MatchService.class);
+//    private final Logger log = LoggerFactory.getLogger(MatchService.class);
 
     private final MatchRepository matchRepository;
     private final UserService userService;
@@ -93,7 +89,7 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found");
         }
 
-        return matchRepository.findMatchByMatchId(matchId);
+        return match;
     }
 
     public void deleteMatchByHost(Long matchId, String token) {
@@ -109,7 +105,7 @@ public class MatchService {
 
         String userName = user.getUsername();
 
-        if (match.getHost().equals(userName)) {
+        if (!match.getHost().equals(userName)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can delete matches");
         }
         
@@ -120,7 +116,11 @@ public class MatchService {
         Long userId = request.getUserId();
         Integer playerSlot = request.getPlayerSlot();
 
-        Match match = matchRepository.findById(matchId).orElseThrow();
+        Match match = matchRepository.findMatchByMatchId(matchId);
+
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found");
+        }
 
         Map<Integer, Long> invites = match.getInvites();
         if (invites == null) {
@@ -137,7 +137,11 @@ public class MatchService {
         String token = authHeader.replace("Bearer ", "");
         User user = userRepository.findUserByToken(token);
 
-        Match match = matchRepository.findById(matchId).orElse(null);
+        Match match = matchRepository.findMatchByMatchId(matchId);
+
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found");
+        }
 
         Map<Integer, Long> invites = match.getInvites();
 
@@ -152,11 +156,6 @@ public class MatchService {
 
         if (responseDTO.isAccepted()) {
             List<MatchPlayer> players = match.getMatchPlayers();
-//            List<Long> players = match.getPlayerIds();
-
-//            while (players.size() <= slot) {
-//                players.add(null);
-//            }
 
             MatchPlayer newMatchPlayer = new MatchPlayer();
             newMatchPlayer.setPlayerId(user);
@@ -172,7 +171,6 @@ public class MatchService {
             } else if (slot == 3) {
                 match.setPlayer4(user);
             }
-//            match.setPlayerIds(players);
         }
         invites.remove(slot);
         match.setInvites(invites);
@@ -181,8 +179,11 @@ public class MatchService {
     }
 
     public void updateMatchLength(Long matchId, Map<String, Integer> body) {
-        Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found"));
+        Match match = matchRepository.findMatchByMatchId(matchId);
+
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
 
         if (!body.containsKey("length")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing 'length' field");
@@ -193,7 +194,11 @@ public class MatchService {
     }
 
     public void addAiPlayer(Long matchId, AIPlayerDTO dto) {
-        Match match = matchRepository.findById(matchId).orElseThrow();
+        Match match = matchRepository.findMatchByMatchId(matchId);
+
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found");
+        }
 
         List<Integer> aiPlayers = match.getAiPlayers();
         if (aiPlayers == null) {
@@ -222,31 +227,6 @@ public class MatchService {
         if (matchPlayer == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
-
-//        Map<Integer, String> matchPlayers = new HashMap<>();
-//
-//        List<MatchPlayer> matchPlayerList = match.getMatchPlayers();
-//
-//        List<User> usersInMatch = new ArrayList<>();
-//        usersInMatch.add(match.getPlayer1());
-//        usersInMatch.add(match.getPlayer2());
-//        usersInMatch.add(match.getPlayer3());
-//        usersInMatch.add(match.getPlayer4());
-//
-//        for (MatchPlayer player : matchPlayerList) {
-//            User matchPlayerUser = player.getPlayerId();
-//
-//            int slot = 0;
-//
-//            for (User userInMatch : usersInMatch) {
-//                slot++;
-//                if (userInMatch == matchPlayerUser) {
-//                    break;
-//                }
-//            }
-//
-//            matchPlayers.put(slot, matchPlayerUser.getUsername());
-//        }
 
         List<String> matchPlayers = new ArrayList<>();
         matchPlayers.add(null);
@@ -312,39 +292,45 @@ public class MatchService {
 
     public void acceptJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
-        if (match != null) {
-            match.getJoinRequests().put(userId, "accepted");
 
-            User user = userRepository.findUserById(userId);
-
-            if (user == null) {
-                throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-            }
-
-            MatchPlayer newMatchPlayer = new MatchPlayer();
-            newMatchPlayer.setPlayerId(user);
-            newMatchPlayer.setMatch(match);
-
-            match.getMatchPlayers().add(newMatchPlayer);
-
-            if (match.getPlayer2() == null) {
-                match.setPlayer2(user);
-            } else if (match.getPlayer3() == null) {
-                match.setPlayer3(user);
-            } else if (match.getPlayer4() == null) {
-                match.setPlayer4(user);
-            }
-
-            matchRepository.save(match);
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
+
+        match.getJoinRequests().put(userId, "accepted");
+
+        User user = userRepository.findUserById(userId);
+
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+        }
+
+        MatchPlayer newMatchPlayer = new MatchPlayer();
+        newMatchPlayer.setPlayerId(user);
+        newMatchPlayer.setMatch(match);
+
+        match.getMatchPlayers().add(newMatchPlayer);
+
+        if (match.getPlayer2() == null) {
+            match.setPlayer2(user);
+        } else if (match.getPlayer3() == null) {
+            match.setPlayer3(user);
+        } else if (match.getPlayer4() == null) {
+            match.setPlayer4(user);
+        }
+
+        matchRepository.save(match);
     }
 
     public void declineJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
-        if (match != null) {
-            match.getJoinRequests().put(userId, "declined");
-            matchRepository.save(match);
+
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
+
+        match.getJoinRequests().put(userId, "declined");
+        matchRepository.save(match);
     }
 
     public List<JoinRequestDTO> getJoinRequests(Long matchId) {
