@@ -55,8 +55,12 @@ public class UserService {
     return userRepository.count() == 0;
   }
 
+  public long getUserCount() {
+    return userRepository.count();
+  }
+
   public void populateUsersFromSQL() {
-    if (userRepository.count() > 0) {
+    if (userRepository.count() > 3) {
       return;
     }
     try {
@@ -124,6 +128,7 @@ public class UserService {
     newUser.setStatus(UserStatus.ONLINE);
     newUser.setAvatar(0); // default avatar is 0! (may change later)
     newUser.setIsGuest(false); // default
+    newUser.setIsAiPlayer(false); // default
     newUser.setBirthday(null); // default date is null!
     newUser.setUserSettings("{}"); // empty settings
     newUser.setRating(0); // default rating

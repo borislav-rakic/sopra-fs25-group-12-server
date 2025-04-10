@@ -5,6 +5,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.Friendship;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.FriendshipRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
+import ch.uzh.ifi.hase.soprafs24.util.TestUserFactory;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -39,25 +40,23 @@ class FriendshipServiceTest {
     void setup() {
         MockitoAnnotations.openMocks(this);
 
-        userA = new User();
-        userA.setId(1L);
-        userA.setUsername("UserA");
+        userA = TestUserFactory.createValidUser("UserA");
+        userA.setId(9991L);
 
-        userB = new User();
-        userB.setId(2L);
-        userB.setUsername("UserB");
+        userB = TestUserFactory.createValidUser("UserB");
+        userB.setId(9992L);
 
         friendship = new Friendship(userA, userB, FriendshipStatus.PENDING);
     }
 
     @Test
     void sendFriendRequest_success() {
-        Mockito.when(userRepository.findUserById(1L)).thenReturn(userA);
-        Mockito.when(userRepository.findUserById(2L)).thenReturn(userB);
+        Mockito.when(userRepository.findUserById(9991L)).thenReturn(userA);
+        Mockito.when(userRepository.findUserById(9992L)).thenReturn(userB);
         Mockito.when(friendshipRepository.findByUserAndFriend(userA, userB)).thenReturn(Optional.empty());
         Mockito.when(friendshipRepository.save(any())).thenReturn(friendship);
 
-        Friendship result = friendshipService.sendFriendRequest(1L, 2L);
+        Friendship result = friendshipService.sendFriendRequest(9991L, 9992L);
 
         assertNotNull(result);
         assertEquals(FriendshipStatus.PENDING, result.getStatus());
@@ -74,12 +73,12 @@ class FriendshipServiceTest {
 
     @Test
     void acceptFriendRequest_success() {
-        Mockito.when(userRepository.findUserById(2L)).thenReturn(userB);
-        Mockito.when(userRepository.findUserById(1L)).thenReturn(userA);
+        Mockito.when(userRepository.findUserById(9992L)).thenReturn(userB);
+        Mockito.when(userRepository.findUserById(9991L)).thenReturn(userA);
         Mockito.when(friendshipRepository.findByUserAndFriend(userA, userB))
                 .thenReturn(Optional.of(friendship));
 
-        friendshipService.acceptFriendRequest(2L, 1L);
+        friendshipService.acceptFriendRequest(9992L, 9991L);
 
         assertEquals(FriendshipStatus.ACCEPTED, friendship.getStatus());
         Mockito.verify(friendshipRepository).save(friendship);
@@ -87,12 +86,12 @@ class FriendshipServiceTest {
 
     @Test
     void declineFriendRequest_success() {
-        Mockito.when(userRepository.findUserById(2L)).thenReturn(userB);
-        Mockito.when(userRepository.findUserById(1L)).thenReturn(userA);
+        Mockito.when(userRepository.findUserById(9992L)).thenReturn(userB);
+        Mockito.when(userRepository.findUserById(9991L)).thenReturn(userA);
         Mockito.when(friendshipRepository.findByUserAndFriend(userA, userB))
                 .thenReturn(Optional.of(friendship));
 
-        friendshipService.declineFriendRequest(2L, 1L);
+        friendshipService.declineFriendRequest(9992L, 9991L);
 
         assertEquals(FriendshipStatus.DECLINED, friendship.getStatus());
         Mockito.verify(friendshipRepository).save(friendship);
@@ -100,11 +99,11 @@ class FriendshipServiceTest {
 
     @Test
     void removeFriend_existingFriendship_success() {
-        Mockito.when(userRepository.findUserById(1L)).thenReturn(userA);
-        Mockito.when(userRepository.findUserById(2L)).thenReturn(userB);
+        Mockito.when(userRepository.findUserById(9991L)).thenReturn(userA);
+        Mockito.when(userRepository.findUserById(9992L)).thenReturn(userB);
         Mockito.when(friendshipRepository.findByUserAndFriend(userA, userB)).thenReturn(Optional.of(friendship));
 
-        friendshipService.removeFriend(1L, 2L);
+        friendshipService.removeFriend(9991L, 9992L);
 
         Mockito.verify(friendshipRepository).delete(friendship);
     }
@@ -120,10 +119,10 @@ class FriendshipServiceTest {
     @Test
     void getFriends_success() {
         friendship.setStatus(FriendshipStatus.ACCEPTED);
-        Mockito.when(userRepository.findUserById(1L)).thenReturn(userA);
+        Mockito.when(userRepository.findUserById(9991L)).thenReturn(userA);
         Mockito.when(friendshipRepository.findAllByUserOrFriend(userA, userA)).thenReturn(List.of(friendship));
 
-        var friendsDTO = friendshipService.getFriends(1L);
+        var friendsDTO = friendshipService.getFriends(9991L);
 
         assertEquals(1, friendsDTO.size());
         assertEquals("UserB", friendsDTO.get(0).getUsername());
@@ -131,11 +130,11 @@ class FriendshipServiceTest {
 
     @Test
     void getFriendshipStatus_noFriendship_returnsUndefined() {
-        Mockito.when(userRepository.findUserById(1L)).thenReturn(userA);
-        Mockito.when(userRepository.findUserById(2L)).thenReturn(userB);
+        Mockito.when(userRepository.findUserById(9991L)).thenReturn(userA);
+        Mockito.when(userRepository.findUserById(9992L)).thenReturn(userB);
         Mockito.when(friendshipRepository.findByUserAndFriend(any(), any())).thenReturn(Optional.empty());
 
-        var statusDTO = friendshipService.getFriendshipStatus(1L, 2L);
+        var statusDTO = friendshipService.getFriendshipStatus(9991L, 9992L);
 
         assertEquals(FriendshipStatus.UNDEFINED, statusDTO.getStatus());
         assertFalse(statusDTO.isInitiatedByCurrentUser());
@@ -144,11 +143,11 @@ class FriendshipServiceTest {
     @Test
     void getFriendshipStatus_existingFriendshipInitiatedByCurrentUser() {
         friendship.setStatus(FriendshipStatus.PENDING);
-        Mockito.when(userRepository.findUserById(1L)).thenReturn(userA);
-        Mockito.when(userRepository.findUserById(2L)).thenReturn(userB);
+        Mockito.when(userRepository.findUserById(9991L)).thenReturn(userA);
+        Mockito.when(userRepository.findUserById(9992L)).thenReturn(userB);
         Mockito.when(friendshipRepository.findByUserAndFriend(userA, userB)).thenReturn(Optional.of(friendship));
 
-        var statusDTO = friendshipService.getFriendshipStatus(1L, 2L);
+        var statusDTO = friendshipService.getFriendshipStatus(9991L, 9992L);
 
         assertEquals(FriendshipStatus.PENDING, statusDTO.getStatus());
         assertTrue(statusDTO.isInitiatedByCurrentUser());
@@ -156,11 +155,11 @@ class FriendshipServiceTest {
 
     @Test
     void updateFriendshipStatus_success() {
-        Mockito.when(userRepository.findUserById(1L)).thenReturn(userA);
-        Mockito.when(userRepository.findUserById(2L)).thenReturn(userB);
+        Mockito.when(userRepository.findUserById(9991L)).thenReturn(userA);
+        Mockito.when(userRepository.findUserById(9992L)).thenReturn(userB);
         Mockito.when(friendshipRepository.findByUserAndFriend(any(), any())).thenReturn(Optional.of(friendship));
 
-        friendshipService.updateFriendshipStatus(1L, 2L, FriendshipStatus.ACCEPTED);
+        friendshipService.updateFriendshipStatus(9991L, 9992L, FriendshipStatus.ACCEPTED);
 
         assertEquals(FriendshipStatus.ACCEPTED, friendship.getStatus());
         Mockito.verify(friendshipRepository).save(friendship);

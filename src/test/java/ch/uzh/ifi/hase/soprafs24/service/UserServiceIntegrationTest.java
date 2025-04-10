@@ -14,9 +14,7 @@ import org.springframework.web.server.ResponseStatusException;
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
- * Test class for the UserResource REST resource.
- *
- * @see UserService
+ * Test class for the UserService integration test.
  */
 @WebAppConfiguration
 @SpringBootTest
@@ -31,6 +29,7 @@ public class UserServiceIntegrationTest {
 
   @BeforeEach
   public void setup() {
+    // Clean the repository before each test
     userRepository.deleteAll();
   }
 
@@ -47,28 +46,46 @@ public class UserServiceIntegrationTest {
     User createdUser = userService.createUser(testUser);
 
     // then
-    assertEquals(testUser.getId(), createdUser.getId());
+    assertNotNull(createdUser);
     assertEquals(testUser.getUsername(), createdUser.getUsername());
     assertNotNull(createdUser.getToken());
     assertEquals(UserStatus.ONLINE, createdUser.getStatus());
+
+    // Verify the user is saved to the database
+    assertNotNull(userRepository.findUserByUsername("testUsername"));
   }
 
   @Test
   public void createUser_duplicateUsername_throwsException() {
+    // given
     assertNull(userRepository.findUserByUsername("testUsername"));
 
     User testUser = new User();
     testUser.setUsername("testUsername");
     testUser.setPassword("testPassword");
+    testUser.setIsGuest(false);
+    testUser.setIsAiPlayer(false);
+    testUser.setStatus(UserStatus.OFFLINE);
+    testUser.setUserSettings("{}");
+    testUser.setRating(0);
 
+    // Create the first user
     userService.createUser(testUser);
 
+    // Check that the user was created
     assertNotNull(userRepository.findUserByUsername("testUsername"));
 
+    // Try to create another user with the same username
     User testUser2 = new User();
-    testUser2.setUsername("testUsername"); // same username
-    testUser2.setPassword("testPassword");
+    testUser2.setUsername("testUsername"); // same username as testUser
+    testUser2.setPassword("newPassword");
+    testUser2.setIsGuest(false);
+    testUser2.setIsAiPlayer(false);
+    testUser2.setStatus(UserStatus.OFFLINE);
+    testUser2.setUserSettings("{}");
+    testUser2.setRating(0);
 
+    // when / then
     assertThrows(ResponseStatusException.class, () -> userService.createUser(testUser2));
   }
 

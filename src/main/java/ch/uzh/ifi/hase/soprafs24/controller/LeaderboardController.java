@@ -45,7 +45,7 @@ public class LeaderboardController {
 
     @PostMapping("/populate")
     public ResponseEntity<Void> populateLeaderboardIfEmpty() {
-        if (userService.isUserTableEmpty()) {
+        if (userService.getUserCount() <= 3) {
             userService.populateUsersFromSQL();
         }
         return ResponseEntity.noContent().build();

@@ -1,6 +1,5 @@
 package ch.uzh.ifi.hase.soprafs24.repository;
 
-import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,13 +24,6 @@ public class UserRepositoryIntegrationTest {
     User user = new User();
     user.setUsername("testUsername");
     user.setPassword("testPassword");
-    user.setStatus(UserStatus.OFFLINE);
-    user.setToken("1");
-    user.setAvatar(0);
-    user.setIsGuest(false);
-    user.setBirthday(java.time.LocalDate.of(2000, 1, 1));
-    user.setUserSettings("{}");
-    user.setRating(0);
 
     entityManager.persist(user);
     entityManager.flush();

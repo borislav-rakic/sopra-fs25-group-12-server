@@ -37,24 +37,52 @@ public class User implements Serializable {
 
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
-  private UserStatus status;
+  private UserStatus status = UserStatus.OFFLINE;
 
-  // Avatar is null if not defined.
   @Column(nullable = true)
   private Integer avatar;
 
-  @Column(name = "is_guest", nullable = false)
-  private Boolean isGuest;
+  @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+  private boolean isAiPlayer = false;
 
-  // Birthday is null if not defined.
+  @Column(nullable = false, columnDefinition = "BOOLEAN DEFAULT FALSE")
+  private boolean isGuest = false;
+
   @Column(nullable = true)
   private LocalDate birthday;
 
   @Column(name = "user_settings", nullable = false)
-  private String userSettings;
+  private String userSettings = "{}";
 
   @Column(nullable = false)
-  private Integer rating;
+  private Integer rating = 0;
+
+  // NEW STATS FIELDS
+  @Column(name = "score_total", nullable = false)
+  private float scoreTotal = 0.0f;
+
+  @Column(name = "games_played", nullable = false)
+  private int gamesPlayed = 0;
+
+  @Column(name = "avg_placement", nullable = false)
+  private float avgPlacement = 0.0f;
+
+  @Column(name = "moon_shots", nullable = false)
+  private int moonShots = 0;
+
+  @Column(name = "perfect_rounds", nullable = false)
+  private int perfectRounds = 0;
+
+  @Column(name = "perfect_matches", nullable = false)
+  private int perfectMatches = 0;
+
+  @Column(name = "current_streak", nullable = false)
+  private int currentStreak = 0;
+
+  @Column(name = "longest_streak", nullable = false)
+  private int longestStreak = 0;
+
+  // GETTERS AND SETTERS
 
   public Long getId() {
     return id;
@@ -104,6 +132,14 @@ public class User implements Serializable {
     this.avatar = avatar;
   }
 
+  public Boolean getIsAiPlayer() {
+    return isAiPlayer;
+  }
+
+  public void setIsAiPlayer(Boolean isAiPlayer) {
+    this.isAiPlayer = isAiPlayer;
+  }
+
   public Boolean getIsGuest() {
     return isGuest;
   }
@@ -134,5 +170,69 @@ public class User implements Serializable {
 
   public void setRating(Integer rating) {
     this.rating = rating;
+  }
+
+  public float getScoreTotal() {
+    return scoreTotal;
+  }
+
+  public void setScoreTotal(float scoreTotal) {
+    this.scoreTotal = scoreTotal;
+  }
+
+  public int getGamesPlayed() {
+    return gamesPlayed;
+  }
+
+  public void setGamesPlayed(int gamesPlayed) {
+    this.gamesPlayed = gamesPlayed;
+  }
+
+  public float getAvgPlacement() {
+    return avgPlacement;
+  }
+
+  public void setAvgPlacement(float avgPlacement) {
+    this.avgPlacement = avgPlacement;
+  }
+
+  public int getMoonShots() {
+    return moonShots;
+  }
+
+  public void setMoonShots(int moonShots) {
+    this.moonShots = moonShots;
+  }
+
+  public int getPerfectRounds() {
+    return perfectRounds;
+  }
+
+  public void setPerfectRounds(int perfectRounds) {
+    this.perfectRounds = perfectRounds;
+  }
+
+  public int getPerfectMatches() {
+    return perfectMatches;
+  }
+
+  public void setPerfectMatches(int perfectMatches) {
+    this.perfectMatches = perfectMatches;
+  }
+
+  public int getCurrentStreak() {
+    return currentStreak;
+  }
+
+  public void setCurrentStreak(int currentStreak) {
+    this.currentStreak = currentStreak;
+  }
+
+  public int getLongestStreak() {
+    return longestStreak;
+  }
+
+  public void setLongestStreak(int longestStreak) {
+    this.longestStreak = longestStreak;
   }
 }
