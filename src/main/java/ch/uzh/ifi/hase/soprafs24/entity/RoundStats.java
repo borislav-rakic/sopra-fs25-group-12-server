@@ -40,6 +40,9 @@ public class RoundStats {
     @Column(nullable = false)
     private int pointsBilledTo;
 
+    @Column(nullable = false)
+    private int cardHolder; // 1–4 for players, or 0 for unassigned
+
     // Enums
     public enum Suit {
         H, S, D, C
@@ -176,5 +179,13 @@ public class RoundStats {
         }
 
         throw new IllegalArgumentException("Unknown rank: " + rankPart);
+    }
+
+    public int getCardHolder() {
+        return cardHolder;
+    }
+
+    public void setCardHolder(int cardHolder) {
+        this.cardHolder = cardHolder;
     }
 }

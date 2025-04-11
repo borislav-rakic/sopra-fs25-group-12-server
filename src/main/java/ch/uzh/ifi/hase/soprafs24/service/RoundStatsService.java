@@ -47,6 +47,7 @@ public class RoundStatsService {
                 stats.setAllowedToPlay(false);
                 stats.setPossibleHolders(0b1111); // All 4 players (bitmask)
                 stats.setPointsBilledTo(0);
+                stats.setCardHolder(0);
 
                 roundStatsList.add(stats);
             }
