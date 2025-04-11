@@ -9,7 +9,7 @@ public class LeaderboardDTO {
     private float scoreTotal;
     private int gamesPlayed;
     private int moonShots;
-    private int perfectRounds;
+    private int perfectGames;
     private int perfectMatches;
     private int currentStreak;
     private int longestStreak;
@@ -79,12 +79,12 @@ public class LeaderboardDTO {
         this.moonShots = moonShots;
     }
 
-    public int getPerfectRounds() {
-        return perfectRounds;
+    public int getPerfectGames() {
+        return perfectGames;
     }
 
-    public void setPerfectRounds(int perfectRounds) {
-        this.perfectRounds = perfectRounds;
+    public void setPerfectGames(int perfectGames) {
+        this.perfectGames = perfectGames;
     }
 
     public int getPerfectMatches() {

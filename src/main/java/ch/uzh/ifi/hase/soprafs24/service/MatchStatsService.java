@@ -27,7 +27,7 @@ public class MatchStatsService {
         this.matchStatsRepository = matchStatsRepository;
     }
 
-    public void updateStats(Match match, User player, int malusPoints, boolean gotPerfectRound, boolean shotTheMoon) {
+    public void updateStats(Match match, User player, int malusPoints, boolean gotPerfectGame, boolean shotTheMoon) {
         MatchStats stats = matchStatsRepository.findByMatchAndPlayer(match, player);
         if (stats == null) {
             throw new IllegalStateException("MatchStats not found for player: " + player.getUsername());
@@ -35,8 +35,8 @@ public class MatchStatsService {
 
         stats.addMalusPoints(malusPoints);
 
-        if (gotPerfectRound) {
-            stats.incrementPerfectRounds();
+        if (gotPerfectGame) {
+            stats.incrementPerfectGames();
         }
 
         if (shotTheMoon) {
@@ -44,8 +44,8 @@ public class MatchStatsService {
         }
 
         matchStatsRepository.save(stats);
-        log.info("Updated match stats for player {} in match {}: +{} malus, perfectRound={}, shotTheMoon={}",
-                player.getUsername(), match.getMatchId(), malusPoints, gotPerfectRound, shotTheMoon);
+        log.info("Updated match stats for player {} in match {}: +{} malus, perfectGame={}, shotTheMoon={}",
+                player.getUsername(), match.getMatchId(), malusPoints, gotPerfectGame, shotTheMoon);
     }
 
     public void initializeStats(Match match, List<User> players) {
@@ -54,7 +54,7 @@ public class MatchStatsService {
             stats.setMatch(match);
             stats.setPlayer(player);
             stats.setMalusPoints(0);
-            stats.setPerfectRounds(0);
+            stats.setPerfectGames(0);
             stats.setShotTheMoonCount(0);
 
             matchStatsRepository.save(stats);

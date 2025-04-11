@@ -67,8 +67,8 @@ public class User implements Serializable {
   @Column(name = "moon_shots", nullable = false)
   private int moonShots = 0;
 
-  @Column(name = "perfect_rounds", nullable = false)
-  private int perfectRounds = 0;
+  @Column(name = "perfect_games", nullable = false)
+  private int perfectGames = 0;
 
   @Column(name = "perfect_matches", nullable = false)
   private int perfectMatches = 0;
@@ -193,12 +193,12 @@ public class User implements Serializable {
     this.moonShots = moonShots;
   }
 
-  public int getPerfectRounds() {
-    return perfectRounds;
+  public int getPerfectGames() {
+    return perfectGames;
   }
 
-  public void setPerfectRounds(int perfectRounds) {
-    this.perfectRounds = perfectRounds;
+  public void setPerfectGames(int perfectGames) {
+    this.perfectGames = perfectGames;
   }
 
   public int getPerfectMatches() {

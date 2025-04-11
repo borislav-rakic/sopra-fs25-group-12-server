@@ -2,17 +2,17 @@ package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
 import java.util.List;
 
-public class RoundDTO {
-    private int roundNumber;
+public class GameDTO {
+    private int gameNumber;
     private List<PlayerCardDTO> playerCards;
     private Long currentTurnUserId;
 
-    public void setRoundNumber(int roundNumber) {
-        this.roundNumber = roundNumber;
+    public void setGameNumber(int gameNumber) {
+        this.gameNumber = gameNumber;
     }
 
-    public int getRoundNumber() {
-        return roundNumber;
+    public int getGameNumber() {
+        return gameNumber;
     }
 
     public void setPlayerCards(List<PlayerCardDTO> playerCards) {

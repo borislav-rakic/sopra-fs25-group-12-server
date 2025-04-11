@@ -4,7 +4,7 @@ public class PlayerCardDTO {
     private Long gameId;
     private Long playerId;
     private String card;
-    private int roundNumber;
+    private int gameNumber;
 
     public void setGameId(Long gameId) {
         this.gameId = gameId;
@@ -30,11 +30,11 @@ public class PlayerCardDTO {
         return card;
     }
 
-    public void setRoundNumber(int roundNumber) {
-        this.roundNumber = roundNumber;
+    public void setGameNumber(int gameNumber) {
+        this.gameNumber = gameNumber;
     }
 
-    public int getRoundNumber() {
-        return roundNumber;
+    public int getGameNumber() {
+        return gameNumber;
     }
 }

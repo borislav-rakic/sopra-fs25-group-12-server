@@ -22,7 +22,7 @@ public class MatchStats {
     private int malusPoints;
 
     @Column(nullable = false)
-    private int perfectRounds;
+    private int perfectGames;
 
     @Column(nullable = false)
     private int shotTheMoonCount;
@@ -61,12 +61,12 @@ public class MatchStats {
         this.malusPoints = malusPoints;
     }
 
-    public int getPerfectRounds() {
-        return perfectRounds;
+    public int getPerfectGames() {
+        return perfectGames;
     }
 
-    public void setPerfectRounds(int perfectRounds) {
-        this.perfectRounds = perfectRounds;
+    public void setPerfectGames(int perfectGames) {
+        this.perfectGames = perfectGames;
     }
 
     public int getShotTheMoonCount() {
@@ -82,8 +82,8 @@ public class MatchStats {
         this.malusPoints += points;
     }
 
-    public void incrementPerfectRounds() {
-        this.perfectRounds++;
+    public void incrementPerfectGames() {
+        this.perfectGames++;
     }
 
     public void incrementShotTheMoon() {

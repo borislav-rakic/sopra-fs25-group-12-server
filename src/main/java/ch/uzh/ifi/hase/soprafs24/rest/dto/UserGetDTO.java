@@ -18,7 +18,7 @@ public class UserGetDTO {
   private int gamesPlayed;
   private float avgPlacement;
   private int moonShots;
-  private int perfectRounds;
+  private int perfectGames;
   private int perfectMatches;
   private int currentStreak;
   private int longestStreak;
@@ -29,7 +29,7 @@ public class UserGetDTO {
 
   public UserGetDTO(Long id, String username, UserStatus status, int avatar, LocalDate birthday,
       int scoreTotal, int gamesPlayed, int avgPlacement, int moonShots,
-      int perfectRounds, int perfectMatches, int currentStreak, int longestStreak,
+      int perfectGames, int perfectMatches, int currentStreak, int longestStreak,
       boolean isAiPlayer, boolean isGuest) {
     this.id = id;
     this.username = username;
@@ -40,7 +40,7 @@ public class UserGetDTO {
     this.gamesPlayed = gamesPlayed;
     this.avgPlacement = avgPlacement;
     this.moonShots = moonShots;
-    this.perfectRounds = perfectRounds;
+    this.perfectGames = perfectGames;
     this.perfectMatches = perfectMatches;
     this.currentStreak = currentStreak;
     this.longestStreak = longestStreak;
@@ -137,12 +137,12 @@ public class UserGetDTO {
     this.moonShots = moonShots;
   }
 
-  public int getPerfectRounds() {
-    return perfectRounds;
+  public int getPerfectGames() {
+    return perfectGames;
   }
 
-  public void setPerfectRounds(int perfectRounds) {
-    this.perfectRounds = perfectRounds;
+  public void setPerfectGames(int perfectGames) {
+    this.perfectGames = perfectGames;
   }
 
   public int getPerfectMatches() {

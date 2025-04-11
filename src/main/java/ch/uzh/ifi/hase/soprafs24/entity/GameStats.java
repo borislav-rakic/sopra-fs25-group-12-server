@@ -3,8 +3,8 @@ package ch.uzh.ifi.hase.soprafs24.entity;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "ROUND_STATS")
-public class RoundStats {
+@Table(name = "GAME_STATS")
+public class GameStats {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -41,7 +41,7 @@ public class RoundStats {
     private int pointsBilledTo;
 
     @Column(nullable = false)
-    private int cardHolder; // 1–4 for players, or 0 for unassigned
+    private int cardHolder = 0; // 1–4 for players, or 0 for unassigned
 
     // Enums
     public enum Suit {

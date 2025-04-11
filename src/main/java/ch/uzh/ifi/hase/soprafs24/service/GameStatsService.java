@@ -1,11 +1,11 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
-import ch.uzh.ifi.hase.soprafs24.entity.RoundStats;
-import ch.uzh.ifi.hase.soprafs24.entity.RoundStats.Rank;
-import ch.uzh.ifi.hase.soprafs24.entity.RoundStats.Suit;
+import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
+import ch.uzh.ifi.hase.soprafs24.entity.GameStats.Rank;
+import ch.uzh.ifi.hase.soprafs24.entity.GameStats.Suit;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.RoundStatsRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,27 +18,27 @@ import java.util.List;
 
 @Service
 @Transactional
-public class RoundStatsService {
+public class GameStatsService {
 
-    private final Logger log = LoggerFactory.getLogger(RoundStatsService.class);
+    private final Logger log = LoggerFactory.getLogger(GameStatsService.class);
 
-    private final RoundStatsRepository roundStatsRepository;
+    private final GameStatsRepository gameStatsRepository;
     private final MatchRepository matchRepository;
 
     @Autowired
-    public RoundStatsService(
-            @Qualifier("roundStatsRepository") RoundStatsRepository roundStatsRepository,
+    public GameStatsService(
+            @Qualifier("gameStatsRepository") GameStatsRepository gameStatsRepository,
             @Qualifier("matchRepository") MatchRepository matchRepository) {
-        this.roundStatsRepository = roundStatsRepository;
+        this.gameStatsRepository = gameStatsRepository;
         this.matchRepository = matchRepository;
     }
 
-    public void initializeRoundStats(Match match) {
-        List<RoundStats> roundStatsList = new ArrayList<>();
+    public void initializeGameStats(Match match) {
+        List<GameStats> gameStatsList = new ArrayList<>();
 
         for (Suit suit : Suit.values()) {
             for (Rank rank : Rank.values()) {
-                RoundStats stats = new RoundStats();
+                GameStats stats = new GameStats();
                 stats.setMatch(match);
                 stats.setSuit(suit);
                 stats.setRank(rank);
@@ -49,28 +49,28 @@ public class RoundStatsService {
                 stats.setPointsBilledTo(0);
                 stats.setCardHolder(0);
 
-                roundStatsList.add(stats);
+                gameStatsList.add(stats);
             }
         }
 
-        roundStatsRepository.saveAll(roundStatsList);
-        roundStatsRepository.flush();
+        gameStatsRepository.saveAll(gameStatsList);
+        gameStatsRepository.flush();
 
-        log.info("Initialized 52 round stats entries for Match ID: {}", match.getMatchId());
+        log.info("Initialized 52 game stats entries for Match ID: {}", match.getMatchId());
     }
 
-    public List<RoundStats> getRoundStatsForMatch(Long matchId) {
+    public List<GameStats> getGameStatsForMatch(Long matchId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
 
         if (match == null) {
             throw new IllegalArgumentException("Match not found with ID: " + matchId);
         }
 
-        return roundStatsRepository.findByMatch(match);
+        return gameStatsRepository.findByMatch(match);
     }
 
-    public void deleteRoundStatsForMatch(Match match) {
-        roundStatsRepository.deleteByMatch(match);
-        log.info("Deleted round stats for Match ID: {}", match.getMatchId());
+    public void deleteGameStatsForMatch(Match match) {
+        gameStatsRepository.deleteByMatch(match);
+        log.info("Deleted game stats for Match ID: {}", match.getMatchId());
     }
 }

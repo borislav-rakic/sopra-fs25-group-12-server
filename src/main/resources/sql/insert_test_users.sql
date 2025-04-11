@@ -1,4 +1,4 @@
-INSERT INTO `user` (id, avatar, birthday, is_ai_player, is_guest, password, status, token, user_settings, username, score_total, games_played, avg_placement, moon_shots, perfect_rounds, perfect_matches, current_streak, longest_streak) VALUES
+INSERT INTO `user` (id, avatar, birthday, is_ai_player, is_guest, password, status, token, user_settings, username, score_total, games_played, avg_placement, moon_shots, perfect_games, perfect_matches, current_streak, longest_streak) VALUES
 (4,1,'1964-08-04',FALSE,FALSE,'$2a$10$1JLHCFKBJr/sS5a4OsH2werbW0rt/YWqMRVY5QOoKihqznhflmM5.','ONLINE','616755c5-1694-4029-98f3-d6dd58b3ea55','{}','User1',127.7932085,19,3.184956226,3,13, 0,1, 3),
 (5,2,'2001-01-07',FALSE,FALSE,'$2a$10$5EFTA4KK5j2upXboxRsDhuc.POWRkeYPbLBBWorhSU4hJuBZmLfEK','OFFLINE','b49838a9-1b72-421e-8dd5-fca3a5e72353','{}','User2',45.09457364,7,4.051271698,1,4, 0,2, 2),
 (6,3,'1987-03-31',FALSE,FALSE,'$2a$10$3lLh9obl1sYg1Qz1FoPP0.tAyKVXV6XjIxYnEqhDiLx2ibzFplQji','OFFLINE','1617867e-faec-4ec1-8ba9-daa05ed93a88','{}','User3',45.54865023,7,4.582167608,0,4, 0,2, 1),
