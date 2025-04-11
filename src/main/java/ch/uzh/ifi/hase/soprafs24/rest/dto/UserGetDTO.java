@@ -12,12 +12,11 @@ public class UserGetDTO {
   private UserStatus status;
   private int avatar;
   private LocalDate birthday;
-  private int rating;
   private boolean isGuest;
   private boolean isAiPlayer;
-  private int scoreTotal;
+  private float scoreTotal;
   private int gamesPlayed;
-  private int avgPlacement;
+  private float avgPlacement;
   private int moonShots;
   private int perfectRounds;
   private int perfectMatches;
@@ -28,7 +27,7 @@ public class UserGetDTO {
     // default constructor required by mapping libraries
   }
 
-  public UserGetDTO(Long id, String username, UserStatus status, int avatar, LocalDate birthday, int rating,
+  public UserGetDTO(Long id, String username, UserStatus status, int avatar, LocalDate birthday,
       int scoreTotal, int gamesPlayed, int avgPlacement, int moonShots,
       int perfectRounds, int perfectMatches, int currentStreak, int longestStreak,
       boolean isAiPlayer, boolean isGuest) {
@@ -37,7 +36,6 @@ public class UserGetDTO {
     this.status = status;
     this.avatar = avatar;
     this.birthday = birthday;
-    this.rating = rating;
     this.scoreTotal = scoreTotal;
     this.gamesPlayed = gamesPlayed;
     this.avgPlacement = avgPlacement;
@@ -75,14 +73,6 @@ public class UserGetDTO {
     this.status = status;
   }
 
-  public int getRating() {
-    return rating;
-  }
-
-  public void setRating(int rating) {
-    this.rating = rating;
-  }
-
   public boolean getIsGuest() {
     return isGuest;
   }
@@ -115,11 +105,11 @@ public class UserGetDTO {
     this.avatar = avatar;
   }
 
-  public int getScoreTotal() {
+  public float getScoreTotal() {
     return scoreTotal;
   }
 
-  public void setScoreTotal(int scoreTotal) {
+  public void setScoreTotal(float scoreTotal) {
     this.scoreTotal = scoreTotal;
   }
 
@@ -131,11 +121,11 @@ public class UserGetDTO {
     this.gamesPlayed = gamesPlayed;
   }
 
-  public int getAvgPlacement() {
+  public float getAvgPlacement() {
     return avgPlacement;
   }
 
-  public void setAvgPlacement(int avgPlacement) {
+  public void setAvgPlacement(float avgPlacement) {
     this.avgPlacement = avgPlacement;
   }
 

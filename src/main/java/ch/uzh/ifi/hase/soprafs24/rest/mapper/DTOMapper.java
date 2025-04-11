@@ -33,7 +33,6 @@ public interface DTOMapper {
   @Mapping(target = "isAiPlayer", ignore = true)
   @Mapping(target = "birthday", ignore = true)
   @Mapping(target = "userSettings", ignore = true)
-  @Mapping(target = "rating", ignore = true)
   @Mapping(target = "scoreTotal", ignore = true)
   @Mapping(target = "gamesPlayed", ignore = true)
   @Mapping(target = "avgPlacement", ignore = true)
@@ -49,7 +48,6 @@ public interface DTOMapper {
   @Mapping(source = "status", target = "status")
   @Mapping(source = "avatar", target = "avatar")
   @Mapping(source = "birthday", target = "birthday")
-  @Mapping(source = "rating", target = "rating")
   @Mapping(source = "scoreTotal", target = "scoreTotal")
   @Mapping(source = "gamesPlayed", target = "gamesPlayed")
   @Mapping(source = "avgPlacement", target = "avgPlacement")
@@ -63,7 +61,6 @@ public interface DTOMapper {
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "isGuest", ignore = true)
   @Mapping(target = "isAiPlayer", ignore = true)
-  @Mapping(target = "rating", ignore = true)
   @Mapping(target = "status", ignore = true)
   @Mapping(target = "token", ignore = true)
   @Mapping(target = "userSettings", ignore = true)
@@ -90,7 +87,6 @@ public interface DTOMapper {
   @Mapping(source = "status", target = "status")
   @Mapping(source = "birthday", target = "birthday")
   @Mapping(source = "userSettings", target = "userSettings")
-  @Mapping(source = "rating", target = "rating")
   UserPrivateDTO convertEntityToUserPrivateDTO(User user);
 
   @Mapping(source = "id", target = "id")
@@ -103,7 +99,6 @@ public interface DTOMapper {
   @Mapping(target = "isAiPlayer", ignore = true)
   @Mapping(target = "birthday", ignore = true)
   @Mapping(target = "userSettings", ignore = true)
-  @Mapping(target = "rating", ignore = true)
   @Mapping(target = "scoreTotal", ignore = true)
   @Mapping(target = "gamesPlayed", ignore = true)
   @Mapping(target = "avgPlacement", ignore = true)
@@ -116,7 +111,6 @@ public interface DTOMapper {
 
   @Mapping(source = "id", target = "id")
   @Mapping(source = "username", target = "username")
-  @Mapping(source = "rating", target = "rating")
   @Mapping(source = "avgPlacement", target = "avgPlacement")
   @Mapping(source = "scoreTotal", target = "scoreTotal")
   @Mapping(source = "gamesPlayed", target = "gamesPlayed")

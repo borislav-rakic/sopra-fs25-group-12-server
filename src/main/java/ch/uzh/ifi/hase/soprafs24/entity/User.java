@@ -54,9 +54,6 @@ public class User implements Serializable {
   @Column(name = "user_settings", nullable = false)
   private String userSettings = "{}";
 
-  @Column(nullable = false)
-  private Integer rating = 0;
-
   // NEW STATS FIELDS
   @Column(name = "score_total", nullable = false)
   private float scoreTotal = 0.0f;
@@ -162,14 +159,6 @@ public class User implements Serializable {
 
   public void setUserSettings(String userSettings) {
     this.userSettings = userSettings;
-  }
-
-  public Integer getRating() {
-    return rating;
-  }
-
-  public void setRating(Integer rating) {
-    this.rating = rating;
   }
 
   public float getScoreTotal() {

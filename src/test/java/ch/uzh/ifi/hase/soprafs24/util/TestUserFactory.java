@@ -22,7 +22,6 @@ public class TestUserFactory {
         user.setStatus(UserStatus.OFFLINE);
         user.setAvatar(0);
         user.setUserSettings("{}");
-        user.setRating(0);
         user.setIsGuest(false);
         user.setIsAiPlayer(false);
         return user;

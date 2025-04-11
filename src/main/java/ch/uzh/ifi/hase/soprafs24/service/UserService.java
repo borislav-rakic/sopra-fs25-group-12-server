@@ -22,6 +22,7 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import javax.persistence.criteria.Predicate;
 import java.util.Map;
 
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -131,7 +132,6 @@ public class UserService {
     newUser.setIsAiPlayer(false); // default
     newUser.setBirthday(null); // default date is null!
     newUser.setUserSettings("{}"); // empty settings
-    newUser.setRating(0); // default rating
 
     checkIfUserExists(newUser);
     // saves the given entity but data is only persisted in the database once
@@ -218,11 +218,18 @@ public class UserService {
 
   public Page<User> findUsersForLeaderboard(String filter, Pageable pageable) {
     Specification<User> spec = (root, query, cb) -> {
+      // Base predicate: only real, non-guest users
+      Predicate isNotAi = cb.equal(root.get("isAiPlayer"), false);
+      Predicate isNotGuest = cb.equal(root.get("isGuest"), false);
+      Predicate basePredicate = cb.and(isNotAi, isNotGuest);
+
+      // Optional username filter
       if (filter != null && !filter.isBlank()) {
-        // Filter by username (case-insensitive)
-        return cb.like(cb.lower(root.get("username")), "%" + filter.toLowerCase() + "%");
+        Predicate usernamePredicate = cb.like(cb.lower(root.get("username")), "%" + filter.toLowerCase() + "%");
+        return cb.and(basePredicate, usernamePredicate);
       }
-      return cb.conjunction(); // No filtering
+
+      return basePredicate;
     };
 
     return userRepository.findAll(spec, pageable);

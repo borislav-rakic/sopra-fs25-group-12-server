@@ -67,7 +67,6 @@ public class UserServiceIntegrationTest {
     testUser.setIsAiPlayer(false);
     testUser.setStatus(UserStatus.OFFLINE);
     testUser.setUserSettings("{}");
-    testUser.setRating(0);
 
     // Create the first user
     userService.createUser(testUser);
@@ -83,7 +82,6 @@ public class UserServiceIntegrationTest {
     testUser2.setIsAiPlayer(false);
     testUser2.setStatus(UserStatus.OFFLINE);
     testUser2.setUserSettings("{}");
-    testUser2.setRating(0);
 
     // when / then
     assertThrows(ResponseStatusException.class, () -> userService.createUser(testUser2));

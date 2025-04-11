@@ -5,9 +5,8 @@ public class LeaderboardDTO {
     private String username;
     private boolean isGuest;
     private boolean isAiPlayer;
-    private int rating;
-    private double avgPlacement;
-    private int scoreTotal;
+    private float avgPlacement;
+    private float scoreTotal;
     private int gamesPlayed;
     private int moonShots;
     private int perfectRounds;
@@ -32,14 +31,6 @@ public class LeaderboardDTO {
         this.username = username;
     }
 
-    public int getRating() {
-        return rating;
-    }
-
-    public void setRating(int rating) {
-        this.rating = rating;
-    }
-
     public boolean getIsGuest() {
         return isGuest;
     }
@@ -56,19 +47,19 @@ public class LeaderboardDTO {
         this.isAiPlayer = isAiPlayer;
     }
 
-    public double getAvgPlacement() {
+    public float getAvgPlacement() {
         return avgPlacement;
     }
 
-    public void setAvgPlacement(double avgPlacement) {
+    public void setAvgPlacement(float avgPlacement) {
         this.avgPlacement = avgPlacement;
     }
 
-    public int getScoreTotal() {
+    public float getScoreTotal() {
         return scoreTotal;
     }
 
-    public void setScoreTotal(int scoreTotal) {
+    public void setScoreTotal(float scoreTotal) {
         this.scoreTotal = scoreTotal;
     }
 

@@ -28,7 +28,7 @@ public class LeaderboardController {
     public Page<LeaderboardDTO> getLeaderboard(
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "10") int pageSize,
-            @RequestParam(defaultValue = "rating") String sortBy,
+            @RequestParam(defaultValue = "scoreTotal") String sortBy,
             @RequestParam(defaultValue = "desc") String order,
             @RequestParam(defaultValue = "") String filter) {
 

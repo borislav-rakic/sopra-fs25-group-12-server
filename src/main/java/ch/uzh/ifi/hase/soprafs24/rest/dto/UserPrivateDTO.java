@@ -12,7 +12,6 @@ public class UserPrivateDTO {
   private UserStatus status;
   private int avatar;
   private LocalDate birthday;
-  private int rating;
   private String userSettings;
 
   public Long getId() {
@@ -37,14 +36,6 @@ public class UserPrivateDTO {
 
   public void setStatus(UserStatus status) {
     this.status = status;
-  }
-
-  public int getRating() {
-    return rating;
-  }
-
-  public void setRating(int rating) {
-    this.rating = rating;
   }
 
   public LocalDate getBirthday() {
