@@ -146,17 +146,6 @@ public class MatchController {
     }
 
     /**
-     * Gets only the information necessary for the player requesting the information.
-     * @return The information of the match
-     */
-    @PostMapping("/matches/{matchId}/logic")
-    @ResponseStatus(HttpStatus.OK)
-    public PlayerMatchInformationDTO getPlayerMatchInformation(@PathVariable Long matchId, @RequestHeader("Authorization") String authHeader) {
-        String token = authHeader.replace("Bearer ", "");
-        return matchService.getPlayerMatchInformation(token, matchId);
-    }
-
-    /**
      * Sends a join request.
      */
     @PostMapping("/matches/{matchId}/join")

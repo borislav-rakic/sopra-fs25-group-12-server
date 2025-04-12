@@ -211,65 +211,6 @@ public class MatchService {
         matchRepository.save(match);
     }
 
-    public PlayerMatchInformationDTO getPlayerMatchInformation(String token, Long matchId) {
-        Match match = matchRepository.findMatchByMatchId(matchId);
-        User user = userRepository.findUserByToken(token);
-
-        if (match == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
-        }
-        if (user == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
-        }
-
-        MatchPlayer matchPlayer = matchPlayerRepository.findMatchPlayerByUser(user);
-
-        if (matchPlayer == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
-        }
-
-        List<String> matchPlayers = new ArrayList<>();
-        matchPlayers.add(null);
-        matchPlayers.add(null);
-        matchPlayers.add(null);
-        matchPlayers.add(null);
-
-        List<MatchPlayer> matchPlayerList = match.getMatchPlayers();
-
-        List<User> usersInMatch = new ArrayList<>();
-        usersInMatch.add(match.getPlayer1());
-        usersInMatch.add(match.getPlayer2());
-        usersInMatch.add(match.getPlayer3());
-        usersInMatch.add(match.getPlayer4());
-
-        for (MatchPlayer player : matchPlayerList) {
-            User matchPlayerUser = player.getPlayerId();
-
-            int slot = 0;
-
-            for (User userInMatch : usersInMatch) {
-                if (userInMatch == matchPlayerUser) {
-                    break;
-                }
-                slot++;
-            }
-
-            matchPlayers.set(slot, matchPlayerUser.getUsername());
-        }
-
-        System.out.println(matchPlayers);
-
-        PlayerMatchInformationDTO dto = new PlayerMatchInformationDTO();
-        dto.setMatchId(match.getMatchId());
-        dto.setHost(match.getHost());
-        dto.setMatchPlayers(matchPlayers);
-        dto.setAiPlayers(match.getAiPlayers());
-        dto.setLength(match.getLength());
-        dto.setStarted(true);
-
-        return dto;
-    }
-
     public void sendJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         User user = userRepository.findUserById(userId);

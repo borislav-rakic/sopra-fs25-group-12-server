@@ -227,41 +227,6 @@ public class MatchControllerTest {
     }
 
     @Test
-    public void testGetPlayerMatchInformation() throws Exception {
-        PlayerMatchInformationDTO playerMatchInformationDTO = new PlayerMatchInformationDTO();
-        playerMatchInformationDTO.setMatchId(1L);
-
-        List<Integer> aiPlayers = new ArrayList<>();
-        aiPlayers.add(1);
-        aiPlayers.add(1);
-        aiPlayers.add(1);
-
-        playerMatchInformationDTO.setAiPlayers(aiPlayers);
-
-        List<String> matchPlayers = new ArrayList<>();
-        matchPlayers.add("User");
-
-        playerMatchInformationDTO.setMatchPlayers(matchPlayers);
-        playerMatchInformationDTO.setHost("User");
-        playerMatchInformationDTO.setLength(100);
-        playerMatchInformationDTO.setStarted(true);
-
-        given(matchService.getPlayerMatchInformation(Mockito.any(), Mockito.any())).willReturn(playerMatchInformationDTO);
-
-        MockHttpServletRequestBuilder postRequest = post("/matches/1/logic")
-                .header("Authorization", "Bearer 1234");
-
-        mockMvc.perform(postRequest)
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.matchId", is(playerMatchInformationDTO.getMatchId().intValue())))
-                .andExpect(jsonPath("$.started", is(playerMatchInformationDTO.getStarted())))
-                .andExpect(jsonPath("$.matchPlayers", is(playerMatchInformationDTO.getMatchPlayers())))
-                .andExpect(jsonPath("$.aiPlayers", is(playerMatchInformationDTO.getAiPlayers())))
-                .andExpect(jsonPath("$.length", is(playerMatchInformationDTO.getLength())))
-                .andExpect(jsonPath("$.host", is(playerMatchInformationDTO.getHost())));
-    }
-
-    @Test
     public void testSendJoinRequest() throws Exception {
         JoinRequestDTO joinRequestDTO = new JoinRequestDTO();
         joinRequestDTO.setUserId(1L);

@@ -46,7 +46,7 @@ public class Match implements Serializable {
     private  Map<Long, String> joinRequests = new HashMap<>();
 
     @Column(name = "deck_id")
-    private int deckId;
+    private String deckId;
 
     @ManyToOne
     @JoinColumn(name = "player_1")
@@ -124,11 +124,11 @@ public class Match implements Serializable {
         return joinRequests.getOrDefault(userId, "not found");
     }
 
-    public void setDeckId(int deckId) {
+    public void setDeckId(String deckId) {
         this.deckId = deckId;
     }
 
-    public int getDeckId() {
+    public String getDeckId() {
         return deckId;
     }
 

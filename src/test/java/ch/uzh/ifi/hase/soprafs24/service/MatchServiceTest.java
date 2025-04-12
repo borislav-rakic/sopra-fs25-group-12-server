@@ -293,36 +293,6 @@ public class MatchServiceTest {
     }
 
     @Test
-    public void testGetPlayerMatchInformationSuccess() {
-        given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
-        given(userRepository.findUserByToken(Mockito.any())).willReturn(user);
-        given(matchPlayerRepository.findMatchPlayerByUser(user)).willReturn(matchPlayer);
-
-        List<String> matchPlayers = new ArrayList<>();
-        matchPlayers.add(user.getUsername());
-        matchPlayers.add(null);
-        matchPlayers.add(null);
-        matchPlayers.add(null);
-
-        PlayerMatchInformationDTO playerMatchInformationDTO = new PlayerMatchInformationDTO();
-        playerMatchInformationDTO.setMatchId(match.getMatchId());
-        playerMatchInformationDTO.setHost(match.getHost());
-        playerMatchInformationDTO.setAiPlayers(new ArrayList<>());
-        playerMatchInformationDTO.setMatchPlayers(matchPlayers);
-        playerMatchInformationDTO.setLength(match.getLength());
-        playerMatchInformationDTO.setStarted(true);
-
-        PlayerMatchInformationDTO result = matchService.getPlayerMatchInformation("1234", 1L);
-
-        assertEquals(playerMatchInformationDTO.getMatchId(), result.getMatchId());
-        assertEquals(playerMatchInformationDTO.getHost(), result.getHost());
-        assertEquals(playerMatchInformationDTO.getMatchPlayers(), result.getMatchPlayers());
-        assertEquals(playerMatchInformationDTO.getAiPlayers(), result.getAiPlayers());
-        assertEquals(playerMatchInformationDTO.getLength(), result.getLength());
-        assertEquals(playerMatchInformationDTO.getStarted(), result.getStarted());
-    }
-
-    @Test
     public void testSendJoinRequestMatchNull() {
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(null);
         given(userRepository.findUserByToken(Mockito.any())).willReturn(user);
