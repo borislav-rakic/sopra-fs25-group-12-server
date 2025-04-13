@@ -14,9 +14,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.security.crypto.bcrypt.BCrypt;
+import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -88,6 +90,26 @@ public class UserController {
     User createdUser = userService.createUser(userInput);
 
     return DTOMapper.INSTANCE.convertEntityToUserAuthDTO(createdUser);
+  }
+
+  /**
+   * Creates and logs in a guest user.
+   */
+  @PostMapping("/users/guest")
+  @ResponseStatus(HttpStatus.CREATED)
+  public UserAuthDTO createGuestUser() {
+    User guest = new User();
+    guest.setUsername("guest-" + UUID.randomUUID().toString().substring(0, 10));
+    guest.setIsGuest(true);
+    guest.setToken(UUID.randomUUID().toString());
+    guest.setStatus(UserStatus.ONLINE);
+    int randomAvatar = 201 + new Random().nextInt(49);
+    guest.setAvatar(randomAvatar);
+    String hashedRandomPassword = hashPassword(UUID.randomUUID().toString());
+    guest.setPassword(hashedRandomPassword);
+
+    User createdGuest = userService.createGuestUser(guest);
+    return DTOMapper.INSTANCE.convertEntityToUserAuthDTO(createdGuest);
   }
 
   /**

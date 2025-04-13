@@ -13,6 +13,7 @@ public class UserPrivateDTO {
   private int avatar;
   private LocalDate birthday;
   private String userSettings;
+  private Boolean isGuest;
 
   public Long getId() {
     return id;
@@ -60,6 +61,14 @@ public class UserPrivateDTO {
 
   public void setUserSettings(String userSettings) {
     this.userSettings = userSettings;
+  }
+
+  public boolean getIsGuest() {
+    return isGuest;
+  }
+
+  public void setIsGuest(boolean isGuest) {
+    this.isGuest = isGuest;
   }
 
 }

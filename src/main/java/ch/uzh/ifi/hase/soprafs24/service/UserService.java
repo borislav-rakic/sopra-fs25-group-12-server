@@ -60,6 +60,10 @@ public class UserService {
     return userRepository.count();
   }
 
+  public User createGuestUser(User guest) {
+    return userRepository.save(guest);
+  }
+
   public void populateUsersFromSQL() {
     if (userRepository.count() > 3) {
       return;

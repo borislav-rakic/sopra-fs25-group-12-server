@@ -10,6 +10,7 @@ public class UserAuthDTO {
   private String token;
   private UserStatus status;
   private int avatar;
+  private boolean isGuest;
 
   public Long getId() {
     return id;
@@ -49,5 +50,13 @@ public class UserAuthDTO {
 
   public void setStatus(UserStatus status) {
     this.status = status;
+  }
+
+  public void setIsGuest(Boolean isGuest) {
+    this.isGuest = isGuest;
+  }
+
+  public Boolean getIsGuest() {
+    return isGuest;
   }
 }
