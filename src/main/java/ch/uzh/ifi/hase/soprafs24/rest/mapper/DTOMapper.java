@@ -88,6 +88,7 @@ public interface DTOMapper {
   @Mapping(source = "status", target = "status")
   @Mapping(source = "birthday", target = "birthday")
   @Mapping(source = "userSettings", target = "userSettings")
+  @Mapping(source = "isGuest", target = "isGuest")
   UserPrivateDTO convertEntityToUserPrivateDTO(User user);
 
   @Mapping(source = "id", target = "id")
