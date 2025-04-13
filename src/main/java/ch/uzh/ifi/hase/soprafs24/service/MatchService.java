@@ -29,7 +29,7 @@ import java.util.Map.Entry;
 @Service
 @Transactional
 public class MatchService {
-//    private final Logger log = LoggerFactory.getLogger(MatchService.class);
+    // private final Logger log = LoggerFactory.getLogger(MatchService.class);
 
     private final MatchRepository matchRepository;
     private final UserService userService;
@@ -48,6 +48,43 @@ public class MatchService {
         this.matchPlayerRepository = matchPlayerRepository;
     }
 
+    /**
+     * Creates a new {@link Match} entity for the user associated with the provided
+     * token.
+     *
+     * <p>
+     * This method:
+     * <ul>
+     * <li>Validates the provided player token by retrieving the corresponding
+     * {@link User}.</li>
+     * <li>Creates a new {@link Match} and assigns the user as the host and
+     * player1.</li>
+     * <li>Initializes a list of {@link MatchPlayer} with the user.</li>
+     * <li>Saves the newly created match to the database.</li>
+     * </ul>
+     *
+     * <p>
+     * The returned {@link Match} will be transformed into a {@link MatchDTO}
+     * elsewhere, where the following fields are populated:
+     * </p>
+     * <ul>
+     * <li>{@code matchId} – Unique identifier of the match.</li>
+     * <li>{@code matchPlayerIds} – List of player IDs participating in the
+     * match.</li>
+     * <li>{@code host} – The username of the player who created the match.</li>
+     * <li>{@code length} – Default match length (set to 100).</li>
+     * <li>{@code started} – Initially {@code false}, indicating the match hasn't
+     * begun.</li>
+     * <li>{@code player1Id} – The ID of the initiating player (same as the token
+     * owner).</li>
+     * </ul>
+     *
+     * @param playerToken the authentication token of the player creating the match
+     * @return a newly created {@link Match} object that can be transformed into a
+     *         {@link MatchDTO}
+     * @throws ResponseStatusException if the token is invalid or the user cannot be
+     *                                 found
+     */
     public Match createNewMatch(String playerToken) {
         User user = userService.getUserByToken(playerToken);
 
@@ -95,7 +132,7 @@ public class MatchService {
     public void deleteMatchByHost(Long matchId, String token) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         User user = userRepository.findUserByToken(token);
-    
+
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
@@ -108,8 +145,8 @@ public class MatchService {
         if (!match.getHost().equals(userName)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can delete matches");
         }
-        
-        matchRepository.delete(match); 
+
+        matchRepository.delete(match);
     }
 
     public void invitePlayerToMatch(Long matchId, InviteRequestDTO request) {
@@ -286,4 +323,3 @@ public class MatchService {
         return joinRequestDTOs;
     }
 }
-

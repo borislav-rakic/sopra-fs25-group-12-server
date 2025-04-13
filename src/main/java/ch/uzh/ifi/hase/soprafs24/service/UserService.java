@@ -97,6 +97,7 @@ public class UserService {
     // set new token.
     user.setToken(UUID.randomUUID().toString());
     user.setStatus(UserStatus.ONLINE);
+    user.setIsGuest(false);
     userRepository.save(user);
     return user;
   }
