@@ -23,9 +23,8 @@ public class MatchPlayer {
     @JoinColumn(name = "player_id")
     private User user;
 
-    @ElementCollection
-    @Column(name = "card")
-    private List<String> cardsInHand;
+    @OneToMany(mappedBy = "matchPlayer", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<MatchPlayerCards> cardsInHand;
 
     @Column(name = "score")
     private int score;
@@ -54,11 +53,11 @@ public class MatchPlayer {
         this.user = user;
     }
 
-    public List<String> getCardsInHand() {
+    public List<MatchPlayerCards> getCardsInHand() {
         return cardsInHand;
     }
 
-    public void setCardsInHand(List<String> cardsInHand) {
+    public void setCardsInHand(List<MatchPlayerCards> cardsInHand) {
         this.cardsInHand = cardsInHand;
     }
 

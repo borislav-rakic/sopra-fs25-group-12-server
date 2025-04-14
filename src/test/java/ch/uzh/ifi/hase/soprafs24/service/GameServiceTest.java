@@ -1,12 +1,13 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
-import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.MatchStatsRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
+import ch.uzh.ifi.hase.soprafs24.model.Card;
+import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
+import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
+import ch.uzh.ifi.hase.soprafs24.repository.*;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -14,13 +15,14 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.verify;
 
 public class GameServiceTest {
     @Mock
@@ -29,9 +31,6 @@ public class GameServiceTest {
     @Mock
     private UserRepository userRepository = Mockito.mock(UserRepository.class);
 
-    @MockBean
-    private UserService userService = Mockito.mock(UserService.class);
-
     @Mock
     private MatchPlayerRepository matchPlayerRepository = Mockito.mock(MatchPlayerRepository.class);
 
@@ -39,10 +38,16 @@ public class GameServiceTest {
     private MatchStatsRepository matchStatsRepository = Mockito.mock(MatchStatsRepository.class);
 
     @Mock
-    private WebClient externalApiClient = Mockito.mock(WebClient.class);
+    private GameStatsRepository gameStatsRepository = Mockito.mock(GameStatsRepository.class);
+
+    @Mock
+    private ExternalApiClientService externalApiClientService = Mockito.mock(ExternalApiClientService.class);
+
+    @MockBean
+    private UserService userService = Mockito.mock(UserService.class);
 
     @InjectMocks
-    private GameService gameService = new GameService(matchRepository, userService, userRepository, matchPlayerRepository, matchStatsRepository, externalApiClient);
+    private GameService gameService = new GameService(matchRepository, userRepository, matchPlayerRepository, matchStatsRepository, gameStatsRepository, externalApiClientService, userService);
 
     private Match match;
     private User user;
@@ -103,5 +108,52 @@ public class GameServiceTest {
         assertEquals(playerMatchInformationDTO.getAiPlayers(), result.getAiPlayers());
         assertEquals(playerMatchInformationDTO.getLength(), result.getLength());
         assertEquals(playerMatchInformationDTO.getStarted(), result.getStarted());
+    }
+
+    @Test
+    public void testStartMatchSuccess() {
+        NewDeckResponse newDeckResponse = new NewDeckResponse();
+        newDeckResponse.setDeck_id("9876");
+        newDeckResponse.setSuccess(true);
+        newDeckResponse.setRemaining(52);
+        newDeckResponse.setShuffled(true);
+
+        Card card = new Card();
+        card.setCode("3H");
+
+        List<Card> cards = new ArrayList<>();
+        cards.add(card);
+
+        DrawCardResponse drawCardResponse = new DrawCardResponse();
+        drawCardResponse.setDeck_id("9876");
+        drawCardResponse.setSuccess(true);
+        drawCardResponse.setRemaining(39);
+        drawCardResponse.setCards(cards);
+
+        Mono<DrawCardResponse> drawCardMono = Mono.just(drawCardResponse);
+
+        Mono<NewDeckResponse> newDeckMono = Mono.just(newDeckResponse);
+
+        given(userRepository.findUserByToken(Mockito.any())).willReturn(user);
+        given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
+
+        given(matchRepository.save(Mockito.any())).willReturn(match);
+        given(matchPlayerRepository.save(Mockito.any())).willReturn(matchPlayer);
+
+        given(externalApiClientService.createNewDeck()).willReturn(newDeckMono);
+
+        given(gameStatsRepository.save(Mockito.any())).willReturn(new GameStats());
+
+        given(externalApiClientService.drawCard("9876", 13)).willReturn(drawCardMono);
+
+        given(matchPlayerRepository.save(Mockito.any())).willReturn(matchPlayer);
+
+        gameService.startMatch(1L, "1234");
+
+        verify(matchRepository, Mockito.times(2)).save(Mockito.any());
+        verify(matchPlayerRepository).save(Mockito.any());
+        verify(externalApiClientService).createNewDeck();
+        verify(gameStatsRepository, Mockito.times(52)).save(Mockito.any());
+        verify(externalApiClientService).drawCard("9876", 13);
     }
 }
