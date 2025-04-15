@@ -129,16 +129,28 @@ public class GameServiceTest {
         newDeckResponse.setRemaining(52);
         newDeckResponse.setShuffled(true);
 
-        Card card = new Card();
-        card.setCode("3H");
+        Card card1 = new Card();
+        card1.setCode("3H");
+        Card card2 = new Card();
+        card2.setCode("0H");
+        Card card3 = new Card();
+        card3.setCode("0S");
+        Card card4 = new Card();
+        card4.setCode("0D");
+        Card card5 = new Card();
+        card5.setCode("0C");
 
         List<Card> cards = new ArrayList<>();
-        cards.add(card);
+        cards.add(card1);
+        cards.add(card2);
+        cards.add(card3);
+        cards.add(card4);
+        cards.add(card5);
 
         DrawCardResponse drawCardResponse = new DrawCardResponse();
         drawCardResponse.setDeck_id("9876");
         drawCardResponse.setSuccess(true);
-        drawCardResponse.setRemaining(39);
+        drawCardResponse.setRemaining(0);
         drawCardResponse.setCards(cards);
 
         Mono<DrawCardResponse> drawCardMono = Mono.just(drawCardResponse);
@@ -153,9 +165,11 @@ public class GameServiceTest {
 
         given(externalApiClientService.createNewDeck()).willReturn(newDeckMono);
 
+        given(gameStatsRepository.findByRankSuit(Mockito.any())).willReturn(new GameStats());
+
         given(gameStatsRepository.save(Mockito.any())).willReturn(new GameStats());
 
-        given(externalApiClientService.drawCard("9876", 13)).willReturn(drawCardMono);
+        given(externalApiClientService.drawCard("9876", 52)).willReturn(drawCardMono);
 
         given(matchPlayerRepository.save(Mockito.any())).willReturn(matchPlayer);
 
@@ -164,7 +178,7 @@ public class GameServiceTest {
         verify(matchRepository, Mockito.times(2)).save(Mockito.any());
         verify(matchPlayerRepository).save(Mockito.any());
         verify(externalApiClientService).createNewDeck();
-        verify(gameStatsRepository, Mockito.times(52)).save(Mockito.any());
-        verify(externalApiClientService).drawCard("9876", 13);
+        verify(gameStatsRepository, Mockito.times(57)).save(Mockito.any());
+        verify(externalApiClientService).drawCard("9876", 52);
     }
 }

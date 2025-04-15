@@ -223,18 +223,23 @@ public class GameService {
      * Distributes 13 cards to each player
      */
     public void distributeCards(Match match) {
-        for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
-            Mono<DrawCardResponse> drawCardResponseMono = externalApiClientService.drawCard(match.getDeckId(), 13);
+        Mono<DrawCardResponse> drawCardResponseMono = externalApiClientService.drawCard(match.getDeckId(), 52);
 
-            System.out.println("REQUESTED DRAW");
+        System.out.println("REQUESTED DRAW");
 
-            // This code is executed when the response arrives.
-            drawCardResponseMono.subscribe(response -> {
-                System.out.println("DRAW RESPONSE");
+        // This code is executed when the response arrives.
+        drawCardResponseMono.subscribe(response -> {
+            System.out.println("DRAW RESPONSE");
+
+            List<Card> responseCards = response.getCards();
+
+            for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
                 List<MatchPlayerCards> cards = new ArrayList<>();
 
-                for (Card card : response.getCards()) {
-                    String code = card.getCode();
+                int counter = 0;
+
+                while (counter < 13 && !responseCards.isEmpty()) {
+                    String code = responseCards.get(0).getCode();
 
                     MatchPlayerCards matchPlayerCards = new MatchPlayerCards();
 
@@ -242,27 +247,45 @@ public class GameService {
                     if (code.startsWith("0")) {
                         if (code.endsWith("H")) {
                             matchPlayerCards.setCard("10H");
+                            GameStats gameStats = gameStatsRepository.findByRankSuit("10H");
+                            gameStats.setCardHolder(matchPlayer.getSlot());
+                            gameStatsRepository.save(gameStats);
                         } else if (code.endsWith("S")) {
                             matchPlayerCards.setCard("10S");
+                            GameStats gameStats = gameStatsRepository.findByRankSuit("10S");
+                            gameStats.setCardHolder(matchPlayer.getSlot());
+                            gameStatsRepository.save(gameStats);
                         } else if (code.endsWith("D")) {
                             matchPlayerCards.setCard("10D");
+                            GameStats gameStats = gameStatsRepository.findByRankSuit("10D");
+                            gameStats.setCardHolder(matchPlayer.getSlot());
+                            gameStatsRepository.save(gameStats);
                         } else if (code.endsWith("C")) {
                             matchPlayerCards.setCard("10C");
+                            GameStats gameStats = gameStatsRepository.findByRankSuit("10C");
+                            gameStats.setCardHolder(matchPlayer.getSlot());
+                            gameStatsRepository.save(gameStats);
                         }
                     } else {
                         matchPlayerCards.setCard(code);
+                        GameStats gameStats = gameStatsRepository.findByRankSuit(code);
+                        gameStats.setCardHolder(matchPlayer.getSlot());
+                        gameStatsRepository.save(gameStats);
                     }
 
                     matchPlayerCards.setMatchPlayer(matchPlayer);
 
                     cards.add(matchPlayerCards);
+
+                    counter++;
+                    responseCards.remove(0);
                 }
 
                 matchPlayer.setCardsInHand(cards);
                 matchPlayerRepository.save(matchPlayer);
                 matchPlayerRepository.flush();
-            });
-        }
+            }
+        });
     }
 
     private User determineNextPlayer(Game game) {

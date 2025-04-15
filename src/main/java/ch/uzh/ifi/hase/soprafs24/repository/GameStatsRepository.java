@@ -11,6 +11,8 @@ import java.util.List;
 public interface GameStatsRepository extends JpaRepository<GameStats, Long> {
     List<GameStats> findByMatch(Match match);
 
+    GameStats findByRankSuit(String rankSuit);
+
     void deleteByMatch(Match match);
 
 }

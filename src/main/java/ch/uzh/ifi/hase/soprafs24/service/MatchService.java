@@ -98,6 +98,7 @@ public class MatchService {
         matchPlayers.add(new MatchPlayer());
         matchPlayers.get(0).setPlayerId(user);
         matchPlayers.get(0).setMatch(match);
+        matchPlayers.get(0).setSlot(1);
 
         match.setMatchPlayers(matchPlayers);
         match.setHost(user.getUsername());
@@ -241,6 +242,29 @@ public class MatchService {
         if (aiPlayers == null) {
             aiPlayers = new ArrayList<>();
         }
+
+        User aiPlayer = userRepository.findUserById(dto.getDifficulty() + 1L);
+
+        MatchPlayer newMatchPlayer = new MatchPlayer();
+        newMatchPlayer.setMatch(match);
+        newMatchPlayer.setPlayerId(aiPlayer);
+
+        if (match.getPlayer2() == null) {
+            match.setPlayer2(userRepository.findUserById(dto.getDifficulty() + 1L));
+            newMatchPlayer.setSlot(2);
+        } else if (match.getPlayer3() == null) {
+            match.setPlayer3(userRepository.findUserById(dto.getDifficulty() + 1L));
+            newMatchPlayer.setSlot(3);
+        } else if (match.getPlayer4() == null) {
+            match.setPlayer4(userRepository.findUserById(dto.getDifficulty() + 1L));
+            newMatchPlayer.setSlot(4);
+        } else {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No more players can be added");
+        }
+
+        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
+        matchPlayers.add(newMatchPlayer);
+        match.setMatchPlayers(matchPlayers);
 
         aiPlayers.add(dto.getDifficulty());
         match.setAiPlayers(aiPlayers);
