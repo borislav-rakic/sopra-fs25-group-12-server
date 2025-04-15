@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
@@ -15,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -155,16 +157,38 @@ public class MatchService {
         Integer playerSlot = request.getPlayerSlot();
 
         Match match = matchRepository.findMatchByMatchId(matchId);
-
         if (match == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found.");
         }
 
+        // 1. Check if user exists
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+
+        // 2. Prevent self-inviting
+        if (user.getUsername().equals(match.getHost())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hosts cannot invite themselves.");
+        }
+
+        // 3. Prevent duplicate invites
         Map<Integer, Long> invites = match.getInvites();
         if (invites == null) {
-            invites = new java.util.HashMap<>();
+            invites = new HashMap<>();
+        } else if (invites.containsValue(userId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User has already been invited to this match.");
         }
 
+        // 4. Prevent inviting AI
+        if (Boolean.TRUE.equals(user.getIsAiPlayer())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot invite an AI player through this API.");
+        }
+
+        // 5. Check user is online
+        if (user.getStatus() != UserStatus.ONLINE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User must be online to receive an invite.");
+        }
+
+        // 6. Save the invite
         invites.put(playerSlot, userId);
         match.setInvites(invites);
 

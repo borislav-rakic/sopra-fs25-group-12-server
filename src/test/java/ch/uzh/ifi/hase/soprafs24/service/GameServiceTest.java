@@ -18,7 +18,9 @@ import org.springframework.boot.test.mock.mockito.MockBean;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.BDDMockito.given;
@@ -172,6 +174,23 @@ public class GameServiceTest {
         given(externalApiClientService.drawCard("9876", 52)).willReturn(drawCardMono);
 
         given(matchPlayerRepository.save(Mockito.any())).willReturn(matchPlayer);
+
+        match.setHost(user.getUsername()); // so host can start the match
+        match.setPlayer1(user);
+
+        Map<Integer, Long> invites = new HashMap<>();
+        invites.put(1, user.getId());
+        match.setInvites(invites);
+
+        Map<Long, String> joinRequests = new HashMap<>();
+        joinRequests.put(user.getId(), "accepted");
+        match.setJoinRequests(joinRequests);
+
+        List<Integer> aiPlayers = new ArrayList<>();
+        aiPlayers.add(1);
+        aiPlayers.add(2);
+        aiPlayers.add(3);
+        match.setAiPlayers(aiPlayers);
 
         gameService.startMatch(1L, "1234");
 

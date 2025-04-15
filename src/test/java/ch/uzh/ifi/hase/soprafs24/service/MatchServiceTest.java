@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
@@ -19,6 +20,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -40,10 +42,12 @@ public class MatchServiceTest {
     private MatchPlayerRepository matchPlayerRepository = Mockito.mock(MatchPlayerRepository.class);
 
     @InjectMocks
-    private MatchService matchService = new MatchService(matchRepository, userService, userRepository, matchPlayerRepository);
+    private MatchService matchService = new MatchService(matchRepository, userService, userRepository,
+            matchPlayerRepository);
 
     private Match match;
     private User user;
+    private User user2;
     private MatchPlayer matchPlayer;
 
     @BeforeEach
@@ -51,8 +55,18 @@ public class MatchServiceTest {
         user = new User();
         user.setUsername("username");
         user.setPassword("password");
-        user.setId(1L);
+        user.setId(7L); // Users up to id 3 are reserverd for AI Players.
         user.setToken("1234");
+        user.setIsAiPlayer(false);
+        user.setStatus(UserStatus.ONLINE);
+
+        user2 = new User();
+        user2.setUsername("username2");
+        user2.setPassword("password2");
+        user2.setId(8L); // Users up to id 3 are reserverd for AI Players.
+        user2.setToken("12342");
+        user2.setIsAiPlayer(false);
+        user2.setStatus(UserStatus.ONLINE);
 
         match = new Match();
 
@@ -112,8 +126,7 @@ public class MatchServiceTest {
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.getMatchInformation(1L),
-                "Expected getMatchInformation to throw an exception"
-        );
+                "Expected getMatchInformation to throw an exception");
     }
 
     @Test
@@ -133,22 +146,22 @@ public class MatchServiceTest {
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.deleteMatchByHost(1L, "1234"),
-                "Expected deleteMatchByHost to throw an exception"
-        );
+                "Expected deleteMatchByHost to throw an exception");
     }
 
-    @Test public void testDeleteMatchByHostUserNull() {
+    @Test
+    public void testDeleteMatchByHostUserNull() {
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
         given(userRepository.findUserByToken(Mockito.any())).willReturn(null);
 
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.deleteMatchByHost(1L, "1234"),
-                "Expected deleteMatchByHost to throw an exception"
-        );
+                "Expected deleteMatchByHost to throw an exception");
     }
 
-    @Test public void testDeleteMatchByHostUserNotHost() {
+    @Test
+    public void testDeleteMatchByHostUserNotHost() {
         user.setUsername("notHost");
 
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
@@ -157,8 +170,7 @@ public class MatchServiceTest {
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.deleteMatchByHost(1L, "1234"),
-                "Expected deleteMatchByHost to throw an exception"
-        );
+                "Expected deleteMatchByHost to throw an exception");
     }
 
     @Test
@@ -178,24 +190,25 @@ public class MatchServiceTest {
         InviteRequestDTO inviteRequestDTO = new InviteRequestDTO();
         inviteRequestDTO.setPlayerSlot(1);
         inviteRequestDTO.setUserId(user.getId());
+        user.setIsAiPlayer(false);
+        user.setStatus(UserStatus.ONLINE);
 
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(null);
 
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.invitePlayerToMatch(1L, inviteRequestDTO),
-                "Expected invitePlayerToMatch to throw an exception"
-        );
+                "Expected invitePlayerToMatch to throw an exception");
     }
 
     @Test
     public void testInvitePlayerToMatchSuccess() {
         InviteRequestDTO inviteRequestDTO = new InviteRequestDTO();
         inviteRequestDTO.setPlayerSlot(1);
-        inviteRequestDTO.setUserId(user.getId());
+        inviteRequestDTO.setUserId(user2.getId()); // not the host!
 
+        given(userRepository.findById(user2.getId())).willReturn(Optional.of(user2));
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
-
         given(matchRepository.save(Mockito.any())).willReturn(match);
 
         matchService.invitePlayerToMatch(1L, inviteRequestDTO);
@@ -207,15 +220,19 @@ public class MatchServiceTest {
     public void testInvitePlayerToMatchSuccessInvitesNull() {
         InviteRequestDTO inviteRequestDTO = new InviteRequestDTO();
         inviteRequestDTO.setPlayerSlot(1);
-        inviteRequestDTO.setUserId(user.getId());
+        inviteRequestDTO.setUserId(user2.getId()); // Use invited player
 
+        user2.setIsAiPlayer(false);
+        user2.setStatus(UserStatus.ONLINE);
+
+        match.setInvites(null); // simulate invites being null
+        match.setHost(user.getUsername()); // host is user
+
+        given(userRepository.findById(user2.getId())).willReturn(Optional.of(user2));
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
-
         given(matchRepository.save(Mockito.any())).willReturn(match);
 
-        match.setInvites(null);
-
-        matchService.invitePlayerToMatch(1L, inviteRequestDTO);
+        matchService.invitePlayerToMatch(7L, inviteRequestDTO);
 
         verify(matchRepository).save(Mockito.any());
     }
@@ -225,14 +242,20 @@ public class MatchServiceTest {
         InviteResponseDTO inviteResponseDTO = new InviteResponseDTO();
         inviteResponseDTO.setAccepted(true);
 
+        user.setId(7L);
+        user.setIsAiPlayer(false);
+        user.setStatus(UserStatus.ONLINE);
+
         Map<Integer, Long> invites = new HashMap<>();
-        invites.put(1, 1L);
+        invites.put(1, user.getId()); // assign slot 1 to this user
 
         match.setInvites(invites);
 
-        given(userRepository.findUserByToken(Mockito.any())).willReturn(user);
+        given(userRepository.findUserByToken("1234")).willReturn(user);
+        given(matchRepository.findMatchByMatchId(1L)).willReturn(match);
+        given(matchRepository.save(Mockito.any())).willReturn(match);
 
-        given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
+        given(matchPlayerRepository.save(Mockito.any())).willReturn(new MatchPlayer());
 
         matchService.respondToInvite(1L, "1234", inviteResponseDTO);
 
@@ -246,8 +269,7 @@ public class MatchServiceTest {
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.updateMatchLength(1L, new HashMap<>()),
-                "Expected updateMatchLength to throw an exception"
-        );
+                "Expected updateMatchLength to throw an exception");
     }
 
     @Test
@@ -274,8 +296,7 @@ public class MatchServiceTest {
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.addAiPlayer(1L, aiPlayerDTO),
-                "Expected addAiPlayer to throw an exception"
-        );
+                "Expected addAiPlayer to throw an exception");
     }
 
     @Test
@@ -300,8 +321,7 @@ public class MatchServiceTest {
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.sendJoinRequest(1L, 1L),
-                "Expected sendJoinRequest to throw an exception"
-        );
+                "Expected sendJoinRequest to throw an exception");
     }
 
     @Test
@@ -312,8 +332,7 @@ public class MatchServiceTest {
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.sendJoinRequest(1L, 1L),
-                "Expected sendJoinRequest to throw an exception"
-        );
+                "Expected sendJoinRequest to throw an exception");
     }
 
     @Test
@@ -336,8 +355,7 @@ public class MatchServiceTest {
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.acceptJoinRequest(1L, 1L),
-                "Expected acceptJoinRequest to throw an exception"
-        );
+                "Expected acceptJoinRequest to throw an exception");
     }
 
     @Test
@@ -348,8 +366,7 @@ public class MatchServiceTest {
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.acceptJoinRequest(1L, 1L),
-                "Expected acceptJoinRequest to throw an exception"
-        );
+                "Expected acceptJoinRequest to throw an exception");
     }
 
     @Test
@@ -370,8 +387,7 @@ public class MatchServiceTest {
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.declineJoinRequest(1L, 1L),
-                "Expected declineJoinRequest to throw an exception"
-        );
+                "Expected declineJoinRequest to throw an exception");
     }
 
     @Test
