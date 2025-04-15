@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
@@ -151,7 +152,6 @@ public class MatchService {
     }
 
     public void invitePlayerToMatch(Long matchId, InviteRequestDTO request) {
-
         Long userId = request.getUserId();
         Integer playerSlot = request.getPlayerSlot();
 
@@ -164,22 +164,30 @@ public class MatchService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
 
-        // 2. Check if user is an AI (optional: based on userId threshold or a field)
+        // 2. Prevent self-inviting
+        if (user.getUsername().equals(match.getHost())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hosts cannot invite themselves.");
+        }
+
+        // 3. Prevent duplicate invites
+        Map<Integer, Long> invites = match.getInvites();
+        if (invites == null) {
+            invites = new HashMap<>();
+        } else if (invites.containsValue(userId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User has already been invited to this match.");
+        }
+
+        // 4. Prevent inviting AI
         if (Boolean.TRUE.equals(user.getIsAiPlayer())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot invite an AI player through this API.");
         }
 
-        // 3. Check if user is online (if you track this via status field)
+        // 5. Check user is online
         if (user.getStatus() != UserStatus.ONLINE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User must be online to receive an invite.");
         }
 
-        // 4. Add to invites
-        Map<Integer, Long> invites = match.getInvites();
-        if (invites == null) {
-            invites = new java.util.HashMap<>();
-        }
-
+        // 6. Save the invite
         invites.put(playerSlot, userId);
         match.setInvites(invites);
 

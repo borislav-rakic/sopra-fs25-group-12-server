@@ -47,6 +47,7 @@ public class MatchServiceTest {
 
     private Match match;
     private User user;
+    private User user2;
     private MatchPlayer matchPlayer;
 
     @BeforeEach
@@ -56,6 +57,16 @@ public class MatchServiceTest {
         user.setPassword("password");
         user.setId(7L); // Users up to id 3 are reserverd for AI Players.
         user.setToken("1234");
+        user.setIsAiPlayer(false);
+        user.setStatus(UserStatus.ONLINE);
+
+        user2 = new User();
+        user2.setUsername("username2");
+        user2.setPassword("password2");
+        user2.setId(8L); // Users up to id 3 are reserverd for AI Players.
+        user2.setToken("12342");
+        user2.setIsAiPlayer(false);
+        user2.setStatus(UserStatus.ONLINE);
 
         match = new Match();
 
@@ -194,14 +205,10 @@ public class MatchServiceTest {
     public void testInvitePlayerToMatchSuccess() {
         InviteRequestDTO inviteRequestDTO = new InviteRequestDTO();
         inviteRequestDTO.setPlayerSlot(1);
-        inviteRequestDTO.setUserId(user.getId());
-        user.setIsAiPlayer(false);
-        user.setStatus(UserStatus.ONLINE);
+        inviteRequestDTO.setUserId(user2.getId()); // not the host!
 
-        given(userRepository.findById(Mockito.any())).willReturn(Optional.of(user));
-
+        given(userRepository.findById(user2.getId())).willReturn(Optional.of(user2));
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
-
         given(matchRepository.save(Mockito.any())).willReturn(match);
 
         matchService.invitePlayerToMatch(1L, inviteRequestDTO);
@@ -213,17 +220,17 @@ public class MatchServiceTest {
     public void testInvitePlayerToMatchSuccessInvitesNull() {
         InviteRequestDTO inviteRequestDTO = new InviteRequestDTO();
         inviteRequestDTO.setPlayerSlot(1);
-        inviteRequestDTO.setUserId(user.getId());
-        user.setIsAiPlayer(false);
-        user.setStatus(UserStatus.ONLINE);
+        inviteRequestDTO.setUserId(user2.getId()); // Use invited player
 
-        given(userRepository.findById(Mockito.any())).willReturn(Optional.of(user));
+        user2.setIsAiPlayer(false);
+        user2.setStatus(UserStatus.ONLINE);
 
+        match.setInvites(null); // simulate invites being null
+        match.setHost(user.getUsername()); // host is user
+
+        given(userRepository.findById(user2.getId())).willReturn(Optional.of(user2));
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
-
         given(matchRepository.save(Mockito.any())).willReturn(match);
-
-        match.setInvites(null);
 
         matchService.invitePlayerToMatch(7L, inviteRequestDTO);
 
