@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
@@ -150,15 +151,30 @@ public class MatchService {
     }
 
     public void invitePlayerToMatch(Long matchId, InviteRequestDTO request) {
+
         Long userId = request.getUserId();
         Integer playerSlot = request.getPlayerSlot();
 
         Match match = matchRepository.findMatchByMatchId(matchId);
-
         if (match == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found.");
         }
 
+        // 1. Check if user exists
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
+
+        // 2. Check if user is an AI (optional: based on userId threshold or a field)
+        if (Boolean.TRUE.equals(user.getIsAiPlayer())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot invite an AI player through this API.");
+        }
+
+        // 3. Check if user is online (if you track this via status field)
+        if (user.getStatus() != UserStatus.ONLINE) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User must be online to receive an invite.");
+        }
+
+        // 4. Add to invites
         Map<Integer, Long> invites = match.getInvites();
         if (invites == null) {
             invites = new java.util.HashMap<>();
