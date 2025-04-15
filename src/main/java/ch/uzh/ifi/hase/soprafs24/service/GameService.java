@@ -16,7 +16,9 @@ import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import javax.persistence.EntityNotFoundException;
 
@@ -150,6 +152,37 @@ public class GameService {
 
         if (!givenUser.getUsername().equals(givenMatch.getHost())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can start the match");
+        }
+
+        // Get invites (human players)
+        Map<Integer, Long> invites = givenMatch.getInvites();
+        if (invites == null) {
+            invites = new HashMap<>();
+        }
+
+        // Get accepted invites
+        Map<Long, String> joinRequests = givenMatch.getJoinRequests();
+        if (joinRequests == null) {
+            joinRequests = new HashMap<>();
+        }
+
+        // 1. Ensure all invited users accepted
+        for (Long invitedUserId : invites.values()) {
+            String status = joinRequests.get(invitedUserId);
+            if (!"accepted".equalsIgnoreCase(status)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Cannot start match: not all invited users have accepted the invitation.");
+            }
+        }
+
+        // 2. Ensure remaining slots are filled with AI players
+        int totalSlots = 4;
+        int filledHumanSlots = invites.size(); // accepted humans
+        int filledAiSlots = givenMatch.getAiPlayers() != null ? givenMatch.getAiPlayers().size() : 0;
+
+        if ((filledHumanSlots + filledAiSlots) < totalSlots) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot start match: not all player slots are filled.");
         }
 
         givenMatch.setStarted(true);
