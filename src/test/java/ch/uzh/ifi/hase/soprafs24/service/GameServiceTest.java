@@ -125,6 +125,10 @@ public class GameServiceTest {
 
     @Test
     public void testStartMatchSuccess() {
+        match.setPlayer2(new User());
+        match.setPlayer3(new User());
+        match.setPlayer4(new User());
+
         NewDeckResponse newDeckResponse = new NewDeckResponse();
         newDeckResponse.setDeck_id("9876");
         newDeckResponse.setSuccess(true);
