@@ -176,13 +176,16 @@ public class GameService {
         }
 
         // 2. Ensure remaining slots are filled with AI players
-        int totalSlots = 4;
-        int filledHumanSlots = invites.size(); // accepted humans
-        int filledAiSlots = givenMatch.getAiPlayers() != null ? givenMatch.getAiPlayers().size() : 0;
-
-        if ((filledHumanSlots + filledAiSlots) < totalSlots) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Cannot start match: not all player slots are filled.");
+//        int totalSlots = 4;
+//        int filledHumanSlots = invites.size(); // accepted humans
+//        int filledAiSlots = givenMatch.getAiPlayers() != null ? givenMatch.getAiPlayers().size() : 0;
+//
+//        if ((filledHumanSlots + filledAiSlots) < totalSlots) {
+//            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+//                    "Cannot start match: not all player slots are filled.");
+//        }
+        if (givenMatch.getPlayer1() == null || givenMatch.getPlayer2() == null || givenMatch.getPlayer3() == null || givenMatch.getPlayer4() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot start match: not all player slots are filled");
         }
 
         givenMatch.setStarted(true);
