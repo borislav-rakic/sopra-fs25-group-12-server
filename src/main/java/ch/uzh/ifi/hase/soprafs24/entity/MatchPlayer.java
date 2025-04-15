@@ -4,7 +4,8 @@ import javax.persistence.*;
 import java.util.List;
 
 /**
- * The MATCH_PLAYER relation saves the ids of the players that are in a match, and their card decks.
+ * The MATCH_PLAYER relation saves the ids of the players that are in a match,
+ * and their card decks.
  */
 @Entity
 @Table(name = "MATCH_PLAYER")
@@ -22,6 +23,9 @@ public class MatchPlayer {
     @ManyToOne
     @JoinColumn(name = "player_id")
     private User user;
+
+    @Column(name = "slot", nullable = false)
+    private int slot;
 
     @OneToMany(mappedBy = "matchPlayer", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<MatchPlayerCards> cardsInHand;
@@ -67,5 +71,13 @@ public class MatchPlayer {
 
     public void setScore(int score) {
         this.score = score;
+    }
+
+    public int getSlot() {
+        return slot;
+    }
+
+    public void setSlot(int slot) {
+        this.slot = slot;
     }
 }

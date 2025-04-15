@@ -32,6 +32,9 @@ public class GameServiceTest {
     private UserRepository userRepository = Mockito.mock(UserRepository.class);
 
     @Mock
+    private GameRepository gameRepository = Mockito.mock(GameRepository.class);
+
+    @Mock
     private MatchPlayerRepository matchPlayerRepository = Mockito.mock(MatchPlayerRepository.class);
 
     @Mock
@@ -47,7 +50,15 @@ public class GameServiceTest {
     private UserService userService = Mockito.mock(UserService.class);
 
     @InjectMocks
-    private GameService gameService = new GameService(matchRepository, userRepository, matchPlayerRepository, matchStatsRepository, gameStatsRepository, externalApiClientService, userService);
+    private GameService gameService = new GameService(
+            matchRepository,
+            userRepository,
+            matchPlayerRepository,
+            matchStatsRepository,
+            gameStatsRepository,
+            gameRepository,
+            externalApiClientService,
+            userService);
 
     private Match match;
     private User user;

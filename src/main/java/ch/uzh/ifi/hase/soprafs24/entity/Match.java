@@ -7,7 +7,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 
-
 @Entity
 @Table(name = "MATCH")
 public class Match implements Serializable {
@@ -43,7 +42,7 @@ public class Match implements Serializable {
     @ElementCollection
     @CollectionTable(name = "match_join_requests", joinColumns = @JoinColumn(name = "match_id"))
     @Column(name = "user_id")
-    private  Map<Long, String> joinRequests = new HashMap<>();
+    private Map<Long, String> joinRequests = new HashMap<>();
 
     @Column(name = "deck_id")
     private String deckId;
@@ -64,6 +63,20 @@ public class Match implements Serializable {
     @JoinColumn(name = "player_4")
     private User player4;
 
+    @ManyToOne
+    @JoinColumn(name = "current_player_id")
+    private User currentPlayer;
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<Game> games = new ArrayList<>();
+
+    public List<Game> getGames() {
+        return games;
+    }
+
+    public void setGames(List<Game> games) {
+        this.games = games;
+    }
+
     public Map<Long, String> getJoinRequests() {
         return joinRequests;
     }
@@ -75,7 +88,7 @@ public class Match implements Serializable {
     public List<Integer> getAiPlayers() {
         return aiPlayers;
     }
-    
+
     public void setAiPlayers(List<Integer> aiPlayers) {
         this.aiPlayers = aiPlayers;
     }
@@ -96,13 +109,21 @@ public class Match implements Serializable {
         this.matchPlayers = matchPlayers;
     }
 
-    public void setHost(String host) { this.host = host; }
+    public void setHost(String host) {
+        this.host = host;
+    }
 
-    public String getHost() { return host; }
+    public String getHost() {
+        return host;
+    }
 
-    public void setLength(int length) { this.length = length; }
+    public void setLength(int length) {
+        this.length = length;
+    }
 
-    public int getLength() { return length; }
+    public int getLength() {
+        return length;
+    }
 
     public void setStarted(boolean started) {
         this.started = started;
@@ -115,7 +136,7 @@ public class Match implements Serializable {
     public Map<Integer, Long> getInvites() {
         return invites;
     }
-    
+
     public void setInvites(Map<Integer, Long> invites) {
         this.invites = invites;
     }

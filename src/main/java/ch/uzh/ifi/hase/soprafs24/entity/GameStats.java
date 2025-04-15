@@ -14,6 +14,10 @@ public class GameStats {
     @JoinColumn(name = "match_id", nullable = false)
     private Match match;
 
+    @ManyToOne
+    @JoinColumn(name = "game_id")
+    private Game game;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Suit suit;
@@ -81,6 +85,14 @@ public class GameStats {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public Game getGame() {
+        return game;
+    }
+
+    public void setGame(Game game) {
+        this.game = game;
     }
 
     public Match getMatch() {

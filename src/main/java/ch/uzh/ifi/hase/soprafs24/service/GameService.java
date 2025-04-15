@@ -5,6 +5,7 @@ import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
 import ch.uzh.ifi.hase.soprafs24.repository.*;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -17,18 +18,23 @@ import reactor.core.publisher.Mono;
 import java.util.ArrayList;
 import java.util.List;
 
+import javax.persistence.EntityNotFoundException;
+
 /**
  * Game Service
  * This class is the "worker" and responsible for all functionality related to
- * currently ongoing games, e.g. updating the player's scores, requesting information
+ * currently ongoing games, e.g. updating the player's scores, requesting
+ * information
  * from the deck of cards API, etc.
  * (e.g., it creates, modifies, deletes, finds). The result will be passed back
  * to the caller.
  */
+
 @Service
 @Transactional
 public class GameService {
     private final MatchRepository matchRepository;
+    private final GameRepository gameRepository;
     private final UserRepository userRepository;
     private final MatchPlayerRepository matchPlayerRepository;
     private final MatchStatsRepository matchStatsRepository;
@@ -43,6 +49,7 @@ public class GameService {
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
             @Qualifier("matchStatsRepository") MatchStatsRepository matchStatsRepository,
             @Qualifier("gameStatsRepository") GameStatsRepository gameStatsRepository,
+            @Qualifier("gameRepository") GameRepository gameRepository,
             ExternalApiClientService externalApiClientService,
             UserService userService) {
         this.matchRepository = matchRepository;
@@ -52,11 +59,15 @@ public class GameService {
         this.gameStatsRepository = gameStatsRepository;
         this.externalApiClientService = externalApiClientService;
         this.userService = userService;
+        this.gameRepository = gameRepository;
     }
+
+    private static final int EXPECTED_CARD_COUNT = 52;
 
     /**
      * Gets the necessary information for a player.
-     * @param token The player's token
+     * 
+     * @param token   The player's token
      * @param matchId The id of the match the user is in
      * @return Information specific to a player (e.g. their current cards)
      */
@@ -121,8 +132,9 @@ public class GameService {
 
     /**
      * Starts the match when the host clicks on the start button
+     * 
      * @param matchId The match's id
-     * @param token The token of the player sending the request
+     * @param token   The token of the player sending the request
      */
     public void startMatch(Long matchId, String token) {
         User givenUser = userRepository.findUserByToken(token);
@@ -175,7 +187,8 @@ public class GameService {
     }
 
     /**
-     * Initializes the GAME_STATS relation with the necessary information for a new match.
+     * Initializes the GAME_STATS relation with the necessary information for a new
+     * match.
      */
     public void initializeGameStatsNewMatch(Match match) {
         GameStats.Suit[] suits = GameStats.Suit.values();
@@ -250,5 +263,74 @@ public class GameService {
                 matchPlayerRepository.flush();
             });
         }
+    }
+
+    private User determineNextPlayer(Game game) {
+        List<User> players = game.getMatch().getMatchPlayers()
+                .stream()
+                .map(MatchPlayer::getPlayerId)
+                .toList();
+
+        int currentIndex = players.indexOf(game.getCurrentPlayer());
+        int nextIndex = (currentIndex + 1) % players.size();
+        return players.get(nextIndex);
+    }
+
+    private boolean isGameFinished(Game game) {
+        // Example: all cards played, one player empty hand, etc.
+        return game.getPlayedCards().size() >= EXPECTED_CARD_COUNT;
+    }
+
+    public void playCard(String token, Long gameId, PlayedCardDTO playedCardDTO) {
+        User player = userService.getUserByToken(token);
+        Game game = getGameByGameId(gameId);
+
+        if (!player.equals(game.getCurrentPlayer())) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "It is not your turn.");
+        }
+
+        String playedCardCode = playedCardDTO.getCard();
+
+        // Validate card exists in player's hand (matchPlayer entity)
+        Match match = game.getMatch();
+        MatchPlayer matchPlayer = matchPlayerRepository.findMatchPlayerByUser(player);
+
+        boolean hasCard = matchPlayer.getCardsInHand().stream()
+                .anyMatch(card -> card.getCard().equals(playedCardCode));
+
+        if (!hasCard) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Card not in hand.");
+        }
+
+        // Remove card from hand
+        matchPlayer.getCardsInHand().removeIf(card -> card.getCard().equals(playedCardCode));
+        matchPlayerRepository.save(matchPlayer);
+
+        // Log or record the card play (e.g. GameStats)
+        GameStats gameStats = new GameStats();
+        gameStats.setCardFromString(playedCardCode);
+        gameStats.setGame(game);
+        gameStats.setMatch(match);
+        gameStats.setPlayedBy(matchPlayer.getSlot()); // or some player identifier
+        gameStats.setPlayOrder(game.getPlayedCards().size() + 1);
+        gameStats.setAllowedToPlay(false); // turn it off now that it was played
+
+        gameStatsRepository.save(gameStats);
+        game.getPlayedCards().add(gameStats);
+
+        // Next turn
+        User nextPlayer = determineNextPlayer(game);
+        game.setCurrentPlayer(nextPlayer);
+
+        if (isGameFinished(game)) {
+            game.setFinished(true);
+        }
+
+        gameRepository.save(game);
+    }
+
+    public Game getGameByGameId(Long gameId) {
+        return gameRepository.findById(gameId)
+                .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + gameId));
     }
 }
