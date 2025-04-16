@@ -1,5 +1,8 @@
 package ch.uzh.ifi.hase.soprafs24.entity;
 
+import ch.uzh.ifi.hase.soprafs24.constant.Suit;
+import ch.uzh.ifi.hase.soprafs24.constant.Rank;
+
 import javax.persistence.*;
 
 @Entity
