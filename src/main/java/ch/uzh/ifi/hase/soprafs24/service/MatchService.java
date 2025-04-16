@@ -161,6 +161,17 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found.");
         }
 
+        int currentRealPlayers = match.getMatchPlayers().stream()
+        .filter(mp -> mp.getPlayerId() != null && !Boolean.TRUE.equals(mp.getPlayerId().getIsAiPlayer()))
+        .toList()
+        .size();
+        int currentAIPlayers = match.getAiPlayers() != null ? match.getAiPlayers().size() : 0;
+
+        if (currentRealPlayers + currentAIPlayers >= 4) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot invite more players — match is full.");
+        }
+
+
         // 1. Check if user exists
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
@@ -257,44 +268,89 @@ public class MatchService {
 
     public void addAiPlayer(Long matchId, AIPlayerDTO dto) {
         Match match = matchRepository.findMatchByMatchId(matchId);
-
         if (match == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
-
+    
+        int difficulty = dto.getDifficulty();
+        int slot = dto.getSlot(); // 1 = player2, 2 = player3, 3 = player4
+        int playerSlot = slot + 1;
+    
+        // Check if that exact slot is available
+        if ((playerSlot == 2 && match.getPlayer2() != null)
+            || (playerSlot == 3 && match.getPlayer3() != null)
+            || (playerSlot == 4 && match.getPlayer4() != null)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected slot is already occupied.");
+        }
+    
+        User aiPlayer = userRepository.findUserById((long) (difficulty + 1)); // 0 = Easy, UserId = 1
+    
+        MatchPlayer newMatchPlayer = new MatchPlayer();
+        newMatchPlayer.setMatch(match);
+        newMatchPlayer.setPlayerId(aiPlayer);
+        newMatchPlayer.setSlot(playerSlot);
+    
+        match.getMatchPlayers().add(newMatchPlayer);
+    
+        if (playerSlot == 2) {
+            match.setPlayer2(aiPlayer);
+        } else if (playerSlot == 3) {
+            match.setPlayer3(aiPlayer);
+        } else if (playerSlot == 4) {
+            match.setPlayer4(aiPlayer);
+        }
+    
         List<Integer> aiPlayers = match.getAiPlayers();
         if (aiPlayers == null) {
             aiPlayers = new ArrayList<>();
         }
-
-        User aiPlayer = userRepository.findUserById(dto.getDifficulty() + 1L);
-
-        MatchPlayer newMatchPlayer = new MatchPlayer();
-        newMatchPlayer.setMatch(match);
-        newMatchPlayer.setPlayerId(aiPlayer);
-
-        if (match.getPlayer2() == null) {
-            match.setPlayer2(userRepository.findUserById(dto.getDifficulty() + 1L));
-            newMatchPlayer.setSlot(2);
-        } else if (match.getPlayer3() == null) {
-            match.setPlayer3(userRepository.findUserById(dto.getDifficulty() + 1L));
-            newMatchPlayer.setSlot(3);
-        } else if (match.getPlayer4() == null) {
-            match.setPlayer4(userRepository.findUserById(dto.getDifficulty() + 1L));
-            newMatchPlayer.setSlot(4);
-        } else {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No more players can be added");
-        }
-
-        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
-        matchPlayers.add(newMatchPlayer);
-        match.setMatchPlayers(matchPlayers);
-
-        aiPlayers.add(dto.getDifficulty());
+        aiPlayers.add(difficulty);
         match.setAiPlayers(aiPlayers);
-
+    
         matchRepository.save(match);
     }
+    
+
+    public void removeAiPlayer(Long matchId, AIPlayerDTO dto) {
+        int slot = dto.getSlot(); // 1-based: 1 = player2, 2 = player3, 3 = player4
+    
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+    
+        int playerSlot = slot + 1; // because player2 is slot 1
+    
+        // Get current AI players and their difficulties
+        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
+        List<Integer> aiDifficulties = match.getAiPlayers();
+        if (aiDifficulties == null) aiDifficulties = new ArrayList<>();
+    
+        // Find the AI player at the requested slot
+        MatchPlayer toRemove = matchPlayers.stream()
+            .filter(mp -> mp.getSlot() == playerSlot && mp.getPlayerId() != null && Boolean.TRUE.equals(mp.getPlayerId().getIsAiPlayer()))
+            .findFirst()
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No AI player found at the specified slot"));
+    
+        // Get the AI difficulty before removing it
+        int aiDifficulty = Math.toIntExact(toRemove.getPlayerId().getId() - 1);
+    
+        // Remove MatchPlayer
+        matchPlayers.remove(toRemove);
+    
+        // Remove from match slot
+        if (playerSlot == 2) match.setPlayer2(null);
+        else if (playerSlot == 3) match.setPlayer3(null);
+        else if (playerSlot == 4) match.setPlayer4(null);
+    
+        // Remove the first occurrence of this difficulty
+        aiDifficulties.remove(Integer.valueOf(aiDifficulty));
+    
+        match.setMatchPlayers(matchPlayers);
+        match.setAiPlayers(aiDifficulties);
+    
+        matchRepository.save(match);
+    }    
 
     public void sendJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
