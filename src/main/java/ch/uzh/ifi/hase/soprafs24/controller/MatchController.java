@@ -145,6 +145,18 @@ public class MatchController {
         matchService.addAiPlayer(matchId, dto);
     }
 
+     /**
+     * Remove an AI player from a match.
+     */
+    @PostMapping("/matches/{matchId}/ai/remove")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeAiPlayerFromMatch(
+            @PathVariable Long matchId,
+            @RequestBody AIPlayerDTO dto) {
+        matchService.removeAiPlayer(matchId, dto);
+    }
+
+
     /**
      * Sends a join request.
      */
