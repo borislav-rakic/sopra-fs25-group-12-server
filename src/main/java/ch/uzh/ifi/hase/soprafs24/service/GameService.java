@@ -7,6 +7,7 @@ import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
 import ch.uzh.ifi.hase.soprafs24.constant.Rank;
 import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.repository.*;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -45,6 +46,9 @@ public class GameService {
     private final GameStatsRepository gameStatsRepository;
     private final ExternalApiClientService externalApiClientService;
     private final UserService userService;
+    private final PassedCardRepository passedCardRepository;
+
+    // or via constructor injection
 
     @Autowired
     public GameService(
@@ -54,6 +58,7 @@ public class GameService {
             @Qualifier("matchStatsRepository") MatchStatsRepository matchStatsRepository,
             @Qualifier("gameStatsRepository") GameStatsRepository gameStatsRepository,
             @Qualifier("gameRepository") GameRepository gameRepository,
+            PassedCardRepository passedCardRepository,
             ExternalApiClientService externalApiClientService,
             UserService userService) {
         this.matchRepository = matchRepository;
@@ -64,6 +69,7 @@ public class GameService {
         this.externalApiClientService = externalApiClientService;
         this.userService = userService;
         this.gameRepository = gameRepository;
+        this.passedCardRepository = passedCardRepository;
     }
 
     private static final int EXPECTED_CARD_COUNT = 52;
@@ -372,4 +378,142 @@ public class GameService {
         return gameRepository.findById(gameId)
                 .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + gameId));
     }
+
+    public Game getGameByMatchId(Long matchId) {
+        Game game = gameRepository.findGameByMatch_MatchId(matchId);
+        if (game == null) {
+            throw new EntityNotFoundException("Game not found with Match ID: " + matchId);
+        }
+        return game;
+    };
+
+    public void makePassingHappen(Long matchId, GamePassingDTO passingDTO, String token) {
+        Long playerId = passingDTO.getPlayerId();
+        List<String> cardsToPass = passingDTO.getCards();
+
+        if (cardsToPass == null || cardsToPass.size() != 3) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exactly 3 cards must be passed.");
+        }
+
+        User user = userService.getUserByToken(token);
+
+        if (!user.getId().equals(playerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only pass cards for yourself.");
+        }
+
+        Game game = getGameByMatchId(matchId);
+        Match match = game.getMatch();
+
+        if (!match.containsPlayer(playerId)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Player is not part of this match.");
+        }
+
+        int slot = match.getSlotByPlayerId(playerId);
+
+        // Make sure the player owns each card and that it hasn't already been passed
+        for (String cardCode : cardsToPass) {
+            GameStats card = gameStatsRepository.findByRankSuitAndGameAndCardHolder(cardCode, game, slot);
+            if (card == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Card " + cardCode + " is not owned by player.");
+            }
+
+            if (passedCardRepository.existsByGameAndRankSuit(game, cardCode)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Card " + cardCode + " has already been passed.");
+            }
+
+            // Save passed card
+            PassedCard passedCard = new PassedCard();
+            passedCard.setGame(game);
+            passedCard.setFromPlayer(user);
+            passedCard.setRankSuit(cardCode);
+            passedCard.setGameNumber(game.getGameNumber());
+
+            passedCardRepository.save(passedCard);
+        }
+
+        // Check if all 12 cards have been passed (3 per player × 4 players)
+        long passedCount = passedCardRepository.countByGame(game);
+        if (passedCount == 12) {
+            System.out.println("All cards were passed — time to collect and redistribute!");
+            collectPassedCards(game);
+        }
+
+        System.out.printf("Player %d in match %d passed cards: %s%n", playerId, matchId, cardsToPass);
+    }
+
+    public void collectPassedCards(Game game) {
+        List<PassedCard> passedCards = passedCardRepository.findByGame(game);
+        if (passedCards.size() != 12) {
+            throw new IllegalStateException("Cannot collect cards: not all cards have been passed yet.");
+        }
+
+        Match match = game.getMatch();
+
+        // Build a map from slot to cards passed
+        Map<Integer, List<PassedCard>> cardsBySlot = new HashMap<>();
+        for (PassedCard passed : passedCards) {
+            int fromSlot = match.getSlotByPlayerId(passed.getFromPlayer().getId());
+            cardsBySlot.computeIfAbsent(fromSlot, k -> new ArrayList<>()).add(passed);
+        }
+
+        // Determine passing direction
+        Map<Integer, Integer> passTo = determinePassingDirection(game.getGameNumber());
+
+        // Reassign card ownership
+        for (Map.Entry<Integer, List<PassedCard>> entry : cardsBySlot.entrySet()) {
+            int fromSlot = entry.getKey();
+            int toSlot = passTo.get(fromSlot);
+
+            for (PassedCard card : entry.getValue()) {
+                // Update ownership in GameStats
+                GameStats gameStat = gameStatsRepository.findByRankSuitAndGameAndCardHolder(
+                        card.getRankSuit(), game, fromSlot);
+
+                if (gameStat != null) {
+                    gameStat.setCardHolder(toSlot);
+                    gameStatsRepository.save(gameStat);
+                }
+            }
+        }
+
+        // Optional: cleanup
+        passedCardRepository.deleteAll(passedCards);
+    }
+
+    private Map<Integer, Integer> determinePassingDirection(int gameNumber) {
+        Map<Integer, Integer> direction = new HashMap<>();
+
+        switch (gameNumber % 4) {
+            case 1: // Left
+                direction.put(1, 2);
+                direction.put(2, 3);
+                direction.put(3, 4);
+                direction.put(4, 1);
+                break;
+            case 2: // Right
+                direction.put(1, 4);
+                direction.put(2, 1);
+                direction.put(3, 2);
+                direction.put(4, 3);
+                break;
+            case 3: // Across
+                direction.put(1, 3);
+                direction.put(2, 4);
+                direction.put(3, 1);
+                direction.put(4, 2);
+                break;
+            case 0: // No passing
+            default:
+                direction.put(1, 1);
+                direction.put(2, 2);
+                direction.put(3, 3);
+                direction.put(4, 4);
+                break;
+        }
+
+        return direction;
+    }
+
 }

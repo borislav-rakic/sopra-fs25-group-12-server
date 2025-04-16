@@ -184,4 +184,23 @@ public class Match implements Serializable {
     public void setPlayer4(User player4) {
         this.player4 = player4;
     }
+
+    public int getSlotByPlayerId(Long playerId) {
+        if (player1 != null && player1.getId().equals(playerId))
+            return 1;
+        if (player2 != null && player2.getId().equals(playerId))
+            return 2;
+        if (player3 != null && player3.getId().equals(playerId))
+            return 3;
+        if (player4 != null && player4.getId().equals(playerId))
+            return 4;
+        return -1; // Or throw an exception if player is not found
+    }
+
+    public boolean containsPlayer(Long userId) {
+        return (player1 != null && player1.getId().equals(userId)) ||
+                (player2 != null && player2.getId().equals(userId)) ||
+                (player3 != null && player3.getId().equals(userId)) ||
+                (player4 != null && player4.getId().equals(userId));
+    }
 }

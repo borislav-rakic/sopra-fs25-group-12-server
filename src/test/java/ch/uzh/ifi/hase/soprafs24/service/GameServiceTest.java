@@ -51,6 +51,9 @@ public class GameServiceTest {
     @MockBean
     private UserService userService = Mockito.mock(UserService.class);
 
+    @Mock
+    private PassedCardRepository passedCardRepository;
+
     @InjectMocks
     private GameService gameService = new GameService(
             matchRepository,
@@ -59,6 +62,7 @@ public class GameServiceTest {
             matchStatsRepository,
             gameStatsRepository,
             gameRepository,
+            passedCardRepository,
             externalApiClientService,
             userService);
 

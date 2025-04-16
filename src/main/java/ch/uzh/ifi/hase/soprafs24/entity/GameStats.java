@@ -6,12 +6,15 @@ import ch.uzh.ifi.hase.soprafs24.constant.Rank;
 import javax.persistence.*;
 
 @Entity
-@Table(name = "GAME_STATS")
+@Table(name = "GAME_STATS", uniqueConstraints = @UniqueConstraint(columnNames = { "game_id", "rank_suit" }))
 public class GameStats {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(length = 2, name = "rank_suit", nullable = false)
+    private String rankSuit;
 
     @ManyToOne
     @JoinColumn(name = "match_id", nullable = false)
@@ -28,9 +31,6 @@ public class GameStats {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Rank rank;
-
-    @Column(length = 3, nullable = false)
-    private String rankSuit;
 
     @Column(nullable = false)
     private int playOrder;
