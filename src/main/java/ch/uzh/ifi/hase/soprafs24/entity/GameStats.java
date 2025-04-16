@@ -50,27 +50,6 @@ public class GameStats {
     @Column(nullable = false)
     private int cardHolder = 0; // 1–4 for players, or 0 for unassigned
 
-    // Enums
-    public enum Suit {
-        H, S, D, C
-    }
-
-    public enum Rank {
-        A("A"), _2("2"), _3("3"), _4("4"), _5("5"), _6("6"), _7("7"),
-        _8("8"), _9("9"), _0("10"), J("J"), Q("Q"), K("K");
-
-        private final String label;
-
-        Rank(String label) {
-            this.label = label;
-        }
-
-        @Override
-        public String toString() {
-            return label;
-        }
-    }
-
     // Automatically set rankSuit on persist/update
     @PrePersist
     @PreUpdate

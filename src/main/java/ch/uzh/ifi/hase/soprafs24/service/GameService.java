@@ -4,6 +4,8 @@ import ch.uzh.ifi.hase.soprafs24.entity.*;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
+import ch.uzh.ifi.hase.soprafs24.constant.Rank;
+import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.repository.*;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
@@ -176,16 +178,19 @@ public class GameService {
         }
 
         // 2. Ensure remaining slots are filled with AI players
-//        int totalSlots = 4;
-//        int filledHumanSlots = invites.size(); // accepted humans
-//        int filledAiSlots = givenMatch.getAiPlayers() != null ? givenMatch.getAiPlayers().size() : 0;
-//
-//        if ((filledHumanSlots + filledAiSlots) < totalSlots) {
-//            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-//                    "Cannot start match: not all player slots are filled.");
-//        }
-        if (givenMatch.getPlayer1() == null || givenMatch.getPlayer2() == null || givenMatch.getPlayer3() == null || givenMatch.getPlayer4() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot start match: not all player slots are filled");
+        // int totalSlots = 4;
+        // int filledHumanSlots = invites.size(); // accepted humans
+        // int filledAiSlots = givenMatch.getAiPlayers() != null ?
+        // givenMatch.getAiPlayers().size() : 0;
+        //
+        // if ((filledHumanSlots + filledAiSlots) < totalSlots) {
+        // throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+        // "Cannot start match: not all player slots are filled.");
+        // }
+        if (givenMatch.getPlayer1() == null || givenMatch.getPlayer2() == null || givenMatch.getPlayer3() == null
+                || givenMatch.getPlayer4() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot start match: not all player slots are filled");
         }
 
         givenMatch.setStarted(true);
@@ -227,11 +232,11 @@ public class GameService {
      * match.
      */
     public void initializeGameStatsNewMatch(Match match) {
-        GameStats.Suit[] suits = GameStats.Suit.values();
-        GameStats.Rank[] ranks = GameStats.Rank.values();
+        Suit[] suits = Suit.values();
+        Rank[] ranks = Rank.values();
 
-        for (GameStats.Suit suit : suits) {
-            for (GameStats.Rank rank : ranks) {
+        for (Suit suit : suits) {
+            for (Rank rank : ranks) {
                 GameStats gameStats = new GameStats();
                 gameStats.setSuit(suit);
                 gameStats.setRank(rank);
@@ -245,7 +250,7 @@ public class GameService {
                 gameStats.setAllowedToPlay(false);
 
                 // If the card is the two of clubs, it is allowed to be played.
-                if (suit == GameStats.Suit.C && rank == GameStats.Rank._2) {
+                if (suit == Suit.C && rank == Rank._2) {
                     gameStats.setAllowedToPlay(true);
                 }
 
@@ -279,35 +284,10 @@ public class GameService {
 
                     MatchPlayerCards matchPlayerCards = new MatchPlayerCards();
 
-                    // Converts the code from the deck of cards api to our implementation.
-                    if (code.startsWith("0")) {
-                        if (code.endsWith("H")) {
-                            matchPlayerCards.setCard("10H");
-                            GameStats gameStats = gameStatsRepository.findByRankSuit("10H");
-                            gameStats.setCardHolder(matchPlayer.getSlot());
-                            gameStatsRepository.save(gameStats);
-                        } else if (code.endsWith("S")) {
-                            matchPlayerCards.setCard("10S");
-                            GameStats gameStats = gameStatsRepository.findByRankSuit("10S");
-                            gameStats.setCardHolder(matchPlayer.getSlot());
-                            gameStatsRepository.save(gameStats);
-                        } else if (code.endsWith("D")) {
-                            matchPlayerCards.setCard("10D");
-                            GameStats gameStats = gameStatsRepository.findByRankSuit("10D");
-                            gameStats.setCardHolder(matchPlayer.getSlot());
-                            gameStatsRepository.save(gameStats);
-                        } else if (code.endsWith("C")) {
-                            matchPlayerCards.setCard("10C");
-                            GameStats gameStats = gameStatsRepository.findByRankSuit("10C");
-                            gameStats.setCardHolder(matchPlayer.getSlot());
-                            gameStatsRepository.save(gameStats);
-                        }
-                    } else {
-                        matchPlayerCards.setCard(code);
-                        GameStats gameStats = gameStatsRepository.findByRankSuit(code);
-                        gameStats.setCardHolder(matchPlayer.getSlot());
-                        gameStatsRepository.save(gameStats);
-                    }
+                    matchPlayerCards.setCard(code);
+                    GameStats gameStats = gameStatsRepository.findByRankSuit(code);
+                    gameStats.setCardHolder(matchPlayer.getSlot());
+                    gameStatsRepository.save(gameStats);
 
                     matchPlayerCards.setMatchPlayer(matchPlayer);
 

@@ -72,7 +72,7 @@ public class PlayerCardDTO {
                 if (rankChar.matches("[2-9]")) {
                     rankValue = Integer.parseInt(rankChar);
                 } else if (rankChar.equals("0")) {
-                    rankValue = 10;
+                    rankValue = 10; // here to be understood as the sortingOrder value
                 } else {
                     throw new IllegalArgumentException("Invalid rank: " + rankChar);
                 }
