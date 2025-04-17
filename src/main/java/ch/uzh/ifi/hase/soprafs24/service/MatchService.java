@@ -21,6 +21,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 
+import java.util.*;
+import java.util.stream.Collectors;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserGetDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
+
+
 /**
  * Match Service
  * This class is the "worker" and responsible for all functionality related to
@@ -519,7 +525,41 @@ public class MatchService {
     
         matchRepository.save(match);
     }
+    
 
+
+    public List<UserGetDTO> getEligibleUsers(Long matchId, String token) {
+        User currentUser = userService.getUserByToken(token); // Get the current user
+
+        Match match = getMatchInformation(matchId); // Assuming this method exists
+
+        Set<Long> excludedUserIds = new HashSet<>();
+
+        // Add current match players (if they exist)
+        if (match.getPlayer1() != null) excludedUserIds.add(match.getPlayer1().getId());
+        if (match.getPlayer2() != null) excludedUserIds.add(match.getPlayer2().getId());
+        if (match.getPlayer3() != null) excludedUserIds.add(match.getPlayer3().getId());
+        if (match.getPlayer4() != null) excludedUserIds.add(match.getPlayer4().getId());
+
+        // Add invited users
+        if (match.getInvites() != null) {
+            excludedUserIds.addAll(match.getInvites().values());
+        }
+
+        // Add current user themselves
+        excludedUserIds.add(currentUser.getId());
+
+        // QUESTION: Should we also remove players that are currently active in a game?
+
+        // Get all online, non-AI users
+        List<User> eligibleUsers = userRepository.findByStatusAndIsAiPlayerFalse(UserStatus.ONLINE);
+
+        // Filter out excluded IDs
+        return eligibleUsers.stream()
+                .filter(user -> !excludedUserIds.contains(user.getId()))
+                .map(DTOMapper.INSTANCE::convertEntityToUserGetDTO)
+                .collect(Collectors.toList());
+    }
     
     
 }

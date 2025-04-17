@@ -94,8 +94,8 @@ public class UserService {
     if (user == null || !BCrypt.checkpw(password, user.getPassword())) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
     }
-    // set new token.
-    user.setToken(UUID.randomUUID().toString());
+    // Set new token. Makes developing more difficult, should not be enforced, yet. /dsj
+    // user.setToken(UUID.randomUUID().toString());
     user.setStatus(UserStatus.ONLINE);
     user.setIsGuest(false);
     userRepository.save(user);

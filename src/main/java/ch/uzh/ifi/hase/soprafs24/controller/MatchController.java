@@ -217,6 +217,18 @@ public class MatchController {
         matchService.leaveMatch(matchId, authHeader.replace("Bearer ", ""));
     }
 
+    /**
+     * Get a list of eligible users for this match about to start.
+     */
+    @GetMapping("/matches/{matchId}/eligibleusers")
+    @ResponseStatus(HttpStatus.OK)
+    public List<UserGetDTO> getEligibleUsers(
+            @PathVariable Long matchId,
+            @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        return matchService.getEligibleUsers(matchId, token);
+    }
+
 
 
 }

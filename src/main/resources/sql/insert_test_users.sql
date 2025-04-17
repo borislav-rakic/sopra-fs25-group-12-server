@@ -1,8 +1,8 @@
 INSERT INTO `user` (id, avatar, birthday, is_ai_player, is_guest, password, status, token, user_settings, username, score_total, games_played, avg_placement, moon_shots, perfect_games, perfect_matches, current_streak, longest_streak) VALUES
 (4,101,'1964-08-04',FALSE,FALSE,'$2a$10$1JLHCFKBJr/sS5a4OsH2werbW0rt/YWqMRVY5QOoKihqznhflmM5.','ONLINE','616755c5-1694-4029-98f3-d6dd58b3ea55','{}','User1',127.7932085,19,3.184956226,3,13,0,1,3),
-(5,102,'2001-01-07',FALSE,FALSE,'$2a$10$5EFTA4KK5j2upXboxRsDhuc.POWRkeYPbLBBWorhSU4hJuBZmLfEK','OFFLINE','b49838a9-1b72-421e-8dd5-fca3a5e72353','{}','User2',45.09457364,7,4.051271698,1,4,0,2,2),
-(6,103,'1987-03-31',FALSE,FALSE,'$2a$10$3lLh9obl1sYg1Qz1FoPP0.tAyKVXV6XjIxYnEqhDiLx2ibzFplQji','OFFLINE','1617867e-faec-4ec1-8ba9-daa05ed93a88','{}','User3',45.54865023,7,4.582167608,0,4,0,2,1),
-(7,104,'1999-03-22',FALSE,TRUE,'$2a$10$GyjNBrBSqam9C0Rt.cvg9./eMv.QtTfN5eM/KAZpzfc928jp6aH.e','ONLINE','24d0e74a-5bac-432c-ad14-71bb99bc29c0','{}','User4',101.9586389,15,4.990575091,1,14,0,1,2),
+(5,102,'2001-01-07',FALSE,FALSE,'$2a$10$5EFTA4KK5j2upXboxRsDhuc.POWRkeYPbLBBWorhSU4hJuBZmLfEK','ONLINE','b49838a9-1b72-421e-8dd5-fca3a5e72353','{}','User2',45.09457364,7,4.051271698,1,4,0,2,2),
+(6,103,'1987-03-31',FALSE,FALSE,'$2a$10$3lLh9obl1sYg1Qz1FoPP0.tAyKVXV6XjIxYnEqhDiLx2ibzFplQji','ONLINE','1617867e-faec-4ec1-8ba9-daa05ed93a88','{}','User3',45.54865023,7,4.582167608,0,4,0,2,1),
+(7,104,'1999-03-22',FALSE,FALSE,'$2a$10$GyjNBrBSqam9C0Rt.cvg9./eMv.QtTfN5eM/KAZpzfc928jp6aH.e','ONLINE','24d0e74a-5bac-432c-ad14-71bb99bc29c0','{}','User4',101.9586389,15,4.990575091,1,14,0,1,2),
 (8,105,'1955-08-16',FALSE,FALSE,'$2a$10$r8QKiJdbd5emC5Uc5x/rWet5rSjzNQ3MIaZnD.F1MujEeJMY6ZDqG','OFFLINE','39b594b8-9714-490b-8221-b58f2adbe0e3','{}','User5',81.71851976,11,4.747147816,4,3,1,0,3),
 (9,106,null,FALSE,FALSE,'$2a$10$S6Zw2EA3pOl7hHLQdN6mUu55yq5trIXuwDmL.Jyt9aA66X/FjjpHe','OFFLINE','1374c0f2-e9b5-4da8-97d4-ceb04b6c23de','{}','User6',116.2761918,17,3.698315058,1,14,0,1,4),
 (10,107,'1983-11-26',FALSE,TRUE,'$2a$10$KB/ObOGQu4LKGwnOFHymrOJyjMygy4iyupyHxMFfZVoVQ6t7oIciq','ONLINE','380d8e36-3a69-4770-b663-afbe1723c20b','{}','User7',10.82836519,2,3.49792191,1,0,0,1,2),

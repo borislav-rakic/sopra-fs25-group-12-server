@@ -1,6 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.repository;
 
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 
 import java.util.List;
 
@@ -17,4 +18,6 @@ public interface UserRepository extends JpaRepository<User, Long>, JpaSpecificat
   User findUserByToken(String token);
 
   List<User> findByUsernameContainingIgnoreCase(String username);
+
+  List<User> findByStatusAndIsAiPlayerFalse(UserStatus status);
 }
