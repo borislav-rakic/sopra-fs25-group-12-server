@@ -37,7 +37,7 @@ public class Match implements Serializable {
     @ElementCollection
     @CollectionTable(name = "match_ai_players", joinColumns = @JoinColumn(name = "match_id"))
     @Column(name = "difficulty")
-    private List<Integer> aiPlayers = new ArrayList<>();
+    private Map<Integer, Integer> aiPlayers = new HashMap<>();
 
     @ElementCollection
     @CollectionTable(name = "match_join_requests", joinColumns = @JoinColumn(name = "match_id"))
@@ -85,12 +85,12 @@ public class Match implements Serializable {
         this.joinRequests = joinRequests;
     }
 
-    public List<Integer> getAiPlayers() {
+    public Map<Integer, Integer> getAiPlayers() {
         return aiPlayers;
     }
 
-    public void setAiPlayers(List<Integer> aiPlayers) {
-        this.aiPlayers = aiPlayers;
+    public void setAiPlayers(Map<Integer, Integer> aiDifficulties) {
+        this.aiPlayers = aiDifficulties;
     }
 
     public void setMatchId(Long matchId) {

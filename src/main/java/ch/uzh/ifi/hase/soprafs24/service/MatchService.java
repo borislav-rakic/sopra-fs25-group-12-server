@@ -206,9 +206,43 @@ public class MatchService {
         matchRepository.save(match);
     }
 
+    public void cancelInvite(Long matchId, Integer slot) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+    
+        Map<Integer, Long> invites = match.getInvites();
+        if (invites == null || !invites.containsKey(slot)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No invite found at this slot.");
+        }
+    
+        invites.remove(slot);
+        match.setInvites(invites);
+    
+        matchRepository.save(match);
+    }    
+
     public void respondToInvite(Long matchId, String authHeader, InviteResponseDTO responseDTO) {
         String token = authHeader.replace("Bearer ", "");
         User user = userRepository.findUserByToken(token);
+
+        // Automatically leave other match if joined
+        List<Match> allMatches = matchRepository.findAll();
+        for (Match m : allMatches) {
+            if (m.getStarted()) continue;
+            if (m.getMatchPlayers().stream().anyMatch(mp -> mp.getPlayerId().equals(user))) {
+                m.getMatchPlayers().removeIf(mp -> mp.getPlayerId().equals(user));
+
+                if (user.equals(m.getPlayer2())) m.setPlayer2(null);
+                if (user.equals(m.getPlayer3())) m.setPlayer3(null);
+                if (user.equals(m.getPlayer4())) m.setPlayer4(null);
+
+                matchRepository.save(m);
+                break;
+            }
+        }
+
 
         Match match = matchRepository.findMatchByMatchId(matchId);
 
@@ -233,6 +267,7 @@ public class MatchService {
             MatchPlayer newMatchPlayer = new MatchPlayer();
             newMatchPlayer.setPlayerId(user);
             newMatchPlayer.setMatch(match);
+            newMatchPlayer.setSlot(slot + 1);
 
             players.add(newMatchPlayer);
 
@@ -300,11 +335,11 @@ public class MatchService {
             match.setPlayer4(aiPlayer);
         }
     
-        List<Integer> aiPlayers = match.getAiPlayers();
+        Map<Integer, Integer> aiPlayers = match.getAiPlayers();
         if (aiPlayers == null) {
-            aiPlayers = new ArrayList<>();
+            aiPlayers = new HashMap<>();
         }
-        aiPlayers.add(difficulty);
+        aiPlayers.put(playerSlot, difficulty); // playerSlot is 2, 3, or 4
         match.setAiPlayers(aiPlayers);
     
         matchRepository.save(match);
@@ -320,37 +355,56 @@ public class MatchService {
         }
     
         int playerSlot = slot + 1; // because player2 is slot 1
-    
-        // Get current AI players and their difficulties
-        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
-        List<Integer> aiDifficulties = match.getAiPlayers();
-        if (aiDifficulties == null) aiDifficulties = new ArrayList<>();
-    
+        
         // Find the AI player at the requested slot
-        MatchPlayer toRemove = matchPlayers.stream()
+        MatchPlayer toRemove = match.getMatchPlayers().stream()
             .filter(mp -> mp.getSlot() == playerSlot && mp.getPlayerId() != null && Boolean.TRUE.equals(mp.getPlayerId().getIsAiPlayer()))
             .findFirst()
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No AI player found at the specified slot"));
-    
-        // Get the AI difficulty before removing it
-        int aiDifficulty = Math.toIntExact(toRemove.getPlayerId().getId() - 1);
-    
+        
         // Remove MatchPlayer
-        matchPlayers.remove(toRemove);
+        match.getMatchPlayers().remove(toRemove);
     
         // Remove from match slot
         if (playerSlot == 2) match.setPlayer2(null);
         else if (playerSlot == 3) match.setPlayer3(null);
         else if (playerSlot == 4) match.setPlayer4(null);
     
-        // Remove the first occurrence of this difficulty
-        aiDifficulties.remove(Integer.valueOf(aiDifficulty));
-    
-        match.setMatchPlayers(matchPlayers);
-        match.setAiPlayers(aiDifficulties);
+        Map<Integer, Integer> aiPlayers = match.getAiPlayers();
+        if (aiPlayers != null) {
+            aiPlayers.remove(playerSlot); // remove by slot
+            match.setAiPlayers(aiPlayers);
+        }        
     
         matchRepository.save(match);
     }    
+
+    public void removePlayer(Long matchId, int slot) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+    
+        int playerSlot = slot + 1; // Frontend sends 0 = player2, etc.
+    
+        MatchPlayer toRemove = match.getMatchPlayers().stream()
+            .filter(mp -> mp.getSlot() == playerSlot)
+            .findFirst()
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No player at this slot."));
+    
+        match.getMatchPlayers().remove(toRemove);
+    
+        if (playerSlot == 2) {
+            match.setPlayer2(null);
+        } else if (playerSlot == 3) {
+            match.setPlayer3(null);
+        } else if (playerSlot == 4) {
+            match.setPlayer4(null);
+        }
+    
+        matchRepository.save(match);
+    }
+    
 
     public void sendJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
@@ -395,10 +449,13 @@ public class MatchService {
 
         if (match.getPlayer2() == null) {
             match.setPlayer2(user);
+            newMatchPlayer.setSlot(2);
         } else if (match.getPlayer3() == null) {
             match.setPlayer3(user);
+            newMatchPlayer.setSlot(3);
         } else if (match.getPlayer4() == null) {
             match.setPlayer4(user);
+            newMatchPlayer.setSlot(4);
         }
 
         matchRepository.save(match);
@@ -426,4 +483,43 @@ public class MatchService {
         }
         return joinRequestDTOs;
     }
+
+    public void leaveMatch(Long matchId, String token) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+    
+        User user = userRepository.findUserByToken(token);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+        }
+    
+        // Don't allow the host to leave
+        if (match.getHost().equals(user.getUsername())) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Host cannot leave the match.");
+        }
+    
+        // Find the MatchPlayer entry
+        MatchPlayer toRemove = match.getMatchPlayers().stream()
+            .filter(mp -> mp.getPlayerId().equals(user))
+            .findFirst()
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "You are not part of this match."));
+    
+        match.getMatchPlayers().remove(toRemove);
+    
+        // Remove from slot reference
+        if (match.getPlayer2() != null && match.getPlayer2().equals(user)) {
+            match.setPlayer2(null);
+        } else if (match.getPlayer3() != null && match.getPlayer3().equals(user)) {
+            match.setPlayer3(null);
+        } else if (match.getPlayer4() != null && match.getPlayer4().equals(user)) {
+            match.setPlayer4(null);
+        }
+    
+        matchRepository.save(match);
+    }
+
+    
+    
 }

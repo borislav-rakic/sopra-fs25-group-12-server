@@ -104,6 +104,16 @@ public class MatchController {
     }
 
     /**
+     * Revoke an invitation sent to a player.
+     */
+    @DeleteMapping("/matches/{matchId}/invite/{slot}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancelInvite(@PathVariable Long matchId, @PathVariable Integer slot) {
+        matchService.cancelInvite(matchId, slot);
+    }
+
+
+    /**
      * Responds to a match invite (accept/decline).
      */
     @PostMapping("/matches/{matchId}/invite/respond")
@@ -119,6 +129,15 @@ public class MatchController {
         }
 
         matchService.respondToInvite(matchId, authHeader, responseDTO);
+    }
+
+    /**
+     * Remove a player from lobby.
+     */
+    @DeleteMapping("matches/{matchId}/player/{slot}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removePlayer(@PathVariable Long matchId, @PathVariable Integer slot) {
+        matchService.removePlayer(matchId, slot);
     }
 
     /**
@@ -156,7 +175,6 @@ public class MatchController {
         matchService.removeAiPlayer(matchId, dto);
     }
 
-
     /**
      * Sends a join request.
      */
@@ -191,5 +209,16 @@ public class MatchController {
     public List<JoinRequestDTO> getJoinRequests(@PathVariable Long matchId) {
         return matchService.getJoinRequests(matchId);  
     }
+
+    /**
+     * Leave the lobby.
+     */
+    @DeleteMapping("/matches/{matchId}/leave")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void leaveMatch(@PathVariable Long matchId, @RequestHeader("Authorization") String authHeader) {
+        matchService.leaveMatch(matchId, authHeader.replace("Bearer ", ""));
+    }
+
+
 
 }

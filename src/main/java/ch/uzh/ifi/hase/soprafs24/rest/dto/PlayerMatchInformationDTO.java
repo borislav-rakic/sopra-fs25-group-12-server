@@ -9,7 +9,7 @@ public class PlayerMatchInformationDTO {
     private String host;
     private int length;
     private boolean started;
-    private List<Integer> aiPlayers;
+    private Map<Integer, Integer> aiPlayers;
     private List<PlayerCardDTO> playerCards;
     private List<PlayerCardDTO> playableCards;
     private boolean isGameFinished = false;
@@ -56,11 +56,11 @@ public class PlayerMatchInformationDTO {
         this.started = started;
     }
 
-    public List<Integer> getAiPlayers() {
+    public Map<Integer, Integer> getAiPlayers() {
         return aiPlayers;
     }
 
-    public void setAiPlayers(List<Integer> aiPlayers) {
+    public void setAiPlayers(Map<Integer, Integer> aiPlayers) {
         this.aiPlayers = aiPlayers;
     }
 
