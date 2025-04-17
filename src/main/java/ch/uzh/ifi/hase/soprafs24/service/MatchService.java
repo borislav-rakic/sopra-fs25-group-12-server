@@ -267,6 +267,10 @@ public class MatchService {
             }
         }
 
+        if (slot == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No invite found for this user.");
+        }
+
         if (responseDTO.isAccepted()) {
             List<MatchPlayer> players = match.getMatchPlayers();
 
