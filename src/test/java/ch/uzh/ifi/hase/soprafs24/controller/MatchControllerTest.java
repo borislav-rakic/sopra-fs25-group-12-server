@@ -62,7 +62,7 @@ public class MatchControllerTest {
         match.setHost("User");
         match.setLength(100);
         match.setInvites(new HashMap<>());
-        match.setAiPlayers(new ArrayList<>());
+        match.setAiPlayers(new HashMap<>());
         match.setPlayer1(new User());
 
         List<Long> matchPlayerIds = new ArrayList<>();

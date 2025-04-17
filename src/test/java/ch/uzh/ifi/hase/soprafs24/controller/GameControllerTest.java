@@ -11,7 +11,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
 import static org.mockito.BDDMockito.given;
@@ -38,10 +40,10 @@ public class GameControllerTest {
         PlayerMatchInformationDTO playerMatchInformationDTO = new PlayerMatchInformationDTO();
         playerMatchInformationDTO.setMatchId(1L);
 
-        List<Integer> aiPlayers = new ArrayList<>();
-        aiPlayers.add(1);
-        aiPlayers.add(1);
-        aiPlayers.add(1);
+        Map<Integer, Integer> aiPlayers = new HashMap<>();
+        aiPlayers.put(1,0);
+        aiPlayers.put(1,1);
+        aiPlayers.put(1,2);
 
         playerMatchInformationDTO.setAiPlayers(aiPlayers);
 

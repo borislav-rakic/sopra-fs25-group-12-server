@@ -112,7 +112,7 @@ public class GameServiceTest {
         PlayerMatchInformationDTO playerMatchInformationDTO = new PlayerMatchInformationDTO();
         playerMatchInformationDTO.setMatchId(match.getMatchId());
         playerMatchInformationDTO.setHost(match.getHost());
-        playerMatchInformationDTO.setAiPlayers(new ArrayList<>());
+        playerMatchInformationDTO.setAiPlayers(new HashMap<>());
         playerMatchInformationDTO.setMatchPlayers(matchPlayers);
         playerMatchInformationDTO.setLength(match.getLength());
         playerMatchInformationDTO.setStarted(true);
@@ -194,10 +194,10 @@ public class GameServiceTest {
         joinRequests.put(user.getId(), "accepted");
         match.setJoinRequests(joinRequests);
 
-        List<Integer> aiPlayers = new ArrayList<>();
-        aiPlayers.add(1);
-        aiPlayers.add(2);
-        aiPlayers.add(3);
+        Map<Integer, Integer> aiPlayers = new HashMap<>();
+        aiPlayers.put(1,0);
+        aiPlayers.put(2,1);
+        aiPlayers.put(3,2);
         match.setAiPlayers(aiPlayers);
 
         gameService.startMatch(1L, "1234");
