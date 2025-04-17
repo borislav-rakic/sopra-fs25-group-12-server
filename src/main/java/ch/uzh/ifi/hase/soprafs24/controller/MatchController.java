@@ -32,14 +32,12 @@ public class MatchController {
 
     /**
      * Creates a new entry in the MATCH relation and returns the entry if it was successful.
-     * @param matchCreateDTO The object that was sent by a player when starting a new match (the host's token).
+     * @param authorization-token in the RequestHeader.
      * @return The created match.
      */
     @PostMapping("/matches")
     @ResponseStatus(HttpStatus.CREATED)
-    public MatchDTO createNewMatch(@RequestBody MatchCreateDTO matchCreateDTO, @RequestHeader("Authorization") String authHeader) {
-        System.out.println("TOKEN: " + matchCreateDTO.getPlayerToken());
-        System.out.println("TOKEN_HEADER: " + authHeader);
+    public MatchDTO createNewMatch(@RequestHeader("Authorization") String authHeader) {
         String playerToken;
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {

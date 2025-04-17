@@ -47,43 +47,40 @@ public class MatchControllerTest {
     private MatchService matchService;
 
     @Test
-    public void testCreateMatch() throws Exception {
-        Match match = new Match();
+public void testCreateMatch() throws Exception {
+    Match match = new Match();
 
-        List<MatchPlayer> matchPlayers = new ArrayList<>();
-        MatchPlayer matchPlayer = new MatchPlayer();
-        matchPlayer.setPlayerId(new User());
-        matchPlayer.setMatch(match);
-        matchPlayers.add(matchPlayer);
+    List<MatchPlayer> matchPlayers = new ArrayList<>();
+    MatchPlayer matchPlayer = new MatchPlayer();
+    matchPlayer.setPlayerId(new User());
+    matchPlayer.setMatch(match);
+    matchPlayers.add(matchPlayer);
 
-        match.setMatchId(1L);
-        match.setStarted(false);
-        match.setMatchPlayers(matchPlayers);
-        match.setHost("User");
-        match.setLength(100);
-        match.setInvites(new HashMap<>());
-        match.setAiPlayers(new HashMap<>());
-        match.setPlayer1(new User());
+    match.setMatchId(1L);
+    match.setStarted(false);
+    match.setMatchPlayers(matchPlayers);
+    match.setHost("User");
+    match.setLength(100);
+    match.setInvites(new HashMap<>());
+    match.setAiPlayers(new HashMap<>());
+    match.setPlayer1(new User());
 
-        List<Long> matchPlayerIds = new ArrayList<>();
-        matchPlayerIds.add(match.getMatchPlayers().get(0).getMatchPlayerId());
+    List<Long> matchPlayerIds = new ArrayList<>();
+    matchPlayerIds.add(match.getMatchPlayers().get(0).getMatchPlayerId());
 
-        MatchCreateDTO matchCreateDTO = new MatchCreateDTO();
-        matchCreateDTO.setPlayerToken("1234");
+    // mock the service to return the expected match
+    given(matchService.createNewMatch(Mockito.any())).willReturn(match);
 
-        given(matchService.createNewMatch(Mockito.any())).willReturn(match);
+    MockHttpServletRequestBuilder postRequest = post("/matches")
+            .header("Authorization", "Bearer 1234");
 
-        MockHttpServletRequestBuilder postRequest = post("/matches")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(asJsonString(matchCreateDTO))
-                .header("Authorization", "Bearer 1234");
+    mockMvc.perform(postRequest)
+            .andExpect(status().isCreated())
+            .andExpect(jsonPath("$.matchId", is(match.getMatchId().intValue())))
+            .andExpect(jsonPath("$.started", is(match.getStarted())))
+            .andExpect(jsonPath("$.matchPlayerIds", is(matchPlayerIds)));
+}
 
-        mockMvc.perform(postRequest)
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.matchId", is(match.getMatchId().intValue())))
-                .andExpect(jsonPath("$.started", is(match.getStarted())))
-                .andExpect(jsonPath("$.matchPlayerIds", is(matchPlayerIds)));
-    }
 
     @Test
     public void testGetMatchesInformation() throws Exception {
