@@ -41,9 +41,10 @@ public class GameControllerTest {
         playerMatchInformationDTO.setMatchId(1L);
 
         Map<Integer, Integer> aiPlayers = new HashMap<>();
-        aiPlayers.put(1,0);
-        aiPlayers.put(1,1);
-        aiPlayers.put(1,2);
+        aiPlayers.put(1, 1); // Player 1 - Easy
+        aiPlayers.put(2, 2); // Player 2 - Medium
+        aiPlayers.put(3, 3); // Player 3 - Hard
+        playerMatchInformationDTO.setAiPlayers(aiPlayers);
 
         playerMatchInformationDTO.setAiPlayers(aiPlayers);
 
@@ -65,7 +66,9 @@ public class GameControllerTest {
                 .andExpect(jsonPath("$.matchId", is(playerMatchInformationDTO.getMatchId().intValue())))
                 .andExpect(jsonPath("$.started", is(playerMatchInformationDTO.getStarted())))
                 .andExpect(jsonPath("$.matchPlayers", is(playerMatchInformationDTO.getMatchPlayers())))
-                .andExpect(jsonPath("$.aiPlayers", is(playerMatchInformationDTO.getAiPlayers())))
+                .andExpect(jsonPath("$.aiPlayers.1", is(1)))
+                .andExpect(jsonPath("$.aiPlayers.2", is(2)))
+                .andExpect(jsonPath("$.aiPlayers.3", is(3)))
                 .andExpect(jsonPath("$.length", is(playerMatchInformationDTO.getLength())))
                 .andExpect(jsonPath("$.host", is(playerMatchInformationDTO.getHost())));
     }
