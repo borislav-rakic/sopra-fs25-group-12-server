@@ -1,9 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
-import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
-import ch.uzh.ifi.hase.soprafs24.entity.Match;
-import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
-import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.entity.*;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
@@ -54,6 +51,9 @@ public class GameServiceTest {
     @Mock
     private PassedCardRepository passedCardRepository;
 
+    @Mock
+    private MatchPlayerCardsRepository matchPlayerCardsRepository;
+
     @InjectMocks
     private GameService gameService = new GameService(
             matchRepository,
@@ -62,6 +62,7 @@ public class GameServiceTest {
             matchStatsRepository,
             gameStatsRepository,
             gameRepository,
+            matchPlayerCardsRepository,
             passedCardRepository,
             externalApiClientService,
             userService);
@@ -85,16 +86,36 @@ public class GameServiceTest {
         matchPlayers.get(0).setPlayerId(user);
         matchPlayers.get(0).setMatch(match);
 
+        List<MatchPlayerCards> matchPlayerCards = new ArrayList<>();
+        MatchPlayerCards matchPlayerCard = new MatchPlayerCards();
+        matchPlayerCard.setMatchPlayer(matchPlayer);
+        matchPlayerCard.setCard("5C");
+        matchPlayerCards.add(matchPlayerCard);
+
+        matchPlayers.get(0).setCardsInHand(matchPlayerCards);
+
         match.setMatchPlayers(matchPlayers);
         match.setHost(user.getUsername());
         match.setLength(100);
         match.setStarted(false);
         match.setPlayer1(user);
 
+        Game game = new Game();
+        game.setGameId(1L);
+        game.setMatch(match);
+        game.setGameNumber(1);
+        game.setFinished(false);
+
+        match.getGames().add(game);
+
         matchPlayer = new MatchPlayer();
         matchPlayer.setMatch(match);
         matchPlayer.setPlayerId(user);
         matchPlayer.setMatchPlayerId(1L);
+
+
+
+
     }
 
     @Test

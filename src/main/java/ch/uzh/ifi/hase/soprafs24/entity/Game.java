@@ -26,7 +26,7 @@ public class Game {
     @Column(nullable = false)
     private int gameNumber; // e.g., 1st round, 2nd round...
 
-    @Column(name = "deck_id", nullable = false)
+    @Column(name = "deck_id")
     private String deckId;
 
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)

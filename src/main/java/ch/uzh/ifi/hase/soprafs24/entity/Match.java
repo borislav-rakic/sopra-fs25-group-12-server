@@ -66,8 +66,12 @@ public class Match implements Serializable {
     @ManyToOne
     @JoinColumn(name = "current_player_id")
     private User currentPlayer;
+
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Game> games = new ArrayList<>();
+
+    @Column
+    private boolean finished = false;
 
     public List<Game> getGames() {
         return games;
@@ -202,5 +206,21 @@ public class Match implements Serializable {
                 (player2 != null && player2.getId().equals(userId)) ||
                 (player3 != null && player3.getId().equals(userId)) ||
                 (player4 != null && player4.getId().equals(userId));
+    }
+
+    public User getCurrentPlayer() {
+        return currentPlayer;
+    }
+
+    public void setCurrentPlayer(User currentPlayer) {
+        this.currentPlayer = currentPlayer;
+    }
+
+    public boolean isFinished() {
+        return finished;
+    }
+
+    public void setFinished(boolean finished) {
+        this.finished = finished;
     }
 }

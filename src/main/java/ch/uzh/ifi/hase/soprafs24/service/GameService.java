@@ -9,6 +9,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.repository.*;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -47,6 +48,7 @@ public class GameService {
     private final ExternalApiClientService externalApiClientService;
     private final UserService userService;
     private final PassedCardRepository passedCardRepository;
+    private final MatchPlayerCardsRepository matchPlayerCardsRepository;
 
     // or via constructor injection
 
@@ -58,6 +60,7 @@ public class GameService {
             @Qualifier("matchStatsRepository") MatchStatsRepository matchStatsRepository,
             @Qualifier("gameStatsRepository") GameStatsRepository gameStatsRepository,
             @Qualifier("gameRepository") GameRepository gameRepository,
+            @Qualifier("matchPlayerCardsRepository") MatchPlayerCardsRepository matchPlayerCardsRepository,
             PassedCardRepository passedCardRepository,
             ExternalApiClientService externalApiClientService,
             UserService userService) {
@@ -70,6 +73,7 @@ public class GameService {
         this.userService = userService;
         this.gameRepository = gameRepository;
         this.passedCardRepository = passedCardRepository;
+        this.matchPlayerCardsRepository = matchPlayerCardsRepository;
     }
 
     private static final int EXPECTED_CARD_COUNT = 52;
@@ -112,6 +116,9 @@ public class GameService {
         usersInMatch.add(match.getPlayer3());
         usersInMatch.add(match.getPlayer4());
 
+        // Variable to save the MatchPlayer entry from the requesting user from the Match entity.
+        MatchPlayer requestingMatchPlayer = null;
+
         for (MatchPlayer player : matchPlayerList) {
             User matchPlayerUser = player.getPlayerId();
 
@@ -125,6 +132,11 @@ public class GameService {
             }
 
             matchPlayers.set(slot, matchPlayerUser.getUsername());
+
+            // Saves the MatchPlayer entry of the requesting user from the Match entity.
+            if (matchPlayerUser == user) {
+                requestingMatchPlayer = player;
+            }
         }
 
         System.out.println(matchPlayers);
@@ -136,6 +148,27 @@ public class GameService {
         dto.setAiPlayers(match.getAiPlayers());
         dto.setLength(match.getLength());
         dto.setStarted(true);
+
+        List<PlayerCardDTO> playerCardDTOList = new ArrayList<>();
+
+        // Sets up the PlayerCardDTO list
+        for (MatchPlayerCards matchPlayerCard : requestingMatchPlayer.getCardsInHand()) {
+            System.out.println("TESTING CARD: " + matchPlayerCard.getCard());
+
+            PlayerCardDTO playerCardDTO = new PlayerCardDTO();
+
+            playerCardDTO.setPlayerId(user.getId());
+            playerCardDTO.setGameId(match.getGames().get(match.getGames().size() - 1).getGameId());
+            playerCardDTO.setGameNumber(match.getGames().get(match.getGames().size() - 1).getGameNumber());
+            playerCardDTO.setCard(matchPlayerCard.getCard());
+
+            playerCardDTOList.add(playerCardDTO);
+        }
+
+        dto.setPlayerCards(playerCardDTOList);
+        dto.setMyTurn(match.getCurrentPlayer() == user);
+        dto.setGameFinished(match.getGames().get(match.getGames().size() - 1).isFinished());
+        dto.setMatchFinished(match.isFinished());
 
         return dto;
     }
@@ -199,6 +232,16 @@ public class GameService {
                     "Cannot start match: not all player slots are filled");
         }
 
+        // Creates a new game
+        Game game = new Game();
+        game.setMatch(givenMatch);
+        game.setGameNumber(1);
+        game.setFinished(false);
+        gameRepository.save(game);
+        gameRepository.flush();
+
+        givenMatch.getGames().add(game);
+        givenMatch.setFinished(false);
         givenMatch.setStarted(true);
         matchRepository.save(givenMatch);
         matchRepository.flush();
@@ -223,9 +266,12 @@ public class GameService {
         // Is executed, when the response from the deck of cards API arrives
         newDeckResponseMono.subscribe(response -> {
             System.out.println("Deck id: " + response.getDeck_id());
+            game.setDeckId(response.getDeck_id());
             givenMatch.setDeckId(response.getDeck_id());
             matchRepository.save(givenMatch);
             matchRepository.flush();
+            gameRepository.save(game);
+            gameRepository.flush();
 
             initializeGameStatsNewMatch(givenMatch);
 
@@ -288,9 +334,22 @@ public class GameService {
                 while (counter < 13 && !responseCards.isEmpty()) {
                     String code = responseCards.get(0).getCode();
 
+                    // Sets up the current player if 2C is distributed
+                    if (code.equals("2C")) {
+                        match.setCurrentPlayer(matchPlayer.getPlayerId());
+                        Game game = match.getGames().get(0);
+                        game.setCurrentPlayer(matchPlayer.getPlayerId());
+
+                        matchRepository.save(match);
+                        matchRepository.flush();
+                        gameRepository.save(game);
+                        gameRepository.flush();
+                    }
+
                     MatchPlayerCards matchPlayerCards = new MatchPlayerCards();
 
                     matchPlayerCards.setCard(code);
+
                     GameStats gameStats = gameStatsRepository.findByRankSuit(code);
                     gameStats.setCardHolder(matchPlayer.getSlot());
                     gameStatsRepository.save(gameStats);
