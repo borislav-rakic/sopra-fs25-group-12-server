@@ -11,6 +11,9 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
+import ch.uzh.ifi.hase.soprafs24.entity.Game;
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -109,12 +112,11 @@ public class GameService {
         }
 
         List<String> matchPlayers = new ArrayList<>();
-        matchPlayers.add(null);
-        matchPlayers.add(null);
-        matchPlayers.add(null);
-        matchPlayers.add(null);
+        matchPlayers.add(match.getPlayer1() != null ? match.getPlayer1().getUsername() : null);
+        matchPlayers.add(match.getPlayer2() != null ? match.getPlayer2().getUsername() : null);
+        matchPlayers.add(match.getPlayer3() != null ? match.getPlayer3().getUsername() : null);
+        matchPlayers.add(match.getPlayer4() != null ? match.getPlayer4().getUsername() : null);
 
-        List<MatchPlayer> matchPlayerList = match.getMatchPlayers();
 
         List<User> usersInMatch = new ArrayList<>();
         usersInMatch.add(match.getPlayer1());
@@ -125,23 +127,10 @@ public class GameService {
         // Variable to save the MatchPlayer entry from the requesting user from the Match entity.
         MatchPlayer requestingMatchPlayer = null;
 
-        for (MatchPlayer player : matchPlayerList) {
-            User matchPlayerUser = player.getPlayerId();
-
-            int slot = 0;
-
-            for (User userInMatch : usersInMatch) {
-                if (userInMatch == matchPlayerUser) {
-                    break;
-                }
-                slot++;
-            }
-
-            matchPlayers.set(slot, matchPlayerUser.getUsername());
-
-            // Saves the MatchPlayer entry of the requesting user from the Match entity.
-            if (matchPlayerUser == user) {
+        for (MatchPlayer player : match.getMatchPlayers()) {
+            if (player.getPlayerId().getId().equals(user.getId())) {
                 requestingMatchPlayer = player;
+                break;
             }
         }
 
@@ -153,7 +142,7 @@ public class GameService {
         dto.setMatchPlayers(matchPlayers);
         dto.setAiPlayers(match.getAiPlayers());
         dto.setLength(match.getLength());
-        dto.setStarted(true);
+        dto.setGamePhase(GamePhase.PRESTART);
 
         List<PlayerCardDTO> playerCardDTOList = new ArrayList<>();
 
@@ -174,8 +163,8 @@ public class GameService {
 
         dto.setPlayerCards(playerCardDTOList);
         dto.setMyTurn(match.getCurrentPlayer() == user);
-        dto.setGameFinished(latestGame.isFinished());
-        dto.setMatchFinished(match.isFinished());
+        dto.setGamePhase(latestGame.getPhase());
+        dto.setMatchPhase(match.getPhase());
 
         List<Card> playableCards = getPlayableCardsForPlayer(match, latestGame, user);
 
@@ -215,19 +204,16 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can start the match");
         }
 
-        // Get invites (human players)
         Map<Integer, Long> invites = givenMatch.getInvites();
         if (invites == null) {
             invites = new HashMap<>();
         }
 
-        // Get accepted invites
         Map<Long, String> joinRequests = givenMatch.getJoinRequests();
         if (joinRequests == null) {
             joinRequests = new HashMap<>();
         }
 
-        // 1. Ensure all invited users accepted
         for (Long invitedUserId : invites.values()) {
             String status = joinRequests.get(invitedUserId);
             if (!"accepted".equalsIgnoreCase(status)) {
@@ -236,39 +222,28 @@ public class GameService {
             }
         }
 
-        // 2. Ensure remaining slots are filled with AI players
-        // int totalSlots = 4;
-        // int filledHumanSlots = invites.size(); // accepted humans
-        // int filledAiSlots = givenMatch.getAiPlayers() != null ?
-        // givenMatch.getAiPlayers().size() : 0;
-        //
-        // if ((filledHumanSlots + filledAiSlots) < totalSlots) {
-        // throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-        // "Cannot start match: not all player slots are filled.");
-        // }
-        if (givenMatch.getPlayer1() == null || givenMatch.getPlayer2() == null || givenMatch.getPlayer3() == null
-                || givenMatch.getPlayer4() == null) {
+        if (givenMatch.getPlayer1() == null || givenMatch.getPlayer2() == null || 
+            givenMatch.getPlayer3() == null || givenMatch.getPlayer4() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Cannot start match: not all player slots are filled");
         }
 
-        // Creates a new game
         Game game = new Game();
         game.setMatch(givenMatch);
         game.setGameNumber(1);
-        game.setFinished(false);
+        game.setPhase(GamePhase.PRESTART);
         gameRepository.save(game);
         gameRepository.flush();
+        Long savedGameId = game.getGameId(); 
 
         givenMatch.getGames().add(game);
-        givenMatch.setFinished(false);
+        givenMatch.setPhase(MatchPhase.READY);
         givenMatch.setStarted(true);
         matchRepository.save(givenMatch);
         matchRepository.flush();
 
         List<MatchPlayer> matchPlayers = givenMatch.getMatchPlayers();
 
-        // Initializes the MATCH_STATS relation
         for (MatchPlayer matchPlayer : matchPlayers) {
             MatchStats matchStats = new MatchStats();
             matchStats.setMatch(givenMatch);
@@ -283,111 +258,110 @@ public class GameService {
 
         Mono<NewDeckResponse> newDeckResponseMono = externalApiClientService.createNewDeck();
 
-        // Is executed, when the response from the deck of cards API arrives
         newDeckResponseMono.subscribe(response -> {
             System.out.println("Deck id: " + response.getDeck_id());
-            game.setDeckId(response.getDeck_id());
-            givenMatch.setDeckId(response.getDeck_id());
-            matchRepository.save(givenMatch);
+
+            Game savedGame = gameRepository.findById(savedGameId)
+                .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + savedGameId));
+            
+            savedGame.setDeckId(response.getDeck_id());
+
+            Match savedMatch = matchRepository.findMatchByMatchId(givenMatch.getMatchId());
+            savedMatch.setDeckId(response.getDeck_id());
+
+            matchRepository.save(savedMatch);
             matchRepository.flush();
-            gameRepository.save(game);
+
+            gameRepository.save(savedGame);
             gameRepository.flush();
 
-            initializeGameStatsNewMatch(givenMatch);
+            initializeGameStatsNewMatch(savedMatch, savedGame);
 
-            distributeCards(givenMatch);
+            distributeCards(savedMatch, savedGame);
         });
     }
+
 
     /**
      * Initializes the GAME_STATS relation with the necessary information for a new
      * match.
      */
-    public void initializeGameStatsNewMatch(Match match) {
+    public void initializeGameStatsNewMatch(Match match, Game game) {
         Suit[] suits = Suit.values();
         Rank[] ranks = Rank.values();
 
         for (Suit suit : suits) {
             for (Rank rank : ranks) {
                 GameStats gameStats = new GameStats();
+                gameStats.setGame(game);  // <- add this line
                 gameStats.setSuit(suit);
                 gameStats.setRank(rank);
                 gameStats.setMatch(match);
                 gameStats.setPointsBilledTo(0);
-                gameStats.setCardHolder(0);
+                gameStats.setCardHolder(0); // default, updated later
                 gameStats.setPlayedBy(0);
                 gameStats.setPlayOrder(0);
                 gameStats.setPossibleHolders(0);
-
-                gameStats.setAllowedToPlay(false);
-
-                // If the card is the two of clubs, it is allowed to be played.
-                if (suit == Suit.C && rank == Rank._2) {
-                    gameStats.setAllowedToPlay(true);
-                }
-
+                gameStats.setAllowedToPlay(suit == Suit.C && rank == Rank._2);
+                
                 gameStatsRepository.save(gameStats);
-                gameStatsRepository.flush();
             }
         }
+        gameStatsRepository.flush();
     }
+
 
     /**
      * Distributes 13 cards to each player
      */
-    public void distributeCards(Match match) {
+    public void distributeCards(Match match, Game game) {
         Mono<DrawCardResponse> drawCardResponseMono = externalApiClientService.drawCard(match.getDeckId(), 52);
 
-        System.out.println("REQUESTED DRAW");
-
-        // This code is executed when the response arrives.
         drawCardResponseMono.subscribe(response -> {
-            System.out.println("DRAW RESPONSE");
-
             List<Card> responseCards = response.getCards();
 
             for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
                 List<MatchPlayerCards> cards = new ArrayList<>();
-
                 int counter = 0;
 
                 while (counter < 13 && !responseCards.isEmpty()) {
                     String code = responseCards.get(0).getCode();
 
-                    // Sets up the current player if 2C is distributed
+                    Rank rank = Rank.fromSymbol(code.substring(0, code.length() - 1));
+                    Suit suit = Suit.fromSymbol(code.substring(code.length() - 1));
+
                     if (code.equals("2C")) {
                         match.setCurrentPlayer(matchPlayer.getPlayerId());
-                        Game game = match.getGames().get(0);
                         game.setCurrentPlayer(matchPlayer.getPlayerId());
-
                         matchRepository.save(match);
-                        matchRepository.flush();
                         gameRepository.save(game);
-                        gameRepository.flush();
                     }
 
                     MatchPlayerCards matchPlayerCards = new MatchPlayerCards();
-
                     matchPlayerCards.setCard(code);
-
-                    GameStats gameStats = gameStatsRepository.findByRankSuit(code);
-                    gameStats.setCardHolder(matchPlayer.getSlot());
-                    gameStatsRepository.save(gameStats);
-
                     matchPlayerCards.setMatchPlayer(matchPlayer);
 
-                    cards.add(matchPlayerCards);
+                    GameStats gameStats = gameStatsRepository.findByRankAndSuitAndGame(rank, suit, game);
+                    if (gameStats != null) {
+                        gameStats.setCardHolder(matchPlayer.getSlot());
+                        gameStatsRepository.save(gameStats);
+                    }
 
+                    cards.add(matchPlayerCards);
                     counter++;
                     responseCards.remove(0);
                 }
 
                 matchPlayer.setCardsInHand(cards);
                 matchPlayerRepository.save(matchPlayer);
-                matchPlayerRepository.flush();
             }
+            matchPlayerRepository.flush();
+            gameStatsRepository.flush();
         });
     }
+
+
+
 
     private User determineNextPlayer(Game game) {
         List<User> players = game.getMatch().getMatchPlayers()
@@ -447,7 +421,7 @@ public class GameService {
         game.setCurrentPlayer(nextPlayer);
 
         if (isGameFinished(game)) {
-            game.setFinished(true);
+            game.setPhase(GamePhase.FINISHED);
         }
 
         gameRepository.save(game);

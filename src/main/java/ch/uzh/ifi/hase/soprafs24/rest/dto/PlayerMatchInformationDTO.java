@@ -1,5 +1,8 @@
 package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
+    import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+
 import java.util.List;
 import java.util.Map;
 
@@ -8,13 +11,12 @@ public class PlayerMatchInformationDTO {
     private List<String> matchPlayers;
     private String host;
     private int length;
-    private boolean started;
     private Map<Integer, Integer> aiPlayers;
     private List<PlayerCardDTO> playerCards;
     private List<PlayerCardDTO> playableCards;
-    private boolean isGameFinished = false;
-    private boolean isMatchFinished = false;
     private boolean isMyTurn = false;
+    private GamePhase gamePhase;
+    private MatchPhase matchPhase;
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -48,14 +50,6 @@ public class PlayerMatchInformationDTO {
         this.length = length;
     }
 
-    public boolean getStarted() {
-        return started;
-    }
-
-    public void setStarted(boolean started) {
-        this.started = started;
-    }
-
     public Map<Integer, Integer> getAiPlayers() {
         return aiPlayers;
     }
@@ -80,27 +74,26 @@ public class PlayerMatchInformationDTO {
         this.playableCards = playableCards;
     }
 
-    public boolean isMatchFinished() {
-        return isMatchFinished;
-    }
-
-    public void setMatchFinished(boolean isMatchFinished) {
-        this.isMatchFinished = isMatchFinished;
-    }
-
-    public boolean isGameFinished() {
-        return isGameFinished;
-    }
-
-    public void setGameFinished(boolean isGameFinished) {
-        this.isGameFinished = isGameFinished;
-    }
-
     public boolean isMyTurn() {
         return isMyTurn;
     }
 
     public void setMyTurn(boolean myTurn) {
         this.isMyTurn = myTurn;
+    }
+    public GamePhase getGamePhase() {
+    return gamePhase;
+}
+
+    public void setGamePhase(GamePhase gamePhase) {
+        this.gamePhase = gamePhase;
+    }
+
+    public MatchPhase getMatchPhase() {
+        return matchPhase;
+    }
+
+    public void setMatchPhase(MatchPhase matchPhase) {
+        this.matchPhase = matchPhase;
     }
 }

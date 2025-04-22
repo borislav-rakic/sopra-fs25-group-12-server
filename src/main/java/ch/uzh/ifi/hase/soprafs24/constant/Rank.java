@@ -15,6 +15,15 @@ public enum Rank {
         return label;
     }
 
+    public static Rank fromSymbol(String symbol) {
+        for (Rank rank : values()) {
+            if (rank.getSymbol().equals(symbol)) {
+                return rank;
+            }
+        }
+        throw new IllegalArgumentException("Invalid rank symbol: " + symbol);
+    }
+
     @Override
     public String toString() {
         return label;

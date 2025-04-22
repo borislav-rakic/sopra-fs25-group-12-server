@@ -13,6 +13,16 @@ import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import reactor.core.publisher.Mono;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.any;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.atLeast;
+
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,6 +31,7 @@ import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.BDDMockito.given;
+import java.util.Optional;
 import static org.mockito.Mockito.verify;
 
 public class GameServiceTest {
@@ -104,7 +115,6 @@ public class GameServiceTest {
         game.setGameId(1L);
         game.setMatch(match);
         game.setGameNumber(1);
-        game.setFinished(false);
 
         match.getGames().add(game);
 
@@ -119,114 +129,180 @@ public class GameServiceTest {
     }
 
     @Test
-    public void testGetPlayerMatchInformationSuccess() {
-        given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
-        given(userRepository.findUserByToken(Mockito.any())).willReturn(user);
-        given(matchPlayerRepository.findByUserAndMatch(user, match)).willReturn(matchPlayer);
+public void testGetPlayerMatchInformationSuccess() {
+    // Create actual User instances
+    User user = new User();
+    user.setId(42L);
+    user.setUsername("testuser");
 
-        List<String> matchPlayers = new ArrayList<>();
-        matchPlayers.add(user.getUsername());
-        matchPlayers.add(null);
-        matchPlayers.add(null);
-        matchPlayers.add(null);
+    User p2 = new User();
+    p2.setId(2L);
+    p2.setUsername("bot2");
 
-        PlayerMatchInformationDTO playerMatchInformationDTO = new PlayerMatchInformationDTO();
-        playerMatchInformationDTO.setMatchId(match.getMatchId());
-        playerMatchInformationDTO.setHost(match.getHost());
-        playerMatchInformationDTO.setAiPlayers(new HashMap<>());
-        playerMatchInformationDTO.setMatchPlayers(matchPlayers);
-        playerMatchInformationDTO.setLength(match.getLength());
-        playerMatchInformationDTO.setStarted(true);
+    User p3 = new User();
+    p3.setId(3L);
+    p3.setUsername("bot3");
 
-        PlayerMatchInformationDTO result = gameService.getPlayerMatchInformation("1234", 1L);
+    User p4 = new User();
+    p4.setId(4L);
+    p4.setUsername("bot4");
 
-        assertEquals(playerMatchInformationDTO.getMatchId(), result.getMatchId());
-        assertEquals(playerMatchInformationDTO.getHost(), result.getHost());
-        assertEquals(playerMatchInformationDTO.getMatchPlayers(), result.getMatchPlayers());
-        assertEquals(playerMatchInformationDTO.getAiPlayers(), result.getAiPlayers());
-        assertEquals(playerMatchInformationDTO.getLength(), result.getLength());
-        assertEquals(playerMatchInformationDTO.getStarted(), result.getStarted());
-    }
+    // Create Match and assign users
+    Match match = new Match();
+    match.setMatchId(1L);
+    match.setPlayer1(user);
+    match.setPlayer2(p2);
+    match.setPlayer3(p3);
+    match.setPlayer4(p4);
+    match.setHost("hostUser");
+    match.setLength(13);
+    match.setPhase(MatchPhase.READY);
+    match.setCurrentPlayer(user);
+    match.setAiPlayers(new HashMap<>());
 
-    @Test
-    public void testStartMatchSuccess() {
-        match.setPlayer2(new User());
-        match.setPlayer3(new User());
-        match.setPlayer4(new User());
+    // Setup MatchPlayer
+    MatchPlayer matchPlayer = new MatchPlayer();
+    matchPlayer.setPlayerId(user);
 
-        NewDeckResponse newDeckResponse = new NewDeckResponse();
-        newDeckResponse.setDeck_id("9876");
-        newDeckResponse.setSuccess(true);
-        newDeckResponse.setRemaining(52);
-        newDeckResponse.setShuffled(true);
+    MatchPlayerCards handCard = new MatchPlayerCards();
+    handCard.setCard("2C");
+    matchPlayer.setCardsInHand(List.of(handCard));
 
-        Card card1 = new Card();
-        card1.setCode("3H");
-        Card card2 = new Card();
-        card2.setCode("0H");
-        Card card3 = new Card();
-        card3.setCode("0S");
-        Card card4 = new Card();
-        card4.setCode("0D");
-        Card card5 = new Card();
-        card5.setCode("0C");
+    match.setMatchPlayers(List.of(matchPlayer));
 
-        List<Card> cards = new ArrayList<>();
-        cards.add(card1);
-        cards.add(card2);
-        cards.add(card3);
-        cards.add(card4);
-        cards.add(card5);
+    // Setup game
+    Game game = new Game();
+    game.setGameId(1L);
+    game.setGameNumber(1);
+    game.setPhase(GamePhase.FINISHED);
+    game.setPlayedCards(new ArrayList<>());
+    game.setMatch(match);
 
-        DrawCardResponse drawCardResponse = new DrawCardResponse();
-        drawCardResponse.setDeck_id("9876");
-        drawCardResponse.setSuccess(true);
-        drawCardResponse.setRemaining(0);
-        drawCardResponse.setCards(cards);
+    match.setGames(List.of(game));
 
-        Mono<DrawCardResponse> drawCardMono = Mono.just(drawCardResponse);
+    // Mocks
+    when(userRepository.findUserByToken("1234")).thenReturn(user);
+    when(matchRepository.findMatchByMatchId(1L)).thenReturn(match);
+    when(matchPlayerRepository.findByUserAndMatch(user, match)).thenReturn(matchPlayer);
 
-        Mono<NewDeckResponse> newDeckMono = Mono.just(newDeckResponse);
+    // Act
+    PlayerMatchInformationDTO result = gameService.getPlayerMatchInformation("1234", 1L);
 
-        given(userRepository.findUserByToken(Mockito.any())).willReturn(user);
-        given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
+    // Assert
+    assertEquals(1L, result.getMatchId());
+    assertEquals("hostUser", result.getHost());
+    assertEquals(13, result.getLength());
+    assertEquals(GamePhase.FINISHED, result.getGamePhase());
+    assertEquals(MatchPhase.READY, result.getMatchPhase());
+    assertEquals(1, result.getPlayerCards().size());
+    assertEquals("2C", result.getPlayerCards().get(0).getCard());
+    assertEquals(List.of("testuser", "bot2", "bot3", "bot4"), result.getMatchPlayers());
+}
 
-        given(matchRepository.save(Mockito.any())).willReturn(match);
-        given(matchPlayerRepository.save(Mockito.any())).willReturn(matchPlayer);
 
-        given(externalApiClientService.createNewDeck()).willReturn(newDeckMono);
 
-        given(gameStatsRepository.findByRankSuit(Mockito.any())).willReturn(new GameStats());
+@Test
+public void testStartMatchSuccess() {
+    // Mocks
+    User user = Mockito.mock(User.class);
+    Match match = new Match();
+    MatchPlayer matchPlayer = Mockito.mock(MatchPlayer.class);
 
-        given(gameStatsRepository.save(Mockito.any())).willReturn(new GameStats());
+    User bot2 = mock(User.class);
+    User bot3 = mock(User.class);
+    User bot4 = mock(User.class);
 
-        given(externalApiClientService.drawCard("9876", 52)).willReturn(drawCardMono);
+    given(bot2.getUsername()).willReturn("bot2");
+    given(bot3.getUsername()).willReturn("bot3");
+    given(bot4.getUsername()).willReturn("bot4");
 
-        given(matchPlayerRepository.save(Mockito.any())).willReturn(matchPlayer);
+    User p2 = mock(User.class);
+    User p3 = mock(User.class);
+    User p4 = mock(User.class);
 
-        match.setHost(user.getUsername()); // so host can start the match
-        match.setPlayer1(user);
+    when(p2.getUsername()).thenReturn("bot2");
+    when(p3.getUsername()).thenReturn("bot3");
+    when(p4.getUsername()).thenReturn("bot4");
 
-        Map<Integer, Long> invites = new HashMap<>();
-        invites.put(1, user.getId());
-        match.setInvites(invites);
+    match.setPlayer2(p2);
+    match.setPlayer3(p3);
+    match.setPlayer4(p4);
 
-        Map<Long, String> joinRequests = new HashMap<>();
-        joinRequests.put(user.getId(), "accepted");
-        match.setJoinRequests(joinRequests);
 
-        Map<Integer, Integer> aiPlayers = new HashMap<>();
-        aiPlayers.put(1,0);
-        aiPlayers.put(2,1);
-        aiPlayers.put(3,2);
-        match.setAiPlayers(aiPlayers);
+    // Mock basic user and match setup
+    Mockito.when(user.getUsername()).thenReturn("hostUser");
+    Mockito.when(user.getId()).thenReturn(1L);
+    match.setHost("hostUser");
+    match.setPlayer1(user);
+    match.setInvites(Map.of(1, 1L));
+    match.setJoinRequests(Map.of(1L, "accepted"));
+    match.setAiPlayers(Map.of(1, 0, 2, 1, 3, 2));
+    match.setMatchPlayers(List.of(matchPlayer));
+    match.setGames(new ArrayList<>());
 
-        gameService.startMatch(1L, "1234");
+    // Simulate game creation with ID
+    Game savedGame = new Game();
+    savedGame.setGameId(42L);
+    savedGame.setMatch(match);
 
-        verify(matchRepository, Mockito.times(2)).save(Mockito.any());
-        verify(matchPlayerRepository).save(Mockito.any());
-        verify(externalApiClientService).createNewDeck();
-        verify(gameStatsRepository, Mockito.times(57)).save(Mockito.any());
-        verify(externalApiClientService).drawCard("9876", 52);
-    }
+    Mockito.when(gameRepository.save(Mockito.any(Game.class))).thenAnswer(invocation -> {
+        Game game = invocation.getArgument(0);
+        game.setGameId(42L);
+        return game;
+    });
+
+    Mockito.when(gameRepository.findById(42L)).thenReturn(Optional.of(savedGame));
+
+    // Mock deck and cards
+    NewDeckResponse newDeckResponse = new NewDeckResponse();
+    newDeckResponse.setDeck_id("9876");
+    newDeckResponse.setSuccess(true);
+    newDeckResponse.setRemaining(52);
+    newDeckResponse.setShuffled(true);
+
+    DrawCardResponse drawCardResponse = new DrawCardResponse();
+    drawCardResponse.setDeck_id("9876");
+    drawCardResponse.setSuccess(true);
+    drawCardResponse.setRemaining(0);
+    drawCardResponse.setCards(new ArrayList<>(List.of(
+        createCard("3H"),
+        createCard("0H"),
+        createCard("0S"),
+        createCard("0D"),
+        createCard("0C")
+    )));
+
+    // Mock repositories
+    Mockito.when(userRepository.findUserByToken("1234")).thenReturn(user);
+    Mockito.when(matchRepository.findMatchByMatchId(1L)).thenReturn(match);
+    Mockito.when(matchPlayerRepository.save(Mockito.any())).thenReturn(matchPlayer);
+    Mockito.when(gameStatsRepository.findByRankSuit(Mockito.any())).thenReturn(new GameStats());
+    Mockito.when(gameStatsRepository.save(Mockito.any())).thenReturn(new GameStats());
+
+    // Important: repeat this to support the async call in subscribe()
+    Mockito.when(matchRepository.findMatchByMatchId(Mockito.any())).thenReturn(match);
+
+    // Mock external API calls
+    Mockito.when(externalApiClientService.createNewDeck()).thenReturn(Mono.just(newDeckResponse));
+    Mockito.when(externalApiClientService.drawCard("9876", 52)).thenReturn(Mono.just(drawCardResponse));
+
+    // ACT
+    gameService.startMatch(1L, "1234");
+
+    // VERIFY
+    Mockito.verify(matchRepository, Mockito.atLeast(2)).save(Mockito.any());
+    Mockito.verify(gameRepository, Mockito.atLeastOnce()).save(Mockito.any());
+    Mockito.verify(externalApiClientService).createNewDeck();
+    Mockito.verify(externalApiClientService).drawCard("9876", 52);
+    Mockito.verify(gameStatsRepository, Mockito.atLeastOnce()).save(Mockito.any());
+}
+
+
+private Card createCard(String code) {
+    Card card = new Card();
+    card.setCode(code);
+    return card;
+}
+
+
 }

@@ -17,7 +17,16 @@ public enum Suit {
     }
 
     public String getFullName() {
-        return this.fullName; // "Hearts", "Clubs", etc.
+        return this.fullName;
+    }
+
+    public static Suit fromSymbol(String symbol) {
+        for (Suit suit : values()) {
+            if (suit.name().equalsIgnoreCase(symbol)) {
+                return suit;
+            }
+        }
+        throw new IllegalArgumentException("Invalid suit symbol: " + symbol);
     }
 
     @Override

@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import ch.uzh.ifi.hase.soprafs24.entity.Game;
+
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 
 @Entity
 @Table(name = "MATCH")
@@ -47,6 +50,10 @@ public class Match implements Serializable {
     @Column(name = "deck_id")
     private String deckId;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MatchPhase phase = MatchPhase.SETUP;
+
     @ManyToOne
     @JoinColumn(name = "player_1")
     private User player1;
@@ -69,9 +76,6 @@ public class Match implements Serializable {
 
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Game> games = new ArrayList<>();
-
-    @Column
-    private boolean finished = false;
 
     public List<Game> getGames() {
         return games;
@@ -216,11 +220,12 @@ public class Match implements Serializable {
         this.currentPlayer = currentPlayer;
     }
 
-    public boolean isFinished() {
-        return finished;
+    public MatchPhase getPhase() {
+        return phase;
     }
 
-    public void setFinished(boolean finished) {
-        this.finished = finished;
+    public void setPhase(MatchPhase phase) {
+        this.phase = phase;
     }
+
 }

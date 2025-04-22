@@ -27,7 +27,7 @@ public class PlayerCardDTO {
 
     public void setCard(String card) {
         this.card = card;
-        this.cardOrder = CardUtils.calculateCardOrder(card); // ✅ use shared utility
+        this.cardOrder = CardUtils.calculateCardOrder(card);
     }
 
     public String getCard() {

@@ -54,7 +54,6 @@ public class GameControllerTest {
         playerMatchInformationDTO.setMatchPlayers(matchPlayers);
         playerMatchInformationDTO.setHost("User");
         playerMatchInformationDTO.setLength(100);
-        playerMatchInformationDTO.setStarted(true);
 
         given(gameService.getPlayerMatchInformation(Mockito.any(), Mockito.any())).willReturn(playerMatchInformationDTO);
 
@@ -64,7 +63,6 @@ public class GameControllerTest {
         mockMvc.perform(postRequest)
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.matchId", is(playerMatchInformationDTO.getMatchId().intValue())))
-                .andExpect(jsonPath("$.started", is(playerMatchInformationDTO.getStarted())))
                 .andExpect(jsonPath("$.matchPlayers", is(playerMatchInformationDTO.getMatchPlayers())))
                 .andExpect(jsonPath("$.aiPlayers.1", is(1)))
                 .andExpect(jsonPath("$.aiPlayers.2", is(2)))
