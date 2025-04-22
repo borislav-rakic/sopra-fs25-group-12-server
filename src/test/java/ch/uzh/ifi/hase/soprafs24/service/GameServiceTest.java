@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.entity.*;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
+import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
 import ch.uzh.ifi.hase.soprafs24.repository.*;
@@ -298,8 +299,8 @@ public void testStartMatchSuccess() {
 }
 
 
-private Card createCard(String code) {
-    Card card = new Card();
+private CardResponse createCard(String code) {
+    CardResponse card = new CardResponse();
     card.setCode(code);
     return card;
 }
