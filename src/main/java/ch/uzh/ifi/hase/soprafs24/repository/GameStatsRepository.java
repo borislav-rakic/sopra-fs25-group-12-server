@@ -18,4 +18,6 @@ public interface GameStatsRepository extends JpaRepository<GameStats, Long> {
 
     GameStats findByRankSuitAndGameAndCardHolder(String rankSuit, Game game, int cardHolder);
 
+    List<GameStats> findByGameAndCardHolder(Game game, int cardHolder);
+
 }

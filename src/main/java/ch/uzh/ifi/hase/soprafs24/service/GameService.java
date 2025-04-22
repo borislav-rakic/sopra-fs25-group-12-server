@@ -19,6 +19,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 import reactor.core.publisher.Mono;
 
+import ch.uzh.ifi.hase.soprafs24.util.CardMapper;
+import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
+import java.util.stream.Collectors;
+
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -49,6 +53,8 @@ public class GameService {
     private final UserService userService;
     private final PassedCardRepository passedCardRepository;
     private final MatchPlayerCardsRepository matchPlayerCardsRepository;
+
+    
 
     // or via constructor injection
 
@@ -170,6 +176,19 @@ public class GameService {
         dto.setMyTurn(match.getCurrentPlayer() == user);
         dto.setGameFinished(latestGame.isFinished());
         dto.setMatchFinished(match.isFinished());
+
+        List<Card> playableCards = getPlayableCardsForPlayer(match, latestGame, user);
+
+        List<PlayerCardDTO> playableCardDTOList = playableCards.stream().map(card -> {
+            PlayerCardDTO dtoCard = new PlayerCardDTO();
+            dtoCard.setCard(card.getCode());
+            dtoCard.setGameId(latestGame.getGameId());
+            dtoCard.setGameNumber(latestGame.getGameNumber());
+            dtoCard.setPlayerId(user.getId());
+            return dtoCard;
+        }).toList();
+
+        dto.setPlayableCards(playableCardDTOList);
 
         return dto;
     }
@@ -575,5 +594,92 @@ public class GameService {
 
         return direction;
     }
+    public List<Card> getPlayableCardsForPlayer(Match match, Game game, User player) {
+        MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(player, match);
+        if (matchPlayer == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not in this match.");
+        }
+
+        // Get player's hand from GameStats by slot
+        int slot = matchPlayer.getSlot();
+        List<GameStats> handStats = gameStatsRepository.findByGameAndCardHolder(game, slot);
+
+        // Convert to Card objects
+        List<Card> hand = handStats.stream()
+            .map(CardMapper::fromGameStats)
+            .collect(Collectors.toList());
+
+        // Sort the hand
+        List<Card> sortedHand = CardUtils.sortCardsByOrder(
+            hand.stream().map(Card::getCode).toList()
+        ).stream().map(code -> {
+            Card card = new Card();
+            card.setCode(code);
+            return card;
+        }).toList();
+
+        List<Card> playable = new ArrayList<>();
+
+        boolean isFirstRound = game.getGameNumber() == 1;
+        boolean heartsBroken = false; // 🔧 fallback — track this in future
+        boolean isFirstCardOfGame = game.getPlayedCards().isEmpty();
+
+        // Current trick: last 1-4 cards
+        List<GameStats> currentTrick = game.getPlayedCards().stream()
+            .skip(Math.max(0, game.getPlayedCards().size() - 4))
+            .toList();
+
+        boolean isLeading = currentTrick.size() % 4 == 0 || currentTrick.isEmpty();
+
+        final String trickSuitLocal;
+        if (!isLeading && !currentTrick.isEmpty()) {
+            Card leadingCard = CardMapper.fromGameStats(currentTrick.get(0));
+            trickSuitLocal = leadingCard.getSuit();
+        } else {
+            trickSuitLocal = null;
+        }
+
+        for (Card card : sortedHand) {
+            String code = card.getCode();
+            String suit = card.getSuit();
+
+            if (isFirstCardOfGame) {
+                if (code.equals("2C")) {
+                    playable.add(card);
+                }
+                continue;
+            }
+
+            if (isFirstRound && (suit.equals("Hearts") || code.equals("QS"))) {
+                continue;
+            }
+
+            if (isLeading) {
+                if (suit.equals("Hearts") && !heartsBroken) {
+                    boolean onlyHearts = sortedHand.stream().allMatch(c -> c.getSuit().equals("Hearts"));
+                    if (!onlyHearts) {
+                        continue;
+                    }
+                }
+                playable.add(card);
+            } else {
+                boolean hasSuit = sortedHand.stream().anyMatch(c -> c.getSuit().equals(trickSuitLocal));
+                if (hasSuit) {
+                    if (suit.equals(trickSuitLocal)) {
+                        playable.add(card);
+                    }
+                } else {
+                    if (isFirstRound && (suit.equals("Hearts") || code.equals("QS"))) {
+                        continue;
+                    }
+                    playable.add(card);
+                }
+            }
+        }
+
+        return playable;
+    }
+
+
 
 }

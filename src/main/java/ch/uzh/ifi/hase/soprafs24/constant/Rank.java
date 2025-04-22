@@ -11,6 +11,10 @@ public enum Rank {
         this.label = label;
     }
 
+    public String getSymbol() {
+        return label;
+    }
+
     @Override
     public String toString() {
         return label;
