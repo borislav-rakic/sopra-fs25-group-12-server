@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.entity.*;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
+import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
 import ch.uzh.ifi.hase.soprafs24.constant.Rank;
@@ -318,7 +319,7 @@ public class GameService {
         Mono<DrawCardResponse> drawCardResponseMono = externalApiClientService.drawCard(match.getDeckId(), 52);
 
         drawCardResponseMono.subscribe(response -> {
-            List<Card> responseCards = response.getCards();
+            List<CardResponse> responseCards = response.getCards();
 
             for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
                 List<MatchPlayerCards> cards = new ArrayList<>();
