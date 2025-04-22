@@ -1,14 +1,21 @@
 package ch.uzh.ifi.hase.soprafs24.entity;
 
+import ch.uzh.ifi.hase.soprafs24.constant.Suit;
+import ch.uzh.ifi.hase.soprafs24.constant.Rank;
+import ch.uzh.ifi.hase.soprafs24.entity.Game;
+
 import javax.persistence.*;
 
 @Entity
-@Table(name = "GAME_STATS")
+@Table(name = "GAME_STATS", uniqueConstraints = @UniqueConstraint(columnNames = { "game_id", "rank_suit" }))
 public class GameStats {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @Column(length = 2, name = "rank_suit", nullable = false)
+    private String rankSuit;
 
     @ManyToOne
     @JoinColumn(name = "match_id", nullable = false)
@@ -25,9 +32,6 @@ public class GameStats {
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private Rank rank;
-
-    @Column(length = 3, nullable = false)
-    private String rankSuit;
 
     @Column(nullable = false)
     private int playOrder;
@@ -46,27 +50,6 @@ public class GameStats {
 
     @Column(nullable = false)
     private int cardHolder = 0; // 1–4 for players, or 0 for unassigned
-
-    // Enums
-    public enum Suit {
-        H, S, D, C
-    }
-
-    public enum Rank {
-        A("A"), _2("2"), _3("3"), _4("4"), _5("5"), _6("6"), _7("7"),
-        _8("8"), _9("9"), _0("10"), J("J"), Q("Q"), K("K");
-
-        private final String label;
-
-        Rank(String label) {
-            this.label = label;
-        }
-
-        @Override
-        public String toString() {
-            return label;
-        }
-    }
 
     // Automatically set rankSuit on persist/update
     @PrePersist

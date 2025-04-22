@@ -2,8 +2,8 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
-import ch.uzh.ifi.hase.soprafs24.entity.GameStats.Rank;
-import ch.uzh.ifi.hase.soprafs24.entity.GameStats.Suit;
+import ch.uzh.ifi.hase.soprafs24.constant.Rank;
+import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import org.slf4j.Logger;

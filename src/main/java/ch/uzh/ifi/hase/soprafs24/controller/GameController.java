@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.controller;
 
+import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
 import ch.uzh.ifi.hase.soprafs24.service.GameService;
@@ -55,5 +56,18 @@ public class GameController {
             @RequestBody PlayedCardDTO playedCardDTO) {
         String token = authHeader.replace("Bearer ", "");
         gameService.playCard(token, matchId, playedCardDTO);
+    }
+
+    @PostMapping("/matches/{matchId}/passing")
+    @ResponseStatus(HttpStatus.OK)
+    public void passCards(
+            @PathVariable Long matchId,
+            @RequestBody GamePassingDTO passingDTO,
+            @RequestHeader("Authorization") String authHeader) {
+        // Optionally extract Bearer token, if needed
+        String token = authHeader.replace("Bearer ", "");
+
+        // Delegate the work to the service
+        gameService.makePassingHappen(matchId, passingDTO, token);
     }
 }

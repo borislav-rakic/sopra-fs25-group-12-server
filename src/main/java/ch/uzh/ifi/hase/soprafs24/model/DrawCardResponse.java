@@ -5,7 +5,7 @@ import java.util.List;
 public class DrawCardResponse {
     private boolean success;
     private String deck_id;
-    private List<Card> cards;
+    private List<CardResponse> cards;
     private int remaining;
 
     public boolean isSuccess() {
@@ -24,11 +24,11 @@ public class DrawCardResponse {
         this.deck_id = deck_id;
     }
 
-    public List<Card> getCards() {
+    public List<CardResponse> getCards() {
         return cards;
     }
 
-    public void setCards(List<Card> cards) {
+    public void setCards(List<CardResponse> cards) {
         this.cards = cards;
     }
 

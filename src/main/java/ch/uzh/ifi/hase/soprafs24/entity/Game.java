@@ -4,6 +4,8 @@ import javax.persistence.*;
 import java.util.ArrayList;
 import java.util.List;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+
 @Entity
 @Table(name = "GAME")
 public class Game {
@@ -21,13 +23,14 @@ public class Game {
     private User currentPlayer;
 
     @Column(nullable = false)
-    private boolean finished = false;
+    private int gameNumber;
 
-    @Column(nullable = false)
-    private int gameNumber; // e.g., 1st round, 2nd round...
-
-    @Column(name = "deck_id", nullable = false)
+    @Column(name = "deck_id")
     private String deckId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private GamePhase phase = GamePhase.PRESTART;
 
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GameStats> playedCards = new ArrayList<>();
@@ -58,14 +61,6 @@ public class Game {
         this.currentPlayer = currentPlayer;
     }
 
-    public boolean isFinished() {
-        return finished;
-    }
-
-    public void setFinished(boolean finished) {
-        this.finished = finished;
-    }
-
     public int getGameNumber() {
         return gameNumber;
     }
@@ -88,5 +83,13 @@ public class Game {
 
     public void setDeckId(String deckId) {
         this.deckId = deckId;
+    }
+
+    public GamePhase getPhase() {
+        return phase;
+    }
+
+    public void setPhase(GamePhase phase) {
+        this.phase = phase;
     }
 }

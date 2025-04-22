@@ -6,6 +6,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
+import ch.uzh.ifi.hase.soprafs24.entity.Game;
+
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 
 @Entity
 @Table(name = "MATCH")
@@ -16,7 +19,7 @@ public class Match implements Serializable {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long matchId;
 
-    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<MatchPlayer> matchPlayers = new ArrayList<>();
 
     @Column(name = "host")
@@ -37,7 +40,7 @@ public class Match implements Serializable {
     @ElementCollection
     @CollectionTable(name = "match_ai_players", joinColumns = @JoinColumn(name = "match_id"))
     @Column(name = "difficulty")
-    private List<Integer> aiPlayers = new ArrayList<>();
+    private Map<Integer, Integer> aiPlayers = new HashMap<>();
 
     @ElementCollection
     @CollectionTable(name = "match_join_requests", joinColumns = @JoinColumn(name = "match_id"))
@@ -46,6 +49,10 @@ public class Match implements Serializable {
 
     @Column(name = "deck_id")
     private String deckId;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private MatchPhase phase = MatchPhase.SETUP;
 
     @ManyToOne
     @JoinColumn(name = "player_1")
@@ -66,6 +73,7 @@ public class Match implements Serializable {
     @ManyToOne
     @JoinColumn(name = "current_player_id")
     private User currentPlayer;
+
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Game> games = new ArrayList<>();
 
@@ -85,12 +93,12 @@ public class Match implements Serializable {
         this.joinRequests = joinRequests;
     }
 
-    public List<Integer> getAiPlayers() {
+    public Map<Integer, Integer> getAiPlayers() {
         return aiPlayers;
     }
 
-    public void setAiPlayers(List<Integer> aiPlayers) {
-        this.aiPlayers = aiPlayers;
+    public void setAiPlayers(Map<Integer, Integer> aiDifficulties) {
+        this.aiPlayers = aiDifficulties;
     }
 
     public void setMatchId(Long matchId) {
@@ -184,4 +192,40 @@ public class Match implements Serializable {
     public void setPlayer4(User player4) {
         this.player4 = player4;
     }
+
+    public int getSlotByPlayerId(Long playerId) {
+        if (player1 != null && player1.getId().equals(playerId))
+            return 1;
+        if (player2 != null && player2.getId().equals(playerId))
+            return 2;
+        if (player3 != null && player3.getId().equals(playerId))
+            return 3;
+        if (player4 != null && player4.getId().equals(playerId))
+            return 4;
+        return -1; // Or throw an exception if player is not found
+    }
+
+    public boolean containsPlayer(Long userId) {
+        return (player1 != null && player1.getId().equals(userId)) ||
+                (player2 != null && player2.getId().equals(userId)) ||
+                (player3 != null && player3.getId().equals(userId)) ||
+                (player4 != null && player4.getId().equals(userId));
+    }
+
+    public User getCurrentPlayer() {
+        return currentPlayer;
+    }
+
+    public void setCurrentPlayer(User currentPlayer) {
+        this.currentPlayer = currentPlayer;
+    }
+
+    public MatchPhase getPhase() {
+        return phase;
+    }
+
+    public void setPhase(MatchPhase phase) {
+        this.phase = phase;
+    }
+
 }

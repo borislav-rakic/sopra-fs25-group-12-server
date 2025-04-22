@@ -32,14 +32,12 @@ public class MatchController {
 
     /**
      * Creates a new entry in the MATCH relation and returns the entry if it was successful.
-     * @param matchCreateDTO The object that was sent by a player when starting a new match (the host's token).
+     * @param authorization-token in the RequestHeader.
      * @return The created match.
      */
     @PostMapping("/matches")
     @ResponseStatus(HttpStatus.CREATED)
-    public MatchDTO createNewMatch(@RequestBody MatchCreateDTO matchCreateDTO, @RequestHeader("Authorization") String authHeader) {
-        System.out.println("TOKEN: " + matchCreateDTO.getPlayerToken());
-        System.out.println("TOKEN_HEADER: " + authHeader);
+    public MatchDTO createNewMatch(@RequestHeader("Authorization") String authHeader) {
         String playerToken;
 
         if (authHeader != null && authHeader.startsWith("Bearer ")) {
@@ -104,6 +102,16 @@ public class MatchController {
     }
 
     /**
+     * Revoke an invitation sent to a player.
+     */
+    @DeleteMapping("/matches/{matchId}/invite/{slot}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void cancelInvite(@PathVariable Long matchId, @PathVariable Integer slot) {
+        matchService.cancelInvite(matchId, slot);
+    }
+
+
+    /**
      * Responds to a match invite (accept/decline).
      */
     @PostMapping("/matches/{matchId}/invite/respond")
@@ -119,6 +127,15 @@ public class MatchController {
         }
 
         matchService.respondToInvite(matchId, authHeader, responseDTO);
+    }
+
+    /**
+     * Remove a player from lobby.
+     */
+    @DeleteMapping("matches/{matchId}/player/{slot}")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removePlayer(@PathVariable Long matchId, @PathVariable Integer slot) {
+        matchService.removePlayer(matchId, slot);
     }
 
     /**
@@ -143,6 +160,17 @@ public class MatchController {
         @RequestBody AIPlayerDTO dto
     ) {
         matchService.addAiPlayer(matchId, dto);
+    }
+
+     /**
+     * Remove an AI player from a match.
+     */
+    @PostMapping("/matches/{matchId}/ai/remove")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void removeAiPlayerFromMatch(
+            @PathVariable Long matchId,
+            @RequestBody AIPlayerDTO dto) {
+        matchService.removeAiPlayer(matchId, dto);
     }
 
     /**
@@ -179,5 +207,28 @@ public class MatchController {
     public List<JoinRequestDTO> getJoinRequests(@PathVariable Long matchId) {
         return matchService.getJoinRequests(matchId);  
     }
+
+    /**
+     * Leave the lobby.
+     */
+    @DeleteMapping("/matches/{matchId}/leave")
+    @ResponseStatus(HttpStatus.NO_CONTENT)
+    public void leaveMatch(@PathVariable Long matchId, @RequestHeader("Authorization") String authHeader) {
+        matchService.leaveMatch(matchId, authHeader.replace("Bearer ", ""));
+    }
+
+    /**
+     * Get a list of eligible users for this match about to start.
+     */
+    @GetMapping("/matches/{matchId}/eligibleusers")
+    @ResponseStatus(HttpStatus.OK)
+    public List<UserGetDTO> getEligibleUsers(
+            @PathVariable Long matchId,
+            @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        return matchService.getEligibleUsers(matchId, token);
+    }
+
+
 
 }

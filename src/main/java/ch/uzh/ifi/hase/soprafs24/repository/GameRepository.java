@@ -6,5 +6,5 @@ import ch.uzh.ifi.hase.soprafs24.entity.Game;
 
 @Repository
 public interface GameRepository extends JpaRepository<Game, Long> {
-    // No need to define anything unless you want custom queries
+    Game findGameByMatch_MatchId(Long matchId);
 }
