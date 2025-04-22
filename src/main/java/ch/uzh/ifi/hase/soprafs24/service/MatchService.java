@@ -318,6 +318,11 @@ public class MatchService {
         }
     
         int difficulty = dto.getDifficulty();
+        if (difficulty < 1){
+            difficulty = 1;
+        } else if (difficulty > 3){
+            difficulty = 3;
+        }
         int slot = dto.getSlot(); // 1 = player2, 2 = player3, 3 = player4
         int playerSlot = slot + 1;
     
@@ -328,7 +333,7 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected slot is already occupied.");
         }
     
-        User aiPlayer = userRepository.findUserById((long) (difficulty + 1)); // 0 = Easy, UserId = 1
+        User aiPlayer = userRepository.findUserById((long) (difficulty)); // 1 = Easy, UserId = 1
     
         MatchPlayer newMatchPlayer = new MatchPlayer();
         newMatchPlayer.setMatch(match);
@@ -427,7 +432,7 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "User not found");
         }
 
-        MatchPlayer userToMatchPlayer = matchPlayerRepository.findMatchPlayerByUser(user);
+        MatchPlayer userToMatchPlayer = matchPlayerRepository.findByUserAndMatch(user, match);
 
         // Ensure the user isn't already in the match or hasn't already sent a request
         if (userToMatchPlayer == null && !match.getJoinRequests().containsKey(userId)) {

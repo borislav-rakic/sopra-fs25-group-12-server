@@ -339,7 +339,7 @@ public class MatchServiceTest {
     public void testSendJoinRequestSuccess() {
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
         given(userRepository.findUserById(Mockito.any())).willReturn(user);
-        given(matchPlayerRepository.findMatchPlayerByUser(Mockito.any())).willReturn(null);
+        given(matchPlayerRepository.findByUserAndMatch(Mockito.any(), Mockito.any())).willReturn(null);
         given(matchRepository.save(Mockito.any())).willReturn(match);
 
         matchService.sendJoinRequest(1L, 1L);

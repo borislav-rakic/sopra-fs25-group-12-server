@@ -96,7 +96,7 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
 
-        MatchPlayer matchPlayer = matchPlayerRepository.findMatchPlayerByUser(user);
+        MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(user, match);
 
         if (matchPlayer == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
@@ -151,23 +151,24 @@ public class GameService {
 
         List<PlayerCardDTO> playerCardDTOList = new ArrayList<>();
 
-        // Sets up the PlayerCardDTO list
+        if (match.getGames().isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "No games found for this match");
+        }
+
+        Game latestGame = match.getGames().get(match.getGames().size() - 1);
+
         for (MatchPlayerCards matchPlayerCard : requestingMatchPlayer.getCardsInHand()) {
-            System.out.println("TESTING CARD: " + matchPlayerCard.getCard());
-
             PlayerCardDTO playerCardDTO = new PlayerCardDTO();
-
             playerCardDTO.setPlayerId(user.getId());
-            playerCardDTO.setGameId(match.getGames().get(match.getGames().size() - 1).getGameId());
-            playerCardDTO.setGameNumber(match.getGames().get(match.getGames().size() - 1).getGameNumber());
+            playerCardDTO.setGameId(latestGame.getGameId());
+            playerCardDTO.setGameNumber(latestGame.getGameNumber());
             playerCardDTO.setCard(matchPlayerCard.getCard());
-
             playerCardDTOList.add(playerCardDTO);
         }
 
         dto.setPlayerCards(playerCardDTOList);
         dto.setMyTurn(match.getCurrentPlayer() == user);
-        dto.setGameFinished(match.getGames().get(match.getGames().size() - 1).isFinished());
+        dto.setGameFinished(latestGame.isFinished());
         dto.setMatchFinished(match.isFinished());
 
         return dto;
@@ -397,7 +398,7 @@ public class GameService {
 
         // Validate card exists in player's hand (matchPlayer entity)
         Match match = game.getMatch();
-        MatchPlayer matchPlayer = matchPlayerRepository.findMatchPlayerByUser(player);
+        MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(player, match);
 
         boolean hasCard = matchPlayer.getCardsInHand().stream()
                 .anyMatch(card -> card.getCard().equals(playedCardCode));

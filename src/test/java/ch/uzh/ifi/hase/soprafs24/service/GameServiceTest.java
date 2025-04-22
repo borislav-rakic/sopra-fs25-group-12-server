@@ -122,7 +122,7 @@ public class GameServiceTest {
     public void testGetPlayerMatchInformationSuccess() {
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
         given(userRepository.findUserByToken(Mockito.any())).willReturn(user);
-        given(matchPlayerRepository.findMatchPlayerByUser(user)).willReturn(matchPlayer);
+        given(matchPlayerRepository.findByUserAndMatch(user, match)).willReturn(matchPlayer);
 
         List<String> matchPlayers = new ArrayList<>();
         matchPlayers.add(user.getUsername());
