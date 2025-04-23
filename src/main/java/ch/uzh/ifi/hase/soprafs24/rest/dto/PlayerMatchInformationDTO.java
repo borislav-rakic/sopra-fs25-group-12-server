@@ -27,6 +27,7 @@ public class PlayerMatchInformationDTO {
     private boolean heartsBroken;
     private Card lastPlayedCard;
     private Map<Integer, Integer> cardsInHandPerPlayer;
+    private List<String> avatarUrls;
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -178,6 +179,14 @@ public class PlayerMatchInformationDTO {
 
     public void setCardsInHandPerPlayer(Map<Integer, Integer> cardsInHandPerPlayer) {
         this.cardsInHandPerPlayer = cardsInHandPerPlayer;
+    }
+
+    public List<String> getAvatarUrls() {
+        return avatarUrls;
+    }
+
+    public void setAvatarUrls(List<String> avatarUrls) {
+        this.avatarUrls = avatarUrls;
     }
 
 }

@@ -151,6 +151,7 @@ public class GameService {
         System.out.println(matchPlayers);
 
         PlayerMatchInformationDTO dto = new PlayerMatchInformationDTO();
+
         dto.setMatchId(match.getMatchId());
         dto.setHost(match.getHost());
         dto.setMatchPlayers(matchPlayers);
@@ -180,6 +181,24 @@ public class GameService {
         dto.setMyTurn(matchPlayer.getSlot() == match.getCurrentSlot());
         dto.setGamePhase(latestGame.getPhase());
         dto.setMatchPhase(match.getPhase());
+
+        List<String> avatarUrls = new ArrayList<>();
+        User[] players = {
+                match.getPlayer1(),
+                match.getPlayer2(),
+                match.getPlayer3(),
+                match.getPlayer4()
+        };
+
+        for (User player : players) {
+            if (player != null && player.getAvatar() != null) {
+                avatarUrls.add("/avatars_118x118/a" + player.getAvatar() + ".png");
+            } else {
+                avatarUrls.add("/avatars_118x118/a0.png"); // Or default avatar URL
+            }
+        }
+
+        dto.setAvatarUrls(avatarUrls);
 
         List<Card> playableCards = getPlayableCardsForPlayer(match, latestGame, user);
 
