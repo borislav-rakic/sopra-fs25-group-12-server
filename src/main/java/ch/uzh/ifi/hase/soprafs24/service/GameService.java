@@ -143,6 +143,10 @@ public class GameService {
                 break;
             }
         }
+        if (requestingMatchPlayer == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Requesting Player does not appear to be part of this Match.");
+        }
 
         System.out.println(matchPlayers);
 
@@ -153,6 +157,7 @@ public class GameService {
         dto.setAiPlayers(match.getAiPlayers());
         dto.setLength(match.getLength());
         dto.setGamePhase(GamePhase.PRESTART);
+        dto.setSlot(matchPlayer.getSlot());
 
         List<PlayerCardDTO> playerCardDTOList = new ArrayList<>();
 
@@ -186,6 +191,26 @@ public class GameService {
             dtoCard.setPlayerId(user.getId());
             return dtoCard;
         }).toList();
+
+        List<GameStats> allPlays = latestGame.getPlayedCards();
+        int trickSize = allPlays.size() % 4;
+        List<GameStats> currentTrickStats = allPlays.subList(Math.max(0, allPlays.size() - trickSize), allPlays.size());
+
+        List<Card> currentTrick = currentTrickStats.stream()
+                .map(gs -> {
+                    Card card = new Card();
+                    card.setCode(gs.getRank().toString() + gs.getSuit().getSymbol()); // e.g., "QS", "2C"
+                    return card;
+                })
+                .toList();
+
+        dto.setCurrentTrick(currentTrick);
+
+        // Determine who led the current trick (first card played)
+        if (!currentTrickStats.isEmpty()) {
+            int leaderSlot = currentTrickStats.get(0).getPlayedBy(); // Slot number of first player in trick
+            dto.setTrickLeaderSlot(leaderSlot);
+        }
 
         dto.setPlayableCards(playableCardDTOList);
 
@@ -365,7 +390,7 @@ public class GameService {
         MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(player, match);
         int playerSlot = matchPlayer.getSlot();
 
-        // 🔒 Validate it's their turn
+        // Validate it's their turn
         if (playerSlot != game.getCurrentSlot()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "It is not your turn.");
         }
@@ -379,6 +404,31 @@ public class GameService {
         if (!hasCard) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Card not in hand.");
         }
+
+        boolean isFirstCardOfGame = game.getPlayedCards().isEmpty();
+        boolean isFirstRound = game.getGameNumber() == 1;
+
+        // Enforce "2C" must be the first card played
+        if (isFirstCardOfGame && !playedCardCode.equals("2C")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "First card of the game must be the 2♣.");
+        }
+
+        // Enforce no hearts or QS in first round, unless it's the 2C opening
+        if (isFirstRound && !isFirstCardOfGame) {
+            Card card = new Card();
+            card.setCode(playedCardCode);
+
+            boolean isHeart = card.getSuit().equals("Hearts");
+            boolean isQueenOfSpades = playedCardCode.equals("QS");
+
+            if (isHeart || isQueenOfSpades) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Cannot play hearts or QS in the first round.");
+            }
+        }
+
+        // Is it okay to play this card?
+        validateCardPlay(matchPlayer, game, playedCardCode);
 
         // Remove card from hand
         matchPlayer.getCardsInHand().removeIf(card -> card.getCard().equals(playedCardCode));
@@ -404,7 +454,58 @@ public class GameService {
             game.setPhase(GamePhase.FINISHED);
         }
 
+        // Check if the card played is a Heart, and if hearts weren't broken yet
+        if (gameStats.getSuit() == Suit.H && !game.getHeartsBroken()) {
+            game.setHeartsBroken(true);
+        }
         gameRepository.save(game);
+    }
+
+    private void validateCardPlay(MatchPlayer player, Game game, String playedCardCode) {
+        boolean isFirstCardOfGame = game.getPlayedCards().isEmpty();
+        boolean isFirstRound = game.getGameNumber() == 1;
+
+        Card attemptedCard = new Card();
+        attemptedCard.setCode(playedCardCode);
+
+        // First card of game must be 2C
+        if (isFirstCardOfGame && !playedCardCode.equals("2C")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "First card must be 2♣.");
+        }
+
+        // Hearts / QS not allowed in first round (except for 2C starter)
+        if (isFirstRound && !isFirstCardOfGame) {
+            boolean isHeart = attemptedCard.getSuit().equals("Hearts");
+            boolean isQueenOfSpades = playedCardCode.equals("QS");
+
+            if (isHeart || isQueenOfSpades) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Cannot play Hearts or QS in the first round.");
+            }
+        }
+
+        // Must follow suit if possible
+        List<Card> hand = player.getCardsInHand().stream()
+                .map(c -> {
+                    Card card = new Card();
+                    card.setCode(c.getCard());
+                    return card;
+                }).toList();
+
+        List<GameStats> currentTrick = getCurrentTrick(game); // helper: last 0–3 cards in round
+        if (!currentTrick.isEmpty()) {
+            Suit leadSuit = currentTrick.get(0).getSuit();
+            boolean hasLeadSuit = hand.stream().anyMatch(c -> c.getSuit().equals(leadSuit.toString()));
+            if (hasLeadSuit && !attemptedCard.getSuit().equals(leadSuit.toString())) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You must follow suit.");
+            }
+        }
+    }
+
+    private List<GameStats> getCurrentTrick(Game game) {
+        List<GameStats> allPlays = game.getPlayedCards();
+        int trickSize = allPlays.size() % 4;
+        return allPlays.subList(Math.max(0, allPlays.size() - trickSize), allPlays.size());
     }
 
     public Game getGameByGameId(Long gameId) {

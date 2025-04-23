@@ -1,7 +1,8 @@
 package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
-    import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.model.Card;
 
 import java.util.List;
 import java.util.Map;
@@ -11,12 +12,15 @@ public class PlayerMatchInformationDTO {
     private List<String> matchPlayers;
     private String host;
     private int length;
+    private int slot;
     private Map<Integer, Integer> aiPlayers;
     private List<PlayerCardDTO> playerCards;
     private List<PlayerCardDTO> playableCards;
     private boolean isMyTurn = false;
     private GamePhase gamePhase;
     private MatchPhase matchPhase;
+    private List<Card> currentTrick;
+    private int trickLeaderSlot;
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -50,6 +54,14 @@ public class PlayerMatchInformationDTO {
         this.length = length;
     }
 
+    public int getSlot() {
+        return slot;
+    }
+
+    public void setSlot(int slot) {
+        this.slot = slot;
+    }
+
     public Map<Integer, Integer> getAiPlayers() {
         return aiPlayers;
     }
@@ -81,9 +93,10 @@ public class PlayerMatchInformationDTO {
     public void setMyTurn(boolean myTurn) {
         this.isMyTurn = myTurn;
     }
+
     public GamePhase getGamePhase() {
-    return gamePhase;
-}
+        return gamePhase;
+    }
 
     public void setGamePhase(GamePhase gamePhase) {
         this.gamePhase = gamePhase;
@@ -95,5 +108,21 @@ public class PlayerMatchInformationDTO {
 
     public void setMatchPhase(MatchPhase matchPhase) {
         this.matchPhase = matchPhase;
+    }
+
+    public List<Card> getCurrentTrick() {
+        return currentTrick;
+    }
+
+    public void setCurrentTrick(List<Card> currentTrick) {
+        this.currentTrick = currentTrick;
+    }
+
+    public int getTrickLeaderSlot() {
+        return trickLeaderSlot;
+    }
+
+    public void setTrickLeaderSlot(int trickLeaderSlot) {
+        this.trickLeaderSlot = trickLeaderSlot;
     }
 }
