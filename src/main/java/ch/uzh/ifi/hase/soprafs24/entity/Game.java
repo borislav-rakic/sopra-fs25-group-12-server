@@ -28,6 +28,9 @@ public class Game {
     @Column(name = "deck_id")
     private String deckId;
 
+    @Column(nullable = false)
+    private boolean heartsBroken = false;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private GamePhase phase = GamePhase.PRESTART;
@@ -83,6 +86,14 @@ public class Game {
 
     public void setDeckId(String deckId) {
         this.deckId = deckId;
+    }
+
+    public Boolean getHeartsBroken() {
+        return heartsBroken;
+    }
+
+    public void setHeartsBroken(Boolean heartsBroken) {
+        this.heartsBroken = heartsBroken;
     }
 
     public GamePhase getPhase() {

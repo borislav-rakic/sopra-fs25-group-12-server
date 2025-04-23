@@ -1,38 +1,51 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
-import ch.uzh.ifi.hase.soprafs24.entity.*;
-import ch.uzh.ifi.hase.soprafs24.model.Card;
-import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
-import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
-import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
-import ch.uzh.ifi.hase.soprafs24.constant.Rank;
-import ch.uzh.ifi.hase.soprafs24.constant.Suit;
-import ch.uzh.ifi.hase.soprafs24.repository.*;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
-import ch.uzh.ifi.hase.soprafs24.entity.Game;
-import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
-import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
+
+import javax.persistence.EntityNotFoundException;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
-import reactor.core.publisher.Mono;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.Rank;
+import ch.uzh.ifi.hase.soprafs24.constant.Suit;
+import ch.uzh.ifi.hase.soprafs24.entity.Game;
+import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
+import ch.uzh.ifi.hase.soprafs24.entity.Match;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayerCards;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchStats;
+import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
+import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.model.Card;
+import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
+import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
+import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
+import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerCardsRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchStatsRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
 import ch.uzh.ifi.hase.soprafs24.util.CardMapper;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
-import java.util.stream.Collectors;
-
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import javax.persistence.EntityNotFoundException;
+import reactor.core.publisher.Mono;
 
 /**
  * Game Service
@@ -57,8 +70,7 @@ public class GameService {
     private final UserService userService;
     private final PassedCardRepository passedCardRepository;
     private final MatchPlayerCardsRepository matchPlayerCardsRepository;
-
-    
+    private final GameStatsService gameStatsService;
 
     // or via constructor injection
 
@@ -73,7 +85,8 @@ public class GameService {
             @Qualifier("matchPlayerCardsRepository") MatchPlayerCardsRepository matchPlayerCardsRepository,
             PassedCardRepository passedCardRepository,
             ExternalApiClientService externalApiClientService,
-            UserService userService) {
+            UserService userService,
+            GameStatsService gameStatsService) {
         this.matchRepository = matchRepository;
         this.userRepository = userRepository;
         this.matchPlayerRepository = matchPlayerRepository;
@@ -84,6 +97,7 @@ public class GameService {
         this.gameRepository = gameRepository;
         this.passedCardRepository = passedCardRepository;
         this.matchPlayerCardsRepository = matchPlayerCardsRepository;
+        this.gameStatsService = gameStatsService;
     }
 
     private static final int EXPECTED_CARD_COUNT = 52;
@@ -118,14 +132,14 @@ public class GameService {
         matchPlayers.add(match.getPlayer3() != null ? match.getPlayer3().getUsername() : null);
         matchPlayers.add(match.getPlayer4() != null ? match.getPlayer4().getUsername() : null);
 
-
         List<User> usersInMatch = new ArrayList<>();
         usersInMatch.add(match.getPlayer1());
         usersInMatch.add(match.getPlayer2());
         usersInMatch.add(match.getPlayer3());
         usersInMatch.add(match.getPlayer4());
 
-        // Variable to save the MatchPlayer entry from the requesting user from the Match entity.
+        // Variable to save the MatchPlayer entry from the requesting user from the
+        // Match entity.
         MatchPlayer requestingMatchPlayer = null;
 
         for (MatchPlayer player : match.getMatchPlayers()) {
@@ -223,8 +237,8 @@ public class GameService {
             }
         }
 
-        if (givenMatch.getPlayer1() == null || givenMatch.getPlayer2() == null || 
-            givenMatch.getPlayer3() == null || givenMatch.getPlayer4() == null) {
+        if (givenMatch.getPlayer1() == null || givenMatch.getPlayer2() == null ||
+                givenMatch.getPlayer3() == null || givenMatch.getPlayer4() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Cannot start match: not all player slots are filled");
         }
@@ -235,7 +249,7 @@ public class GameService {
         game.setPhase(GamePhase.PRESTART);
         gameRepository.save(game);
         gameRepository.flush();
-        Long savedGameId = game.getGameId(); 
+        Long savedGameId = game.getGameId();
 
         givenMatch.getGames().add(game);
         givenMatch.setPhase(MatchPhase.READY);
@@ -263,8 +277,8 @@ public class GameService {
             System.out.println("Deck id: " + response.getDeck_id());
 
             Game savedGame = gameRepository.findById(savedGameId)
-                .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + savedGameId));
-            
+                    .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + savedGameId));
+
             savedGame.setDeckId(response.getDeck_id());
 
             Match savedMatch = matchRepository.findMatchByMatchId(givenMatch.getMatchId());
@@ -276,41 +290,11 @@ public class GameService {
             gameRepository.save(savedGame);
             gameRepository.flush();
 
-            initializeGameStatsNewMatch(savedMatch, savedGame);
+            gameStatsService.initializeGameStats(savedMatch, savedGame);
 
             distributeCards(savedMatch, savedGame);
         });
     }
-
-
-    /**
-     * Initializes the GAME_STATS relation with the necessary information for a new
-     * match.
-     */
-    public void initializeGameStatsNewMatch(Match match, Game game) {
-        Suit[] suits = Suit.values();
-        Rank[] ranks = Rank.values();
-
-        for (Suit suit : suits) {
-            for (Rank rank : ranks) {
-                GameStats gameStats = new GameStats();
-                gameStats.setGame(game);  // <- add this line
-                gameStats.setSuit(suit);
-                gameStats.setRank(rank);
-                gameStats.setMatch(match);
-                gameStats.setPointsBilledTo(0);
-                gameStats.setCardHolder(0); // default, updated later
-                gameStats.setPlayedBy(0);
-                gameStats.setPlayOrder(0);
-                gameStats.setPossibleHolders(0);
-                gameStats.setAllowedToPlay(suit == Suit.C && rank == Rank._2);
-                
-                gameStatsRepository.save(gameStats);
-            }
-        }
-        gameStatsRepository.flush();
-    }
-
 
     /**
      * Distributes 13 cards to each player
@@ -358,11 +342,12 @@ public class GameService {
             }
             matchPlayerRepository.flush();
             gameStatsRepository.flush();
+            match.setPhase(MatchPhase.IN_PROGRESS);
+            matchRepository.save(match);
+            game.setPhase(GamePhase.PASSING);
+            gameRepository.save(game);
         });
     }
-
-
-
 
     private User determineNextPlayer(Game game) {
         List<User> players = game.getMatch().getMatchPlayers()
@@ -410,9 +395,8 @@ public class GameService {
         gameStats.setCardFromString(playedCardCode);
         gameStats.setGame(game);
         gameStats.setMatch(match);
-        gameStats.setPlayedBy(matchPlayer.getSlot()); // or some player identifier
+        gameStats.setPlayedBy(matchPlayer.getSlot());
         gameStats.setPlayOrder(game.getPlayedCards().size() + 1);
-        gameStats.setAllowedToPlay(false); // turn it off now that it was played
 
         gameStatsRepository.save(gameStats);
         game.getPlayedCards().add(gameStats);
@@ -569,6 +553,7 @@ public class GameService {
 
         return direction;
     }
+
     public List<Card> getPlayableCardsForPlayer(Match match, Game game, User player) {
         MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(player, match);
         if (matchPlayer == null) {
@@ -581,17 +566,16 @@ public class GameService {
 
         // Convert to Card objects
         List<Card> hand = handStats.stream()
-            .map(CardMapper::fromGameStats)
-            .collect(Collectors.toList());
+                .map(CardMapper::fromGameStats)
+                .collect(Collectors.toList());
 
         // Sort the hand
         List<Card> sortedHand = CardUtils.sortCardsByOrder(
-            hand.stream().map(Card::getCode).toList()
-        ).stream().map(code -> {
-            Card card = new Card();
-            card.setCode(code);
-            return card;
-        }).toList();
+                hand.stream().map(Card::getCode).toList()).stream().map(code -> {
+                    Card card = new Card();
+                    card.setCode(code);
+                    return card;
+                }).toList();
 
         List<Card> playable = new ArrayList<>();
 
@@ -601,8 +585,8 @@ public class GameService {
 
         // Current trick: last 1-4 cards
         List<GameStats> currentTrick = game.getPlayedCards().stream()
-            .skip(Math.max(0, game.getPlayedCards().size() - 4))
-            .toList();
+                .skip(Math.max(0, game.getPlayedCards().size() - 4))
+                .toList();
 
         boolean isLeading = currentTrick.size() % 4 == 0 || currentTrick.isEmpty();
 
@@ -654,7 +638,5 @@ public class GameService {
 
         return playable;
     }
-
-
 
 }

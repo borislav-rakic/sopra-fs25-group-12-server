@@ -27,4 +27,6 @@ public interface GameStatsRepository extends JpaRepository<GameStats, Long> {
 
     GameStats findByRankAndSuitAndGame(Rank rank, Suit suit, Game game);
 
+    GameStats findByRankSuitAndGame(String rankSuit, Game game);
+
 }

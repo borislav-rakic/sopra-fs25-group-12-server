@@ -1,6 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
+import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.constant.Rank;
 import ch.uzh.ifi.hase.soprafs24.constant.Suit;
@@ -33,30 +34,25 @@ public class GameStatsService {
         this.matchRepository = matchRepository;
     }
 
-    public void initializeGameStats(Match match) {
-        List<GameStats> gameStatsList = new ArrayList<>();
-
+    public void initializeGameStats(Match match, Game game) {
         for (Suit suit : Suit.values()) {
             for (Rank rank : Rank.values()) {
-                GameStats stats = new GameStats();
-                stats.setMatch(match);
-                stats.setSuit(suit);
-                stats.setRank(rank);
-                stats.setPlayOrder(0); // Not yet played
-                stats.setPlayedBy(0); // Not yet played
-                stats.setAllowedToPlay(false);
-                stats.setPossibleHolders(0b1111); // All 4 players (bitmask)
-                stats.setPointsBilledTo(0);
-                stats.setCardHolder(0);
-
-                gameStatsList.add(stats);
+                GameStats gameStats = new GameStats();
+                gameStats.setMatch(match);
+                gameStats.setGame(game);
+                gameStats.setSuit(suit);
+                gameStats.setRank(rank);
+                gameStats.setPlayOrder(0);
+                gameStats.setPlayedBy(0);
+                gameStats.setPointsWorth(
+                        suit == Suit.C && rank == Rank.Q ? 13 : (suit == Suit.H ? 1 : 0));
+                gameStats.setPossibleHolders(0b1111);
+                gameStats.setPointsBilledTo(0);
+                gameStats.setCardHolder(0); // to be filled right after
+                gameStatsRepository.save(gameStats);
             }
         }
-
-        gameStatsRepository.saveAll(gameStatsList);
         gameStatsRepository.flush();
-
-        log.info("Initialized 52 game stats entries for Match ID: {}", match.getMatchId());
     }
 
     public List<GameStats> getGameStatsForMatch(Long matchId) {
@@ -73,4 +69,39 @@ public class GameStatsService {
         gameStatsRepository.deleteByMatch(match);
         log.info("Deleted game stats for Match ID: {}", match.getMatchId());
     }
+
+    public void setPossibleHolder(GameStats stats, int playerNumber) {
+        validatePlayerNumber(playerNumber);
+        int mask = 1 << (playerNumber - 1);
+        stats.setPossibleHolders(stats.getPossibleHolders() | mask);
+    }
+
+    public void clearPossibleHolder(GameStats stats, int playerNumber) {
+        validatePlayerNumber(playerNumber);
+        int mask = ~(1 << (playerNumber - 1));
+        stats.setPossibleHolders(stats.getPossibleHolders() & mask);
+    }
+
+    public boolean isPossibleHolder(GameStats stats, int playerNumber) {
+        validatePlayerNumber(playerNumber);
+        int mask = 1 << (playerNumber - 1);
+        return (stats.getPossibleHolders() & mask) != 0;
+    }
+
+    public List<Integer> getPossibleHolderList(GameStats stats) {
+        List<Integer> holders = new ArrayList<>();
+        for (int i = 1; i <= 4; i++) {
+            if (isPossibleHolder(stats, i)) {
+                holders.add(i);
+            }
+        }
+        return holders;
+    }
+
+    private void validatePlayerNumber(int playerNumber) {
+        if (playerNumber < 1 || playerNumber > 4) {
+            throw new IllegalArgumentException("Player number must be between 1 and 4");
+        }
+    }
+
 }

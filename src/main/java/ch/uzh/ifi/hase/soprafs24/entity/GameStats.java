@@ -40,13 +40,13 @@ public class GameStats {
     private int playedBy; // 0 = not yet played; 1–4 = player number
 
     @Column(nullable = false)
-    private boolean allowedToPlay;
-
-    @Column(nullable = false)
     private int possibleHolders;
 
     @Column(nullable = false)
     private int pointsBilledTo;
+
+    @Column(nullable = false)
+    private int pointsWorth;
 
     @Column(nullable = false)
     private int cardHolder = 0; // 1–4 for players, or 0 for unassigned
@@ -131,20 +131,20 @@ public class GameStats {
         this.playedBy = playedBy;
     }
 
-    public boolean isAllowedToPlay() {
-        return allowedToPlay;
-    }
-
-    public void setAllowedToPlay(boolean allowedToPlay) {
-        this.allowedToPlay = allowedToPlay;
-    }
-
     public int getPossibleHolders() {
         return possibleHolders;
     }
 
     public void setPossibleHolders(int possibleHolders) {
         this.possibleHolders = possibleHolders;
+    }
+
+    public int getPointsWorth() {
+        return pointsWorth;
+    }
+
+    public void setPointsWorth(int pointsWorth) {
+        this.pointsWorth = pointsWorth;
     }
 
     public int getPointsBilledTo() {

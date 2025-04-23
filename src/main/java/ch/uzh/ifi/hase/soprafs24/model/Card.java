@@ -7,7 +7,7 @@ public class Card {
     private String image;
     private String rank;
     private String suit;
-    private int value;
+    private String value;
     private int cardOrder; // <- New field
 
     public String getCode() {
@@ -19,7 +19,6 @@ public class Card {
         this.rank = extractRank(code);
         this.suit = extractSuit(code);
         this.image = generateImageUrl(code);
-        this.value = calculateValue(this.rank);
         this.cardOrder = CardUtils.calculateCardOrder(code); // <- Set cardOrder here
     }
 
@@ -33,10 +32,6 @@ public class Card {
 
     public String getSuit() {
         return suit;
-    }
-
-    public int getValue() {
-        return value;
     }
 
     public int getCardOrder() {
@@ -66,24 +61,5 @@ public class Card {
 
     private String generateImageUrl(String code) {
         return "https://deckofcardsapi.com/static/img/" + code + ".png";
-    }
-
-    private int calculateValue(String rank) {
-        return switch (rank) {
-            case "A" -> 14;
-            case "K" -> 13;
-            case "Q" -> 12;
-            case "J" -> 11;
-            case "10" -> 10;
-            case "9" -> 9;
-            case "8" -> 8;
-            case "7" -> 7;
-            case "6" -> 6;
-            case "5" -> 5;
-            case "4" -> 4;
-            case "3" -> 3;
-            case "2" -> 2;
-            default -> 0;
-        };
     }
 }

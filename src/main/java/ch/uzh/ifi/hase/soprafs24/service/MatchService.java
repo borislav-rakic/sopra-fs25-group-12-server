@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
@@ -15,17 +16,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Map.Entry;
 
 import java.util.*;
 import java.util.stream.Collectors;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.UserGetDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 
+import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 
 /**
  * Match Service
@@ -168,15 +164,14 @@ public class MatchService {
         }
 
         int currentRealPlayers = match.getMatchPlayers().stream()
-        .filter(mp -> mp.getPlayerId() != null && !Boolean.TRUE.equals(mp.getPlayerId().getIsAiPlayer()))
-        .toList()
-        .size();
+                .filter(mp -> mp.getPlayerId() != null && !Boolean.TRUE.equals(mp.getPlayerId().getIsAiPlayer()))
+                .toList()
+                .size();
         int currentAIPlayers = match.getAiPlayers() != null ? match.getAiPlayers().size() : 0;
 
         if (currentRealPlayers + currentAIPlayers >= 4) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot invite more players — match is full.");
         }
-
 
         // 1. Check if user exists
         User user = userRepository.findById(userId)
@@ -217,17 +212,17 @@ public class MatchService {
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
-    
+
         Map<Integer, Long> invites = match.getInvites();
         if (invites == null || !invites.containsKey(slot)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No invite found at this slot.");
         }
-    
+
         invites.remove(slot);
         match.setInvites(invites);
-    
+
         matchRepository.save(match);
-    }    
+    }
 
     public void respondToInvite(Long matchId, String authHeader, InviteResponseDTO responseDTO) {
         String token = authHeader.replace("Bearer ", "");
@@ -236,19 +231,22 @@ public class MatchService {
         // Automatically leave other match if joined
         List<Match> allMatches = matchRepository.findAll();
         for (Match m : allMatches) {
-            if (m.getStarted()) continue;
+            if (m.getStarted())
+                continue;
             if (m.getMatchPlayers().stream().anyMatch(mp -> mp.getPlayerId().equals(user))) {
                 m.getMatchPlayers().removeIf(mp -> mp.getPlayerId().equals(user));
 
-                if (user.equals(m.getPlayer2())) m.setPlayer2(null);
-                if (user.equals(m.getPlayer3())) m.setPlayer3(null);
-                if (user.equals(m.getPlayer4())) m.setPlayer4(null);
+                if (user.equals(m.getPlayer2()))
+                    m.setPlayer2(null);
+                if (user.equals(m.getPlayer3()))
+                    m.setPlayer3(null);
+                if (user.equals(m.getPlayer4()))
+                    m.setPlayer4(null);
 
                 matchRepository.save(m);
                 break;
             }
         }
-
 
         Match match = matchRepository.findMatchByMatchId(matchId);
 
@@ -293,6 +291,14 @@ public class MatchService {
         invites.remove(slot);
         match.setInvites(invites);
 
+        // if all four players are ready, we are good to go.
+        if (match.getPlayer1() != null
+                && match.getPlayer2() != null
+                && match.getPlayer3() != null
+                && match.getPlayer4() != null) {
+            match.setPhase(MatchPhase.READY);
+        }
+
         matchRepository.save(match);
     }
 
@@ -316,32 +322,32 @@ public class MatchService {
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
-    
+
         int difficulty = dto.getDifficulty();
-        if (difficulty < 1){
+        if (difficulty < 1) {
             difficulty = 1;
-        } else if (difficulty > 3){
+        } else if (difficulty > 3) {
             difficulty = 3;
         }
         int slot = dto.getSlot(); // 1 = player2, 2 = player3, 3 = player4
         int playerSlot = slot + 1;
-    
+
         // Check if that exact slot is available
         if ((playerSlot == 2 && match.getPlayer2() != null)
-            || (playerSlot == 3 && match.getPlayer3() != null)
-            || (playerSlot == 4 && match.getPlayer4() != null)) {
+                || (playerSlot == 3 && match.getPlayer3() != null)
+                || (playerSlot == 4 && match.getPlayer4() != null)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected slot is already occupied.");
         }
-    
+
         User aiPlayer = userRepository.findUserById((long) (difficulty)); // 1 = Easy, UserId = 1
-    
+
         MatchPlayer newMatchPlayer = new MatchPlayer();
         newMatchPlayer.setMatch(match);
         newMatchPlayer.setPlayerId(aiPlayer);
         newMatchPlayer.setSlot(playerSlot);
-    
+
         match.getMatchPlayers().add(newMatchPlayer);
-    
+
         if (playerSlot == 2) {
             match.setPlayer2(aiPlayer);
         } else if (playerSlot == 3) {
@@ -349,66 +355,70 @@ public class MatchService {
         } else if (playerSlot == 4) {
             match.setPlayer4(aiPlayer);
         }
-    
+
         Map<Integer, Integer> aiPlayers = match.getAiPlayers();
         if (aiPlayers == null) {
             aiPlayers = new HashMap<>();
         }
         aiPlayers.put(playerSlot, difficulty); // playerSlot is 2, 3, or 4
         match.setAiPlayers(aiPlayers);
-    
+
         matchRepository.save(match);
     }
-    
 
     public void removeAiPlayer(Long matchId, AIPlayerDTO dto) {
         int slot = dto.getSlot(); // 1-based: 1 = player2, 2 = player3, 3 = player4
-    
+
         Match match = matchRepository.findMatchByMatchId(matchId);
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
-    
+
         int playerSlot = slot + 1; // because player2 is slot 1
-        
+
         // Find the AI player at the requested slot
         MatchPlayer toRemove = match.getMatchPlayers().stream()
-            .filter(mp -> mp.getSlot() == playerSlot && mp.getPlayerId() != null && Boolean.TRUE.equals(mp.getPlayerId().getIsAiPlayer()))
-            .findFirst()
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No AI player found at the specified slot"));
-        
+                .filter(mp -> mp.getSlot() == playerSlot && mp.getPlayerId() != null
+                        && Boolean.TRUE.equals(mp.getPlayerId().getIsAiPlayer()))
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "No AI player found at the specified slot"));
+
         // Remove MatchPlayer
         match.getMatchPlayers().remove(toRemove);
-    
+
         // Remove from match slot
-        if (playerSlot == 2) match.setPlayer2(null);
-        else if (playerSlot == 3) match.setPlayer3(null);
-        else if (playerSlot == 4) match.setPlayer4(null);
-    
+        if (playerSlot == 2)
+            match.setPlayer2(null);
+        else if (playerSlot == 3)
+            match.setPlayer3(null);
+        else if (playerSlot == 4)
+            match.setPlayer4(null);
+
         Map<Integer, Integer> aiPlayers = match.getAiPlayers();
         if (aiPlayers != null) {
             aiPlayers.remove(playerSlot); // remove by slot
             match.setAiPlayers(aiPlayers);
-        }        
-    
+        }
+
         matchRepository.save(match);
-    }    
+    }
 
     public void removePlayer(Long matchId, int slot) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
-    
+
         int playerSlot = slot + 1; // Frontend sends 0 = player2, etc.
-    
+
         MatchPlayer toRemove = match.getMatchPlayers().stream()
-            .filter(mp -> mp.getSlot() == playerSlot)
-            .findFirst()
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No player at this slot."));
-    
+                .filter(mp -> mp.getSlot() == playerSlot)
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No player at this slot."));
+
         match.getMatchPlayers().remove(toRemove);
-    
+
         if (playerSlot == 2) {
             match.setPlayer2(null);
         } else if (playerSlot == 3) {
@@ -416,10 +426,9 @@ public class MatchService {
         } else if (playerSlot == 4) {
             match.setPlayer4(null);
         }
-    
+
         matchRepository.save(match);
     }
-    
 
     public void sendJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
@@ -447,8 +456,9 @@ public class MatchService {
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
+        if (match.getPlayer2() != null)
 
-        match.getJoinRequests().put(userId, "accepted");
+            match.getJoinRequests().put(userId, "accepted");
 
         User user = userRepository.findUserById(userId);
 
@@ -504,25 +514,26 @@ public class MatchService {
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
-    
+
         User user = userRepository.findUserByToken(token);
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
-    
+
         // Don't allow the host to leave
         if (match.getHost().equals(user.getUsername())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Host cannot leave the match.");
         }
-    
+
         // Find the MatchPlayer entry
         MatchPlayer toRemove = match.getMatchPlayers().stream()
-            .filter(mp -> mp.getPlayerId().equals(user))
-            .findFirst()
-            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "You are not part of this match."));
-    
+                .filter(mp -> mp.getPlayerId().equals(user))
+                .findFirst()
+                .orElseThrow(
+                        () -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "You are not part of this match."));
+
         match.getMatchPlayers().remove(toRemove);
-    
+
         // Remove from slot reference
         if (match.getPlayer2() != null && match.getPlayer2().equals(user)) {
             match.setPlayer2(null);
@@ -531,11 +542,9 @@ public class MatchService {
         } else if (match.getPlayer4() != null && match.getPlayer4().equals(user)) {
             match.setPlayer4(null);
         }
-    
+
         matchRepository.save(match);
     }
-    
-
 
     public List<UserGetDTO> getEligibleUsers(Long matchId, String token) {
         User currentUser = userService.getUserByToken(token); // Get the current user
@@ -545,10 +554,14 @@ public class MatchService {
         Set<Long> excludedUserIds = new HashSet<>();
 
         // Add current match players (if they exist)
-        if (match.getPlayer1() != null) excludedUserIds.add(match.getPlayer1().getId());
-        if (match.getPlayer2() != null) excludedUserIds.add(match.getPlayer2().getId());
-        if (match.getPlayer3() != null) excludedUserIds.add(match.getPlayer3().getId());
-        if (match.getPlayer4() != null) excludedUserIds.add(match.getPlayer4().getId());
+        if (match.getPlayer1() != null)
+            excludedUserIds.add(match.getPlayer1().getId());
+        if (match.getPlayer2() != null)
+            excludedUserIds.add(match.getPlayer2().getId());
+        if (match.getPlayer3() != null)
+            excludedUserIds.add(match.getPlayer3().getId());
+        if (match.getPlayer4() != null)
+            excludedUserIds.add(match.getPlayer4().getId());
 
         // Add invited users
         if (match.getInvites() != null) {
@@ -569,6 +582,5 @@ public class MatchService {
                 .map(DTOMapper.INSTANCE::convertEntityToUserGetDTO)
                 .collect(Collectors.toList());
     }
-    
-    
+
 }
