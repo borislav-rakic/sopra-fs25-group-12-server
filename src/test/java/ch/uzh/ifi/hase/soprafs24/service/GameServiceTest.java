@@ -111,7 +111,7 @@ public class GameServiceTest {
 
         match.setMatchPlayers(matchPlayers);
         match.setHost(user.getUsername());
-        match.setLength(100);
+        match.setMatchGoal(100);
         match.setStarted(false);
         match.setPlayer1(user);
 
@@ -154,7 +154,7 @@ public class GameServiceTest {
         match.setPlayer3(p3);
         match.setPlayer4(p4);
         match.setHost("hostUser");
-        match.setLength(13);
+        match.setMatchGoal(100);
         match.setPhase(MatchPhase.READY);
         match.setCurrentSlot(1);
         match.setAiPlayers(new HashMap<>());
@@ -207,7 +207,7 @@ public class GameServiceTest {
         // Assert general match/game info
         assertEquals(1L, result.getMatchId());
         assertEquals("hostUser", result.getHost());
-        assertEquals(13, result.getLength());
+        assertEquals(100, result.getMatchGoal());
         assertEquals(GamePhase.FINISHED, result.getGamePhase());
         assertEquals(MatchPhase.READY, result.getMatchPhase());
         assertEquals(List.of("testuser", "bot2", "bot3", "bot4"), result.getMatchPlayers());

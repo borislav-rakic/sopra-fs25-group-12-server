@@ -25,8 +25,8 @@ public class Match implements Serializable {
     @Column(name = "host")
     private String host;
 
-    @Column(name = "length")
-    private int length;
+    @Column(name = "matchGoal")
+    private int matchGoal;
 
     @Column
     private boolean started;
@@ -124,12 +124,12 @@ public class Match implements Serializable {
         return host;
     }
 
-    public void setLength(int length) {
-        this.length = length;
+    public void setMatchGoal(int matchGoal) {
+        this.matchGoal = matchGoal;
     }
 
-    public int getLength() {
-        return length;
+    public int getMatchGoal() {
+        return matchGoal;
     }
 
     public void setStarted(boolean started) {

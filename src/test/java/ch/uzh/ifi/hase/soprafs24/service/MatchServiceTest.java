@@ -77,7 +77,7 @@ public class MatchServiceTest {
 
         match.setMatchPlayers(matchPlayers);
         match.setHost(user.getUsername());
-        match.setLength(100);
+        match.setMatchGoal(100);
         match.setStarted(false);
         match.setPlayer1(user);
 
@@ -97,13 +97,13 @@ public class MatchServiceTest {
         Match result = matchService.createNewMatch("1234");
 
         assertEquals(match.getMatchId(), result.getMatchId());
-        assertEquals(match.getLength(), result.getLength());
+        assertEquals(match.getMatchGoal(), result.getMatchGoal());
         assertEquals(match.getPlayer1(), result.getPlayer1());
         assertEquals(match.getPlayer2(), result.getPlayer2());
         assertEquals(match.getPlayer3(), result.getPlayer3());
         assertEquals(match.getPlayer4(), result.getPlayer4());
         assertEquals(match.getHost(), result.getHost());
-        assertEquals(match.getLength(), result.getLength());
+        assertEquals(match.getMatchGoal(), result.getMatchGoal());
         assertEquals(match.getStarted(), result.getStarted());
     }
 
@@ -263,25 +263,25 @@ public class MatchServiceTest {
     }
 
     @Test
-    public void testUpdateMatchLengthError() {
+    public void testUpdateMatchGoalError() {
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(null);
 
         assertThrows(
                 ResponseStatusException.class,
-                () -> matchService.updateMatchLength(1L, new HashMap<>()),
-                "Expected updateMatchLength to throw an exception");
+                () -> matchService.updateMatchGoal(1L, new HashMap<>()),
+                "Expected updateMatchGoal to throw an exception");
     }
 
     @Test
-    public void testUpdateMatchLengthSuccess() {
+    public void testUpdateMatchGoalSuccess() {
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
 
         Map<String, Integer> body = new HashMap<>();
-        body.put("length", 100);
+        body.put("matchGoal", 100);
 
         given(matchRepository.save(Mockito.any())).willReturn(match);
 
-        matchService.updateMatchLength(1L, body);
+        matchService.updateMatchGoal(1L, body);
 
         verify(matchRepository).save(Mockito.any());
     }

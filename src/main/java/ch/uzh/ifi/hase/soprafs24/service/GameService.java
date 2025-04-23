@@ -155,7 +155,7 @@ public class GameService {
         dto.setHost(match.getHost());
         dto.setMatchPlayers(matchPlayers);
         dto.setAiPlayers(match.getAiPlayers());
-        dto.setLength(match.getLength());
+        dto.setMatchGoal(match.getMatchGoal());
         dto.setGamePhase(GamePhase.PRESTART);
         dto.setSlot(matchPlayer.getSlot());
 
@@ -197,39 +197,67 @@ public class GameService {
         List<GameStats> allPlays = latestGame.getPlayedCards();
         int trickSize = allPlays.size() % 4;
 
-        // If trickSize == 0, we just completed a trick — show the *last* one
-        List<GameStats> currentTrickStats = allPlays.isEmpty()
-                ? List.of()
-                : allPlays.subList(
-                        Math.max(0, allPlays.size() - (trickSize == 0 ? 4 : trickSize)),
-                        allPlays.size());
-
-        List<Card> currentTrick = currentTrickStats.stream()
-                .map(gs -> {
-                    Card card = new Card();
-                    card.setCode(gs.getRank().toString() + gs.getSuit().getSymbol());
-                    return card;
-                })
-                .toList();
-
-        dto.setCurrentTrick(currentTrick);
-
-        // Determine who led the current trick (first card played)
-        if (!currentTrickStats.isEmpty()) {
-            int leaderSlot = currentTrickStats.get(0).getPlayedBy(); // Slot number of first player in trick
-            dto.setTrickLeaderSlot(leaderSlot);
-        }
-
+        // Trick winner & points if just finished
         if (trickSize == 0 && allPlays.size() >= 4) {
             List<GameStats> lastTrick = allPlays.subList(allPlays.size() - 4, allPlays.size());
-
             int winnerSlot = determineTrickWinner(lastTrick);
             int trickPoints = calculateTrickPoints(lastTrick);
-
             dto.setLastTrickWinnerSlot(winnerSlot);
             dto.setLastTrickPoints(trickPoints);
+            latestGame.setCurrentSlot(winnerSlot); // Next to lead
+        }
 
-            latestGame.setCurrentSlot(winnerSlot);
+        // Hearts broken?
+        dto.setHeartsBroken(latestGame.getHeartsBroken());
+
+        // Cards-in-hand counts
+        Map<Integer, Integer> handCounts = new HashMap<>();
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            handCounts.put(mp.getSlot(), mp.getCardsInHand().size());
+        }
+        dto.setCardsInHandPerPlayer(handCounts);
+
+        // Points per player
+        Map<Integer, Integer> points = new HashMap<>();
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            points.put(mp.getSlot(), mp.getScore());
+        }
+        dto.setPlayerPoints(points);
+
+        // Return a current trick only if cards have actually been played
+        if (!allPlays.isEmpty()) {
+            List<GameStats> currentTrickStats = allPlays.subList(
+                    Math.max(0, allPlays.size() - (trickSize == 0 ? 4 : trickSize)),
+                    allPlays.size());
+
+            List<Card> currentTrick = currentTrickStats.stream()
+                    .map(gs -> {
+                        Card c = new Card();
+                        c.setCode(gs.getRank().toString() + gs.getSuit().getSymbol());
+                        return c;
+                    }).toList();
+            dto.setCurrentTrick(currentTrick);
+
+            // Trick leader (only if trick has started)
+            if (!currentTrickStats.isEmpty()) {
+                dto.setTrickLeaderSlot(currentTrickStats.get(0).getPlayedBy());
+            }
+
+            // Last played card
+            GameStats last = allPlays.get(allPlays.size() - 1);
+            Card lastCard = new Card();
+            lastCard.setCode(last.getRank().toString() + last.getSuit().getSymbol());
+            dto.setLastPlayedCard(lastCard);
+
+            // Trick winner & points only if full trick completed
+            if (trickSize == 0 && allPlays.size() >= 4) {
+                List<GameStats> lastTrick = allPlays.subList(allPlays.size() - 4, allPlays.size());
+                int winnerSlot = determineTrickWinner(lastTrick);
+                int trickPoints = calculateTrickPoints(lastTrick);
+                dto.setLastTrickWinnerSlot(winnerSlot);
+                dto.setLastTrickPoints(trickPoints);
+                latestGame.setCurrentSlot(winnerSlot);
+            }
         }
 
         return dto;

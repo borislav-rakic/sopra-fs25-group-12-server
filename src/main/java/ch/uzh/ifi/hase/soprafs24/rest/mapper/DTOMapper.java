@@ -125,7 +125,7 @@ public interface DTOMapper {
 
   @Mapping(source = "matchId", target = "matchId")
   @Mapping(source = "host", target = "host")
-  @Mapping(source = "length", target = "length")
+  @Mapping(source = "matchGoal", target = "matchGoal")
   @Mapping(source = "matchPlayers", target = "matchPlayerIds")
   @Mapping(source = "started", target = "started")
   @Mapping(source = "aiPlayers", target = "aiPlayers")

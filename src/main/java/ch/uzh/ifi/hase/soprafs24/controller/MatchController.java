@@ -22,16 +22,16 @@ import java.util.Map;
 @RestController
 public class MatchController {
     private final MatchService matchService;
-//    private final Logger log = LoggerFactory.getLogger(MatchController.class);
-
+    // private final Logger log = LoggerFactory.getLogger(MatchController.class);
 
     MatchController(MatchService matchService) {
         this.matchService = matchService;
     }
-    
 
     /**
-     * Creates a new entry in the MATCH relation and returns the entry if it was successful.
+     * Creates a new entry in the MATCH relation and returns the entry if it was
+     * successful.
+     * 
      * @param authorization-token in the RequestHeader.
      * @return The created match.
      */
@@ -51,6 +51,7 @@ public class MatchController {
 
     /**
      * Gets the information for all active matches in the database.
+     * 
      * @return The information of the matches.
      */
     @GetMapping("/matches")
@@ -68,6 +69,7 @@ public class MatchController {
 
     /**
      * Gets the information for one specific match in the database.
+     * 
      * @return The information of the match.
      */
     @GetMapping("/matches/{matchId}")
@@ -95,9 +97,8 @@ public class MatchController {
     @PostMapping("/matches/{matchId}/invite")
     @ResponseStatus(HttpStatus.OK)
     public void invitePlayerToMatch(
-        @PathVariable Long matchId,
-        @RequestBody InviteRequestDTO request
-    ) {
+            @PathVariable Long matchId,
+            @RequestBody InviteRequestDTO request) {
         matchService.invitePlayerToMatch(matchId, request);
     }
 
@@ -110,7 +111,6 @@ public class MatchController {
         matchService.cancelInvite(matchId, slot);
     }
 
-
     /**
      * Responds to a match invite (accept/decline).
      */
@@ -119,8 +119,7 @@ public class MatchController {
     public void respondToInvite(
             @PathVariable Long matchId,
             @RequestHeader("Authorization") String authHeader,
-            @RequestBody InviteResponseDTO responseDTO
-    ) {
+            @RequestBody InviteResponseDTO responseDTO) {
 
         if (responseDTO == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is missing or invalid");
@@ -139,15 +138,14 @@ public class MatchController {
     }
 
     /**
-     * Updates the match length (points limits).
+     * Updates the match goal (points limits).
      */
-    @PostMapping("/matches/{matchId}/length")
+    @PostMapping("/matches/{matchId}/matchGoal")
     @ResponseStatus(HttpStatus.OK)
-    public void updateMatchLength(
-        @PathVariable Long matchId,
-        @RequestBody Map<String, Integer> body
-    ) {
-        matchService.updateMatchLength(matchId, body);
+    public void updateMatchGoal(
+            @PathVariable Long matchId,
+            @RequestBody Map<String, Integer> body) {
+        matchService.updateMatchGoal(matchId, body);
     }
 
     /**
@@ -156,13 +154,12 @@ public class MatchController {
     @PostMapping("/matches/{matchId}/ai")
     @ResponseStatus(HttpStatus.OK)
     public void addAiPlayer(
-        @PathVariable Long matchId,
-        @RequestBody AIPlayerDTO dto
-    ) {
+            @PathVariable Long matchId,
+            @RequestBody AIPlayerDTO dto) {
         matchService.addAiPlayer(matchId, dto);
     }
 
-     /**
+    /**
      * Remove an AI player from a match.
      */
     @PostMapping("/matches/{matchId}/ai/remove")
@@ -203,9 +200,9 @@ public class MatchController {
     /**
      * Retrieves the list of all join requests for a match.
      */
-    @GetMapping("/matches/{matchId}/joinRequests")  
+    @GetMapping("/matches/{matchId}/joinRequests")
     public List<JoinRequestDTO> getJoinRequests(@PathVariable Long matchId) {
-        return matchService.getJoinRequests(matchId);  
+        return matchService.getJoinRequests(matchId);
     }
 
     /**
@@ -228,7 +225,5 @@ public class MatchController {
         String token = authHeader.replace("Bearer ", "");
         return matchService.getEligibleUsers(matchId, token);
     }
-
-
 
 }

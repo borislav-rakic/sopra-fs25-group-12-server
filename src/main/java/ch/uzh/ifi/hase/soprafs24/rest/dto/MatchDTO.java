@@ -11,7 +11,7 @@ public class MatchDTO {
     private Long matchId;
     private List<Long> matchPlayerIds;
     private String host;
-    private int length;
+    private int matchGoal;
     private boolean started;
     private Map<Integer, Long> invites;
     private Map<Integer, Integer> aiPlayers;
@@ -51,12 +51,12 @@ public class MatchDTO {
         return host;
     }
 
-    public void setLength(int length) {
-        this.length = length;
+    public void setMatchGoal(int matchGoal) {
+        this.matchGoal = matchGoal;
     }
 
-    public int getLength() {
-        return length;
+    public int getMatchGoal() {
+        return matchGoal;
     }
 
     public void setStarted(boolean started) {
@@ -78,11 +78,11 @@ public class MatchDTO {
     public Map<Integer, Integer> getAiPlayers() {
         return aiPlayers;
     }
-    
+
     public void setAiPlayers(Map<Integer, Integer> aiPlayers) {
         this.aiPlayers = aiPlayers;
     }
-    
+
     public Map<Long, String> getJoinRequests() {
         return joinRequests;
     }
@@ -98,8 +98,7 @@ public class MatchDTO {
     public void setPlayer1Id(User player1) {
         try {
             this.player1Id = player1.getId();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             this.player1Id = null;
         }
     }
@@ -111,8 +110,7 @@ public class MatchDTO {
     public void setPlayer2Id(User player2) {
         try {
             this.player2Id = player2.getId();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             this.player2Id = null;
         }
     }
@@ -124,8 +122,7 @@ public class MatchDTO {
     public void setPlayer3Id(User player3) {
         try {
             this.player3Id = player3.getId();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             this.player3Id = null;
         }
     }
@@ -137,8 +134,7 @@ public class MatchDTO {
     public void setPlayer4Id(User player4) {
         try {
             this.player4Id = player4.getId();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             this.player4Id = null;
         }
     }

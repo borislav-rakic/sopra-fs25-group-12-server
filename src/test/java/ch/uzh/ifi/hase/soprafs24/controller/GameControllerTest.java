@@ -53,9 +53,10 @@ public class GameControllerTest {
 
         playerMatchInformationDTO.setMatchPlayers(matchPlayers);
         playerMatchInformationDTO.setHost("User");
-        playerMatchInformationDTO.setLength(100);
+        playerMatchInformationDTO.setMatchGoal(100);
 
-        given(gameService.getPlayerMatchInformation(Mockito.any(), Mockito.any())).willReturn(playerMatchInformationDTO);
+        given(gameService.getPlayerMatchInformation(Mockito.any(), Mockito.any()))
+                .willReturn(playerMatchInformationDTO);
 
         MockHttpServletRequestBuilder postRequest = post("/matches/1/logic")
                 .header("Authorization", "Bearer 1234");
@@ -67,7 +68,7 @@ public class GameControllerTest {
                 .andExpect(jsonPath("$.aiPlayers.1", is(1)))
                 .andExpect(jsonPath("$.aiPlayers.2", is(2)))
                 .andExpect(jsonPath("$.aiPlayers.3", is(3)))
-                .andExpect(jsonPath("$.length", is(playerMatchInformationDTO.getLength())))
+                .andExpect(jsonPath("$.matchGoal", is(playerMatchInformationDTO.getMatchGoal())))
                 .andExpect(jsonPath("$.host", is(playerMatchInformationDTO.getHost())));
     }
 }

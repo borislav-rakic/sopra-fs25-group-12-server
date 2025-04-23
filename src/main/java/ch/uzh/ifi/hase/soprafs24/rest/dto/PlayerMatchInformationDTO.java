@@ -11,7 +11,7 @@ public class PlayerMatchInformationDTO {
     private Long matchId;
     private List<String> matchPlayers;
     private String host;
-    private int length;
+    private int matchGoal;
     private int slot;
     private Map<Integer, Integer> aiPlayers;
     private List<PlayerCardDTO> playerCards;
@@ -23,6 +23,10 @@ public class PlayerMatchInformationDTO {
     private int trickLeaderSlot;
     private int lastTrickWinnerSlot;
     private int lastTrickPoints;
+    private Map<Integer, Integer> playerPoints;
+    private boolean heartsBroken;
+    private Card lastPlayedCard;
+    private Map<Integer, Integer> cardsInHandPerPlayer;
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -48,12 +52,12 @@ public class PlayerMatchInformationDTO {
         this.host = host;
     }
 
-    public int getLength() {
-        return length;
+    public int getMatchGoal() {
+        return matchGoal;
     }
 
-    public void setLength(int length) {
-        this.length = length;
+    public void setMatchGoal(int matchGoal) {
+        this.matchGoal = matchGoal;
     }
 
     public int getSlot() {
@@ -143,4 +147,37 @@ public class PlayerMatchInformationDTO {
     public void setLastTrickPoints(int lastTrickPoints) {
         this.lastTrickPoints = lastTrickPoints;
     }
+
+    public boolean isHeartsBroken() {
+        return heartsBroken;
+    }
+
+    public void setHeartsBroken(boolean heartsBroken) {
+        this.heartsBroken = heartsBroken;
+    }
+
+    public Card getLastPlayedCard() {
+        return lastPlayedCard;
+    }
+
+    public void setLastPlayedCard(Card lastPlayedCard) {
+        this.lastPlayedCard = lastPlayedCard;
+    }
+
+    public Map<Integer, Integer> getPlayerPoints() {
+        return playerPoints;
+    }
+
+    public void setPlayerPoints(Map<Integer, Integer> playerPoints) {
+        this.playerPoints = playerPoints;
+    }
+
+    public Map<Integer, Integer> getCardsInHandPerPlayer() {
+        return cardsInHandPerPlayer;
+    }
+
+    public void setCardsInHandPerPlayer(Map<Integer, Integer> cardsInHandPerPlayer) {
+        this.cardsInHandPerPlayer = cardsInHandPerPlayer;
+    }
+
 }

@@ -76,7 +76,7 @@ public class MatchService {
      * <li>{@code matchPlayerIds} – List of player IDs participating in the
      * match.</li>
      * <li>{@code host} – The username of the player who created the match.</li>
-     * <li>{@code length} – Default match length (set to 100).</li>
+     * <li>{@code matchGoal} – Default match goal (set to 100).</li>
      * <li>{@code started} – Initially {@code false}, indicating the match hasn't
      * begun.</li>
      * <li>{@code player1Id} – The ID of the initiating player (same as the token
@@ -106,7 +106,7 @@ public class MatchService {
 
         match.setMatchPlayers(matchPlayers);
         match.setHost(user.getUsername());
-        match.setLength(100);
+        match.setMatchGoal(100);
         match.setStarted(false);
         match.setPlayer1(user);
 
@@ -302,18 +302,18 @@ public class MatchService {
         matchRepository.save(match);
     }
 
-    public void updateMatchLength(Long matchId, Map<String, Integer> body) {
+    public void updateMatchGoal(Long matchId, Map<String, Integer> body) {
         Match match = matchRepository.findMatchByMatchId(matchId);
 
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
 
-        if (!body.containsKey("length")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing 'length' field");
+        if (!body.containsKey("matchGoal")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Missing 'matchGoal' field");
         }
 
-        match.setLength(body.get("length"));
+        match.setMatchGoal(body.get("matchGoal"));
         matchRepository.save(match);
     }
 
