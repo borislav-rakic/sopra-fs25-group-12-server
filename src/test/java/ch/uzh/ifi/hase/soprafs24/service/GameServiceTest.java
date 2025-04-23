@@ -24,6 +24,8 @@ import static org.mockito.Mockito.atLeast;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.Rank;
+import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -31,6 +33,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.BDDMockito.given;
 import java.util.Optional;
 import static org.mockito.Mockito.verify;
@@ -136,11 +139,9 @@ public class GameServiceTest {
         User p2 = new User();
         p2.setId(2L);
         p2.setUsername("bot2");
-
         User p3 = new User();
         p3.setId(3L);
         p3.setUsername("bot3");
-
         User p4 = new User();
         p4.setId(4L);
         p4.setUsername("bot4");
@@ -161,21 +162,38 @@ public class GameServiceTest {
         // Setup MatchPlayer
         MatchPlayer matchPlayer = new MatchPlayer();
         matchPlayer.setPlayerId(user);
-
         MatchPlayerCards handCard = new MatchPlayerCards();
         handCard.setCard("2C");
         matchPlayer.setCardsInHand(List.of(handCard));
-
         match.setMatchPlayers(List.of(matchPlayer));
 
-        // Setup game
+        // Setup Game
         Game game = new Game();
         game.setGameId(1L);
         game.setGameNumber(1);
         game.setPhase(GamePhase.FINISHED);
-        game.setPlayedCards(new ArrayList<>());
         game.setMatch(match);
 
+        // Simulate a complete trick with 4 cards — all Clubs (no points)
+        GameStats gs1 = new GameStats();
+        gs1.setRank(Rank._2);
+        gs1.setSuit(Suit.C);
+        gs1.setPlayedBy(1);
+        GameStats gs2 = new GameStats();
+        gs2.setRank(Rank._3);
+        gs2.setSuit(Suit.C);
+        gs2.setPlayedBy(2);
+        GameStats gs3 = new GameStats();
+        gs3.setRank(Rank._4);
+        gs3.setSuit(Suit.C);
+        gs3.setPlayedBy(3);
+        GameStats gs4 = new GameStats();
+        gs4.setRank(Rank._5);
+        gs4.setSuit(Suit.C);
+        gs4.setPlayedBy(4);
+
+        List<GameStats> playedCards = List.of(gs1, gs2, gs3, gs4);
+        game.setPlayedCards(new ArrayList<>(playedCards));
         match.setGames(List.of(game));
 
         // Mocks
@@ -186,15 +204,30 @@ public class GameServiceTest {
         // Act
         PlayerMatchInformationDTO result = gameService.getPlayerMatchInformation("1234", 1L);
 
-        // Assert
+        // Assert general match/game info
         assertEquals(1L, result.getMatchId());
         assertEquals("hostUser", result.getHost());
         assertEquals(13, result.getLength());
         assertEquals(GamePhase.FINISHED, result.getGamePhase());
         assertEquals(MatchPhase.READY, result.getMatchPhase());
+        assertEquals(List.of("testuser", "bot2", "bot3", "bot4"), result.getMatchPlayers());
+
+        // Assert hand
         assertEquals(1, result.getPlayerCards().size());
         assertEquals("2C", result.getPlayerCards().get(0).getCard());
-        assertEquals(List.of("testuser", "bot2", "bot3", "bot4"), result.getMatchPlayers());
+
+        // Assert current trick (should include 4 cards)
+        assertNotNull(result.getCurrentTrick());
+        assertEquals(4, result.getCurrentTrick().size());
+        assertEquals("2", result.getCurrentTrick().get(0).getRank());
+        assertEquals("Clubs", result.getCurrentTrick().get(0).getSuit());
+
+        // Assert trick winner (slot 4 played highest Club = 5C)
+        assertEquals(4, result.getLastTrickWinnerSlot());
+        assertEquals(0, result.getLastTrickPoints()); // no points in this trick
+
+        // Assert trick leader (first player was slot 1)
+        assertEquals(1, result.getTrickLeaderSlot());
     }
 
     @Test

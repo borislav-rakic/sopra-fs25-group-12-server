@@ -1,11 +1,11 @@
 package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
+import java.util.List;
+import java.util.Map;
+
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
-
-import java.util.List;
-import java.util.Map;
 
 public class PlayerMatchInformationDTO {
     private Long matchId;
@@ -21,6 +21,8 @@ public class PlayerMatchInformationDTO {
     private MatchPhase matchPhase;
     private List<Card> currentTrick;
     private int trickLeaderSlot;
+    private int lastTrickWinnerSlot;
+    private int lastTrickPoints;
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -124,5 +126,21 @@ public class PlayerMatchInformationDTO {
 
     public void setTrickLeaderSlot(int trickLeaderSlot) {
         this.trickLeaderSlot = trickLeaderSlot;
+    }
+
+    public int getLastTrickWinnerSlot() {
+        return lastTrickWinnerSlot;
+    }
+
+    public void setLastTrickWinnerSlot(int lastTrickWinnerSlot) {
+        this.lastTrickWinnerSlot = lastTrickWinnerSlot;
+    }
+
+    public int getLastTrickPoints() {
+        return lastTrickPoints;
+    }
+
+    public void setLastTrickPoints(int lastTrickPoints) {
+        this.lastTrickPoints = lastTrickPoints;
     }
 }

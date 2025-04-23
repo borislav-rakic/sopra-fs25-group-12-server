@@ -192,14 +192,22 @@ public class GameService {
             return dtoCard;
         }).toList();
 
+        dto.setPlayableCards(playableCardDTOList);
+
         List<GameStats> allPlays = latestGame.getPlayedCards();
         int trickSize = allPlays.size() % 4;
-        List<GameStats> currentTrickStats = allPlays.subList(Math.max(0, allPlays.size() - trickSize), allPlays.size());
+
+        // If trickSize == 0, we just completed a trick — show the *last* one
+        List<GameStats> currentTrickStats = allPlays.isEmpty()
+                ? List.of()
+                : allPlays.subList(
+                        Math.max(0, allPlays.size() - (trickSize == 0 ? 4 : trickSize)),
+                        allPlays.size());
 
         List<Card> currentTrick = currentTrickStats.stream()
                 .map(gs -> {
                     Card card = new Card();
-                    card.setCode(gs.getRank().toString() + gs.getSuit().getSymbol()); // e.g., "QS", "2C"
+                    card.setCode(gs.getRank().toString() + gs.getSuit().getSymbol());
                     return card;
                 })
                 .toList();
@@ -212,9 +220,56 @@ public class GameService {
             dto.setTrickLeaderSlot(leaderSlot);
         }
 
-        dto.setPlayableCards(playableCardDTOList);
+        if (trickSize == 0 && allPlays.size() >= 4) {
+            List<GameStats> lastTrick = allPlays.subList(allPlays.size() - 4, allPlays.size());
+
+            int winnerSlot = determineTrickWinner(lastTrick);
+            int trickPoints = calculateTrickPoints(lastTrick);
+
+            dto.setLastTrickWinnerSlot(winnerSlot);
+            dto.setLastTrickPoints(trickPoints);
+
+            latestGame.setCurrentSlot(winnerSlot);
+        }
 
         return dto;
+    }
+
+    /**
+     * Determines the winner of the current trick.
+     * 
+     * @param trick List of 4 GameStats representing a complete trick.
+     * @return int slot number (1–4) of the player who won the trick.
+     */
+    public int determineTrickWinner(List<GameStats> trick) {
+        if (trick == null || trick.size() != 4) {
+            throw new IllegalArgumentException("Trick must contain exactly 4 cards.");
+        }
+
+        Suit leadSuit = trick.get(0).getSuit(); // suit of the first card
+        GameStats winningCard = trick.get(0); // start with first card as highest
+
+        for (int i = 1; i < 4; i++) {
+            GameStats currentCard = trick.get(i);
+            if (currentCard.getSuit() == leadSuit &&
+                    currentCard.getRank().ordinal() > winningCard.getRank().ordinal()) {
+                winningCard = currentCard;
+            }
+        }
+
+        return winningCard.getPlayedBy(); // returns slot number (1–4)
+    }
+
+    public int calculateTrickPoints(List<GameStats> trick) {
+        return trick.stream()
+                .mapToInt(gs -> {
+                    if (gs.getSuit() == Suit.H)
+                        return 1; // each heart = 1
+                    if (gs.getRank().toString().equals("Q") && gs.getSuit() == Suit.S)
+                        return 13; // QS = 13
+                    return 0;
+                })
+                .sum();
     }
 
     /**
