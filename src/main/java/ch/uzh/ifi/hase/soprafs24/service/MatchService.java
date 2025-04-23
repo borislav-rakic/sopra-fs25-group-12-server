@@ -163,6 +163,27 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found.");
         }
 
+        // Only allow inviting to slots 2, 3, or 4
+        if (playerSlot < 2 || playerSlot > 4) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "You can only invite players to slots 2, 3, or 4.");
+        }
+
+        // Check if that slot is already taken
+        boolean isSlotTaken = match.getMatchPlayers().stream()
+                .anyMatch(mp -> mp.getSlot() == playerSlot);
+
+        Map<Integer, Long> invites = match.getInvites();
+        if (invites == null) {
+            invites = new HashMap<>();
+        }
+
+        boolean isSlotInvited = invites.containsKey(playerSlot);
+
+        if (isSlotTaken || isSlotInvited) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Slot " + playerSlot + " is already occupied.");
+        }
+
         int currentRealPlayers = match.getMatchPlayers().stream()
                 .filter(mp -> mp.getPlayerId() != null && !Boolean.TRUE.equals(mp.getPlayerId().getIsAiPlayer()))
                 .toList()
@@ -173,34 +194,25 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot invite more players — match is full.");
         }
 
-        // 1. Check if user exists
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
 
-        // 2. Prevent self-inviting
         if (user.getUsername().equals(match.getHost())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hosts cannot invite themselves.");
         }
 
-        // 3. Prevent duplicate invites
-        Map<Integer, Long> invites = match.getInvites();
-        if (invites == null) {
-            invites = new HashMap<>();
-        } else if (invites.containsValue(userId)) {
+        if (invites.containsValue(userId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User has already been invited to this match.");
         }
 
-        // 4. Prevent inviting AI
         if (Boolean.TRUE.equals(user.getIsAiPlayer())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot invite an AI player through this API.");
         }
 
-        // 5. Check user is online
         if (user.getStatus() != UserStatus.ONLINE) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User must be online to receive an invite.");
         }
 
-        // 6. Save the invite
         invites.put(playerSlot, userId);
         match.setInvites(invites);
 
@@ -323,24 +335,40 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
 
-        int difficulty = dto.getDifficulty();
-        if (difficulty < 1) {
-            difficulty = 1;
-        } else if (difficulty > 3) {
-            difficulty = 3;
-        }
-        int slot = dto.getSlot(); // 1 = player2, 2 = player3, 3 = player4
-        int playerSlot = slot + 1;
+        int difficulty = Math.max(1, Math.min(dto.getDifficulty(), 3)); // Difficulty must be within [1,3]
+        int slot = dto.getSlot(); // Slot must be: 2 = player2, 3 = player3, 4 = player4
 
-        // Check if that exact slot is available
-        if ((playerSlot == 2 && match.getPlayer2() != null)
-                || (playerSlot == 3 && match.getPlayer3() != null)
-                || (playerSlot == 4 && match.getPlayer4() != null)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Selected slot is already occupied.");
+        if (slot < 2 || slot > 4) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "AI slot must be between 2 and 4.");
         }
 
-        User aiPlayer = userRepository.findUserById((long) (difficulty)); // 1 = Easy, UserId = 1
+        int playerSlot = slot; // slots 2, 3 or 4.
 
+        // Check if that slot is already taken
+        switch (playerSlot) {
+            case 2:
+                if (match.getPlayer2() != null)
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Slot 2 is already taken.");
+                break;
+            case 3:
+                if (match.getPlayer3() != null)
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Slot 3 is already taken.");
+                break;
+            case 4:
+                if (match.getPlayer4() != null)
+                    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Slot 4 is already taken.");
+                break;
+        }
+
+        // Get the corresponding AI "user"
+        User aiPlayer = userRepository.findUserById((long) difficulty);
+        if (aiPlayer == null || !aiPlayer.getIsAiPlayer()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "AI user for difficulty " + difficulty + " not found or is not an AI.");
+        }
+
+        // Create and assign MatchPlayer
         MatchPlayer newMatchPlayer = new MatchPlayer();
         newMatchPlayer.setMatch(match);
         newMatchPlayer.setPlayerId(aiPlayer);
@@ -348,19 +376,21 @@ public class MatchService {
 
         match.getMatchPlayers().add(newMatchPlayer);
 
+        // Assign to slot in Match
         if (playerSlot == 2) {
             match.setPlayer2(aiPlayer);
         } else if (playerSlot == 3) {
             match.setPlayer3(aiPlayer);
-        } else if (playerSlot == 4) {
+        } else {
             match.setPlayer4(aiPlayer);
         }
 
+        // Track AI players in the match
         Map<Integer, Integer> aiPlayers = match.getAiPlayers();
         if (aiPlayers == null) {
             aiPlayers = new HashMap<>();
         }
-        aiPlayers.put(playerSlot, difficulty); // playerSlot is 2, 3, or 4
+        aiPlayers.put(playerSlot, difficulty);
         match.setAiPlayers(aiPlayers);
 
         matchRepository.save(match);

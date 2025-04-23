@@ -204,7 +204,7 @@ public class MatchServiceTest {
     @Test
     public void testInvitePlayerToMatchSuccess() {
         InviteRequestDTO inviteRequestDTO = new InviteRequestDTO();
-        inviteRequestDTO.setPlayerSlot(1);
+        inviteRequestDTO.setPlayerSlot(2);
         inviteRequestDTO.setUserId(user2.getId()); // not the host!
 
         given(userRepository.findById(user2.getId())).willReturn(Optional.of(user2));
@@ -219,7 +219,7 @@ public class MatchServiceTest {
     @Test
     public void testInvitePlayerToMatchSuccessInvitesNull() {
         InviteRequestDTO inviteRequestDTO = new InviteRequestDTO();
-        inviteRequestDTO.setPlayerSlot(1);
+        inviteRequestDTO.setPlayerSlot(2);
         inviteRequestDTO.setUserId(user2.getId()); // Use invited player
 
         user2.setIsAiPlayer(false);
@@ -289,7 +289,9 @@ public class MatchServiceTest {
     @Test
     public void testAddAiPlayerError() {
         AIPlayerDTO aiPlayerDTO = new AIPlayerDTO();
+
         aiPlayerDTO.setDifficulty(1);
+        aiPlayerDTO.setSlot(1); // there is no slot "1" for an AI player (only 2, 3 or 4)
 
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(null);
 
@@ -303,9 +305,19 @@ public class MatchServiceTest {
     public void testAddAiPlayerSuccess() {
         AIPlayerDTO aiPlayerDTO = new AIPlayerDTO();
         aiPlayerDTO.setDifficulty(1);
+        aiPlayerDTO.setSlot(2); // slot 2 => backend slot 3
 
-        given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
+        Match match = new Match();
+        match.setMatchId(1L);
+        match.setAiPlayers(new HashMap<>()); // prevent NullPointerException
 
+        given(matchRepository.findMatchByMatchId(1L)).willReturn(match);
+
+        User aiUser = new User();
+        aiUser.setId(1L);
+        aiUser.setIsAiPlayer(true); // Important!
+
+        given(userRepository.findUserById(1L)).willReturn(aiUser);
         given(matchRepository.save(Mockito.any())).willReturn(match);
 
         matchService.addAiPlayer(1L, aiPlayerDTO);
