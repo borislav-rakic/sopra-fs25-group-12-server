@@ -72,7 +72,7 @@ public class MatchServiceTest {
 
         List<MatchPlayer> matchPlayers = new ArrayList<>();
         matchPlayers.add(new MatchPlayer());
-        matchPlayers.get(0).setPlayerId(user);
+        matchPlayers.get(0).setUser(user);
         matchPlayers.get(0).setMatch(match);
 
         match.setMatchPlayers(matchPlayers);
@@ -83,7 +83,7 @@ public class MatchServiceTest {
 
         matchPlayer = new MatchPlayer();
         matchPlayer.setMatch(match);
-        matchPlayer.setPlayerId(user);
+        matchPlayer.setUser(user);
         matchPlayer.setMatchPlayerId(1L);
     }
 

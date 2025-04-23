@@ -232,7 +232,15 @@ public class Match implements Serializable {
     public User getUserBySlot(int slot) {
         return matchPlayers.stream()
                 .filter(mp -> mp.getSlot() == slot)
-                .map(MatchPlayer::getPlayerId)
+                .map(MatchPlayer::getUser)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No player in slot " + slot));
+    }
+
+    public Long getUserIdBySlot(int slot) {
+        return matchPlayers.stream()
+                .filter(mp -> mp.getSlot() == slot)
+                .map(mp -> mp.getUser().getId())
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No player in slot " + slot));
     }

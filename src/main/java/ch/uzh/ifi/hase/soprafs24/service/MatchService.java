@@ -100,7 +100,7 @@ public class MatchService {
 
         List<MatchPlayer> matchPlayers = new ArrayList<>();
         matchPlayers.add(new MatchPlayer());
-        matchPlayers.get(0).setPlayerId(user);
+        matchPlayers.get(0).setUser(user);
         matchPlayers.get(0).setMatch(match);
         matchPlayers.get(0).setSlot(1);
 
@@ -112,11 +112,6 @@ public class MatchService {
 
         matchRepository.save(match);
         matchRepository.flush();
-
-        // System.out.println("MATCHID: " + match.getMatchId());
-
-        // System.out.println("PLAYERID: " +
-        // match.getMatchPlayers().get(0).getPlayerId());
 
         return match;
     }
@@ -186,7 +181,7 @@ public class MatchService {
         }
 
         int currentRealPlayers = match.getMatchPlayers().stream()
-                .filter(mp -> mp.getPlayerId() != null && !Boolean.TRUE.equals(mp.getPlayerId().getIsAiPlayer()))
+                .filter(mp -> mp.getUser() != null && !Boolean.TRUE.equals(mp.getUser().getIsAiPlayer()))
                 .toList()
                 .size();
         int currentAIPlayers = match.getAiPlayers() != null ? match.getAiPlayers().size() : 0;
@@ -246,8 +241,8 @@ public class MatchService {
         for (Match m : allMatches) {
             if (m.getStarted())
                 continue;
-            if (m.getMatchPlayers().stream().anyMatch(mp -> mp.getPlayerId().equals(user))) {
-                m.getMatchPlayers().removeIf(mp -> mp.getPlayerId().equals(user));
+            if (m.getMatchPlayers().stream().anyMatch(mp -> mp.getUser().equals(user))) {
+                m.getMatchPlayers().removeIf(mp -> mp.getUser().equals(user));
 
                 if (user.equals(m.getPlayer2()))
                     m.setPlayer2(null);
@@ -286,7 +281,7 @@ public class MatchService {
             List<MatchPlayer> players = match.getMatchPlayers();
 
             MatchPlayer newMatchPlayer = new MatchPlayer();
-            newMatchPlayer.setPlayerId(user);
+            newMatchPlayer.setUser(user);
             newMatchPlayer.setMatch(match);
             newMatchPlayer.setSlot(slot + 1);
 
@@ -372,7 +367,7 @@ public class MatchService {
         // Create and assign MatchPlayer
         MatchPlayer newMatchPlayer = new MatchPlayer();
         newMatchPlayer.setMatch(match);
-        newMatchPlayer.setPlayerId(aiPlayer);
+        newMatchPlayer.setUser(aiPlayer);
         newMatchPlayer.setSlot(playerSlot);
 
         match.getMatchPlayers().add(newMatchPlayer);
@@ -409,8 +404,8 @@ public class MatchService {
 
         // Find the AI player at the requested slot
         MatchPlayer toRemove = match.getMatchPlayers().stream()
-                .filter(mp -> mp.getSlot() == playerSlot && mp.getPlayerId() != null
-                        && Boolean.TRUE.equals(mp.getPlayerId().getIsAiPlayer()))
+                .filter(mp -> mp.getSlot() == playerSlot && mp.getUser() != null
+                        && Boolean.TRUE.equals(mp.getUser().getIsAiPlayer()))
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "No AI player found at the specified slot"));
@@ -498,7 +493,7 @@ public class MatchService {
         }
 
         MatchPlayer newMatchPlayer = new MatchPlayer();
-        newMatchPlayer.setPlayerId(user);
+        newMatchPlayer.setUser(user);
         newMatchPlayer.setMatch(match);
 
         match.getMatchPlayers().add(newMatchPlayer);
@@ -558,7 +553,7 @@ public class MatchService {
 
         // Find the MatchPlayer entry
         MatchPlayer toRemove = match.getMatchPlayers().stream()
-                .filter(mp -> mp.getPlayerId().equals(user))
+                .filter(mp -> mp.getUser().equals(user))
                 .findFirst()
                 .orElseThrow(
                         () -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "You are not part of this match."));

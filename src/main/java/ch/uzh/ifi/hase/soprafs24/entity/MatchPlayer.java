@@ -55,11 +55,11 @@ public class MatchPlayer {
         this.match = match;
     }
 
-    public User getPlayerId() {
+    public User getUser() {
         return user;
     }
 
-    public void setPlayerId(User user) {
+    public void setUser(User user) {
         this.user = user;
     }
 

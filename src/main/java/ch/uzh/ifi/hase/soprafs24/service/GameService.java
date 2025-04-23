@@ -1,6 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -138,7 +139,7 @@ public class GameService {
         MatchPlayer requestingMatchPlayer = null;
 
         for (MatchPlayer player : match.getMatchPlayers()) {
-            if (player.getPlayerId().getId().equals(user.getId())) {
+            if (player.getUser().getId().equals(user.getId())) {
                 requestingMatchPlayer = player;
                 break;
             }
@@ -168,13 +169,14 @@ public class GameService {
 
         Game latestGame = match.getGames().get(match.getGames().size() - 1);
 
-        for (MatchPlayerCards matchPlayerCard : requestingMatchPlayer.getCardsInHand()) {
-            PlayerCardDTO playerCardDTO = new PlayerCardDTO();
-            playerCardDTO.setPlayerId(user.getId());
-            playerCardDTO.setGameId(latestGame.getGameId());
-            playerCardDTO.setGameNumber(latestGame.getGameNumber());
-            playerCardDTO.setCard(matchPlayerCard.getCard());
-            playerCardDTOList.add(playerCardDTO);
+        List<GameStats> hand = gameStatsRepository.findByGameAndCardHolder(latestGame, matchPlayer.getSlot());
+        for (GameStats gs : hand) {
+            PlayerCardDTO dtoCard = new PlayerCardDTO();
+            dtoCard.setCard(gs.getRankSuit());
+            dtoCard.setGameId(latestGame.getGameId());
+            dtoCard.setGameNumber(latestGame.getGameNumber());
+            dtoCard.setPlayerId(user.getId());
+            playerCardDTOList.add(dtoCard);
         }
 
         dto.setPlayerCards(playerCardDTOList);
@@ -232,7 +234,8 @@ public class GameService {
         // Cards-in-hand counts
         Map<Integer, Integer> handCounts = new HashMap<>();
         for (MatchPlayer mp : match.getMatchPlayers()) {
-            handCounts.put(mp.getSlot(), mp.getCardsInHand().size());
+            int count = gameStatsRepository.findByGameAndCardHolder(latestGame, mp.getSlot()).size();
+            handCounts.put(mp.getSlot(), count);
         }
         dto.setCardsInHandPerPlayer(handCounts);
 
@@ -328,6 +331,18 @@ public class GameService {
 
         if (givenMatch == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+
+        if (givenMatch.getPhase() == MatchPhase.IN_PROGRESS
+                || givenMatch.getPhase() == MatchPhase.BETWEEN_GAMES) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This match has already been started.");
+        } else if (givenMatch.getPhase() == MatchPhase.ABORTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This match has been cancelled by the match owner.");
+        } else if (givenMatch.getPhase() == MatchPhase.FINISHED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This match has already been finished.");
         }
 
         if (!givenUser.getId().equals(givenMatch.getHostId())) {
@@ -513,7 +528,7 @@ public class GameService {
     private List<CardResponse> generateDeterministicDeck(long seed) {
         List<CardResponse> deck = new ArrayList<>();
         String[] suits = { "C", "D", "H", "S" };
-        String[] ranks = { "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K", "A" };
+        String[] ranks = { "2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "A" };
 
         for (String suit : suits) {
             for (String rank : ranks) {
@@ -725,6 +740,7 @@ public class GameService {
         return game;
     };
 
+    @Transactional
     public void makePassingHappen(Long matchId, GamePassingDTO passingDTO, String token) {
         Long playerId = passingDTO.getPlayerId();
         List<String> cardsToPass = passingDTO.getCards();
@@ -734,7 +750,6 @@ public class GameService {
         }
 
         User user = userService.getUserByToken(token);
-
         if (!user.getId().equals(playerId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only pass cards for yourself.");
         }
@@ -748,36 +763,85 @@ public class GameService {
 
         int slot = match.getSlotByPlayerId(playerId);
 
-        // Make sure the player owns each card and that it hasn't already been passed
         for (String cardCode : cardsToPass) {
+            if (!isValidCardFormat(cardCode)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid card format: " + cardCode);
+            }
+
             GameStats card = gameStatsRepository.findByRankSuitAndGameAndCardHolder(cardCode, game, slot);
             if (card == null) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Card " + cardCode + " is not owned by player.");
+                        "Card " + cardCode + " is not owned by player in slot " + slot);
+            }
+
+            if (passedCardRepository.existsByGameAndFromSlotAndRankSuit(game, slot, cardCode)) {
+                throw new ResponseStatusException(HttpStatus.CONFLICT,
+                        "Card " + cardCode + " has already been passed by slot " + slot);
             }
 
             if (passedCardRepository.existsByGameAndRankSuit(game, cardCode)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "Card " + cardCode + " has already been passed.");
+                        "Card " + cardCode + " has already been passed by another player.");
             }
-
-            // Save passed card
-            PassedCard passedCard = new PassedCard();
-            passedCard.setGame(game);
-            passedCard.setFromPlayer(user);
-            passedCard.setRankSuit(cardCode);
-            passedCard.setGameNumber(game.getGameNumber());
-
-            passedCardRepository.save(passedCard);
         }
 
-        // Check if all 12 cards have been passed (3 per player × 4 players)
+        // Save all passed cards in a batch
+        List<PassedCard> passedCards = cardsToPass.stream()
+                .map(cardCode -> new PassedCard(game, cardCode, slot, game.getGameNumber()))
+                .collect(Collectors.toList());
+        passedCardRepository.saveAll(passedCards);
+
+        // Count how many cards have been passed in total
         long passedCount = passedCardRepository.countByGame(game);
+
+        // If not all 12 passed yet, check if AI players need to pass
+        if (passedCount < 12) {
+            int expectedHumanPasses = (int) match.getMatchPlayers().stream()
+                    .filter(mp -> !Boolean.TRUE.equals(mp.getUser().getIsAiPlayer()))
+                    .count() * 3;
+
+            if (passedCount == expectedHumanPasses) {
+                passForAllAiPlayers(game);
+                passedCount = passedCardRepository.countByGame(game);
+            }
+        }
+
+        // If all 12 cards passed, proceed to collect
         if (passedCount == 12) {
             collectPassedCards(game);
         }
 
-        System.out.printf("Player %d in match %d passed cards: %s%n", playerId, matchId, cardsToPass);
+    }
+
+    private List<String> pickThreeCardsForAI(List<GameStats> hand) {
+        Collections.shuffle(hand);
+        return hand.stream()
+                .limit(3)
+                .map(GameStats::getRankSuit)
+                .collect(Collectors.toList());
+    }
+
+    private void passForAllAiPlayers(Game game) {
+        Match match = game.getMatch();
+
+        for (int slot = 1; slot <= 4; slot++) {
+            User player = match.getUserBySlot(slot);
+            if (Boolean.TRUE.equals(player.getIsAiPlayer())) {
+                List<GameStats> hand = gameStatsRepository.findByGameAndCardHolder(game, slot);
+                List<String> cardsToPass = pickThreeCardsForAI(hand);
+
+                for (String cardCode : cardsToPass) {
+                    if (!passedCardRepository.existsByGameAndRankSuit(game, cardCode)) {
+                        PassedCard passedCard = new PassedCard(game, cardCode, slot, game.getGameNumber());
+                        passedCardRepository.save(passedCard);
+                    }
+                }
+            }
+        }
+    }
+
+    private boolean isValidCardFormat(String cardCode) {
+        return cardCode != null && cardCode.matches("^[02-9JQKA][HDCS]$");
     }
 
     public void collectPassedCards(Game game) {
@@ -786,12 +850,10 @@ public class GameService {
             throw new IllegalStateException("Cannot collect cards: not all cards have been passed yet.");
         }
 
-        Match match = game.getMatch();
-
         // Build a map from slot to cards passed
         Map<Integer, List<PassedCard>> cardsBySlot = new HashMap<>();
         for (PassedCard passed : passedCards) {
-            int fromSlot = match.getSlotByPlayerId(passed.getFromPlayer().getId());
+            int fromSlot = passed.getFromSlot();
             cardsBySlot.computeIfAbsent(fromSlot, k -> new ArrayList<>()).add(passed);
         }
 
@@ -809,14 +871,20 @@ public class GameService {
                         card.getRankSuit(), game, fromSlot);
 
                 if (gameStat != null) {
+                    System.out.printf("Passing %s: %d → %d%n", card.getRankSuit(), fromSlot, toSlot);
                     gameStat.setCardHolder(toSlot);
                     gameStatsRepository.save(gameStat);
+                } else {
+                    System.out.printf("WARN: Could not find GameStat for %s from slot %d%n", card.getRankSuit(),
+                            fromSlot);
                 }
             }
         }
 
-        // Optional: cleanup
+        // Cleanup
         passedCardRepository.deleteAll(passedCards);
+        game.setPhase(GamePhase.FIRSTROUND);
+        gameRepository.save(game);
     }
 
     private Map<Integer, Integer> determinePassingDirection(int gameNumber) {

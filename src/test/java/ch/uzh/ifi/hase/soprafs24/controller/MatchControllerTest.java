@@ -52,7 +52,7 @@ public class MatchControllerTest {
 
                 List<MatchPlayer> matchPlayers = new ArrayList<>();
                 MatchPlayer matchPlayer = new MatchPlayer();
-                matchPlayer.setPlayerId(new User());
+                matchPlayer.setUser(new User());
                 matchPlayer.setMatch(match);
                 matchPlayers.add(matchPlayer);
 
@@ -87,7 +87,7 @@ public class MatchControllerTest {
 
                 List<MatchPlayer> matchPlayers = new ArrayList<>();
                 MatchPlayer matchPlayer = new MatchPlayer();
-                matchPlayer.setPlayerId(new User());
+                matchPlayer.setUser(new User());
                 matchPlayer.setMatch(match);
                 matchPlayers.add(matchPlayer);
 
@@ -118,7 +118,7 @@ public class MatchControllerTest {
 
                 List<MatchPlayer> matchPlayers = new ArrayList<>();
                 MatchPlayer matchPlayer = new MatchPlayer();
-                matchPlayer.setPlayerId(new User());
+                matchPlayer.setUser(new User());
                 matchPlayer.setMatch(match);
                 matchPlayers.add(matchPlayer);
 

@@ -17,9 +17,8 @@ public class PassedCard {
     @Column(name = "rank_suit", length = 2, nullable = false)
     private String rankSuit;
 
-    @ManyToOne(optional = false)
-    @JoinColumn(name = "from_player")
-    private User fromPlayer;
+    @JoinColumn(name = "from_slot")
+    private int fromSlot;
 
     @Column(name = "game_number", nullable = false)
     private int gameNumber;
@@ -27,10 +26,10 @@ public class PassedCard {
     public PassedCard() {
     }
 
-    public PassedCard(Game game, String rankSuit, User fromPlayer, int gameNumber) {
+    public PassedCard(Game game, String rankSuit, int fromSlot, int gameNumber) {
         this.game = game;
         this.rankSuit = rankSuit;
-        this.fromPlayer = fromPlayer;
+        this.fromSlot = fromSlot;
         this.gameNumber = gameNumber;
     }
 
@@ -60,12 +59,12 @@ public class PassedCard {
         this.rankSuit = rankSuit;
     }
 
-    public User getFromPlayer() {
-        return fromPlayer;
+    public int getFromSlot() {
+        return fromSlot;
     }
 
-    public void setFromPlayer(User fromPlayer) {
-        this.fromPlayer = fromPlayer;
+    public void setFromSlot(int fromSlot) {
+        this.fromSlot = fromSlot;
     }
 
     public int getGameNumber() {
