@@ -15,11 +15,15 @@ public class Card {
     }
 
     public void setCode(String code) {
-        this.code = code;
+        if (code == null || code.length() < 2 || code.length() > 3) {
+            throw new IllegalArgumentException("Invalid card code: " + code);
+        }
+        this.code = code.toUpperCase();
         this.rank = extractRank(code);
         this.suit = extractSuit(code);
+        this.value = calculateValue(this.rank);
         this.image = generateImageUrl(code);
-        this.cardOrder = CardUtils.calculateCardOrder(code); // <- Set cardOrder here
+        this.cardOrder = CardUtils.calculateCardOrder(code);
     }
 
     public String getImage() {
@@ -62,4 +66,24 @@ public class Card {
     private String generateImageUrl(String code) {
         return "https://deckofcardsapi.com/static/img/" + code + ".png";
     }
+
+    private String calculateValue(String rank) {
+        return switch (rank) {
+            case "2" -> "2";
+            case "3" -> "3";
+            case "4" -> "4";
+            case "5" -> "5";
+            case "6" -> "6";
+            case "7" -> "7";
+            case "8" -> "8";
+            case "9" -> "9";
+            case "10" -> "10";
+            case "J" -> "11";
+            case "Q" -> "12";
+            case "K" -> "13";
+            case "A" -> "14";
+            default -> "0";
+        };
+    }
+
 }

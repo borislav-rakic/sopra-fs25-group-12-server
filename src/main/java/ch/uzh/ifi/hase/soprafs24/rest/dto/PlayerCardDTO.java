@@ -1,48 +1,47 @@
 package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
+import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
 public class PlayerCardDTO {
     private Long gameId;
     private Long playerId;
-    private String card;
+    private Card card; // <- changed from String to Card
     private int gameNumber;
-    private int cardOrder;
-
-    public void setGameId(Long gameId) {
-        this.gameId = gameId;
-    }
 
     public Long getGameId() {
         return gameId;
     }
 
-    public void setPlayerId(Long playerId) {
-        this.playerId = playerId;
+    public void setGameId(Long gameId) {
+        this.gameId = gameId;
     }
 
     public Long getPlayerId() {
         return playerId;
     }
 
-    public void setCard(String card) {
-        this.card = card;
-        this.cardOrder = CardUtils.calculateCardOrder(card);
+    public void setPlayerId(Long playerId) {
+        this.playerId = playerId;
     }
 
-    public String getCard() {
+    public Card getCard() {
         return card;
     }
 
-    public int getCardOrder() {
-        return cardOrder;
+    public void setCard(String cardCode) {
+        this.card = CardUtils.fromCode(cardCode); // Convert to full Card object
     }
 
-    public void setGameNumber(int gameNumber) {
-        this.gameNumber = gameNumber;
+    public int getCardOrder() {
+        return card.getCardOrder(); // Delegate to the Card object
     }
 
     public int getGameNumber() {
         return gameNumber;
+    }
+
+    public void setGameNumber(int gameNumber) {
+        this.gameNumber = gameNumber;
     }
 }

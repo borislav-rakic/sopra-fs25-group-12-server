@@ -41,7 +41,6 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
-import ch.uzh.ifi.hase.soprafs24.util.CardMapper;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 import reactor.core.publisher.Mono;
 
@@ -769,7 +768,7 @@ public class GameService {
 
         // Convert to Card objects
         List<Card> hand = handStats.stream()
-                .map(CardMapper::fromGameStats)
+                .map(CardUtils::fromGameStats)
                 .collect(Collectors.toList());
 
         // Sort the hand
@@ -795,8 +794,8 @@ public class GameService {
 
         final String trickSuitLocal;
         if (!isLeading && !currentTrick.isEmpty()) {
-            Card leadingCard = CardMapper.fromGameStats(currentTrick.get(0));
-            trickSuitLocal = leadingCard.getSuit();
+            Card leadingCard = CardUtils.fromGameStats(currentTrick.get(0));
+            trickSuitLocal = leadingCard.getSuit(); // e.g. "H"
         } else {
             trickSuitLocal = null;
         }

@@ -214,7 +214,7 @@ public class GameServiceTest {
 
         // Assert hand
         assertEquals(1, result.getPlayerCards().size());
-        assertEquals("2C", result.getPlayerCards().get(0).getCard());
+        assertEquals("2C", result.getPlayerCards().get(0).getCard().getCode());
 
         // Assert current trick (should include 4 cards)
         assertNotNull(result.getCurrentTrick());

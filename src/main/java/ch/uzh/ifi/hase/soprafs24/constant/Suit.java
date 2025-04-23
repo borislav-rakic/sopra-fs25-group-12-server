@@ -1,23 +1,13 @@
 package ch.uzh.ifi.hase.soprafs24.constant;
 
 public enum Suit {
-    C("Clubs"),
-    D("Diamonds"),
-    S("Spades"),
-    H("Hearts");
-
-    private final String fullName;
-
-    Suit(String fullName) {
-        this.fullName = fullName;
-    }
+    C, // Clubs
+    D, // Diamonds
+    S, // Spades
+    H; // Hearts
 
     public String getSymbol() {
-        return this.name(); // "C", "D", etc.
-    }
-
-    public String getFullName() {
-        return this.fullName;
+        return this.name(); // Returns "C", "D", "S", or "H"
     }
 
     public static Suit fromSymbol(String symbol) {
@@ -31,6 +21,6 @@ public enum Suit {
 
     @Override
     public String toString() {
-        return fullName;
+        return this.name(); // Just returns "C", "D", etc.
     }
 }
