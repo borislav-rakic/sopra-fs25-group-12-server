@@ -54,15 +54,25 @@ public class GameController {
     @ResponseStatus(HttpStatus.OK)
     public void startSeededMatch(
             @PathVariable Long matchId,
-            @PathVariable Long seed,
+            @PathVariable String seed,
             @RequestHeader("Authorization") String authHeader) {
 
         String token = authHeader.replace("Bearer ", "");
-        if (seed % 10000 != 9247) {
+
+        Long parsedSeed = null;
+        try {
+            parsedSeed = Long.parseLong(seed);
+        } catch (NumberFormatException e) {
             gameService.startMatch(matchId, token, null);
             return;
         }
-        gameService.startMatch(matchId, token, seed);
+
+        if (parsedSeed % 10000 != 9247) {
+            gameService.startMatch(matchId, token, null);
+            return;
+        }
+
+        gameService.startMatch(matchId, token, parsedSeed);
     }
 
     @PostMapping("/matches/{matchId}/play")
