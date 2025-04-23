@@ -7,7 +7,7 @@ public class Card {
     private String image;
     private String rank;
     private String suit;
-    private String value;
+    private int value;
     private int cardOrder; // <- New field
 
     public String getCode() {
@@ -67,23 +67,27 @@ public class Card {
         return "https://deckofcardsapi.com/static/img/" + code + ".png";
     }
 
-    private String calculateValue(String rank) {
+    private int calculateValue(String rank) {
         return switch (rank) {
-            case "2" -> "2";
-            case "3" -> "3";
-            case "4" -> "4";
-            case "5" -> "5";
-            case "6" -> "6";
-            case "7" -> "7";
-            case "8" -> "8";
-            case "9" -> "9";
-            case "10" -> "10";
-            case "J" -> "11";
-            case "Q" -> "12";
-            case "K" -> "13";
-            case "A" -> "14";
-            default -> "0";
+            case "2" -> 2;
+            case "3" -> 3;
+            case "4" -> 4;
+            case "5" -> 5;
+            case "6" -> 6;
+            case "7" -> 7;
+            case "8" -> 8;
+            case "9" -> 9;
+            case "10" -> 10;
+            case "J" -> 11;
+            case "Q" -> 12;
+            case "K" -> 13;
+            case "A" -> 14;
+            default -> 0;
         };
+    }
+
+    public int getValue() {
+        return value;
     }
 
 }

@@ -249,11 +249,8 @@ public class GameService {
                     allPlays.size());
 
             List<Card> currentTrick = currentTrickStats.stream()
-                    .map(gs -> {
-                        Card c = new Card();
-                        c.setCode(gs.getRank().toString() + gs.getSuit().getSymbol());
-                        return c;
-                    }).toList();
+                    .map(CardUtils::fromGameStats)
+                    .collect(Collectors.toList());
             dto.setCurrentTrick(currentTrick);
 
             // Trick leader (only if trick has started)
@@ -263,9 +260,7 @@ public class GameService {
 
             // Last played card
             GameStats last = allPlays.get(allPlays.size() - 1);
-            Card lastCard = new Card();
-            lastCard.setCode(last.getRank().toString() + last.getSuit().getSymbol());
-            dto.setLastPlayedCard(lastCard);
+            dto.setLastPlayedCard(CardUtils.fromGameStats(last));
 
             // Trick winner & points only if full trick completed
             if (trickSize == 0 && allPlays.size() >= 4) {
@@ -519,12 +514,12 @@ public class GameService {
             Card card = new Card();
             card.setCode(playedCardCode);
 
-            boolean isHeart = card.getSuit().equals("Hearts");
+            boolean isHeart = card.getSuit().equals("H");
             boolean isQueenOfSpades = playedCardCode.equals("QS");
 
             if (isHeart || isQueenOfSpades) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Cannot play hearts or QS in the first round.");
+                        "Cannot play Hearts or Queen of Spades in the first round.");
             }
         }
 
@@ -570,8 +565,7 @@ public class GameService {
         boolean isFirstCardOfGame = game.getPlayedCards().isEmpty();
         boolean isFirstRound = game.getGameNumber() == 1;
 
-        Card attemptedCard = new Card();
-        attemptedCard.setCode(playedCardCode);
+        Card attemptedCard = CardUtils.fromCode(playedCardCode);
 
         // First card of game must be 2C
         if (isFirstCardOfGame && !playedCardCode.equals("2C")) {
@@ -580,8 +574,8 @@ public class GameService {
 
         // Hearts / QS not allowed in first round (except for 2C starter)
         if (isFirstRound && !isFirstCardOfGame) {
-            boolean isHeart = attemptedCard.getSuit().equals("Hearts");
-            boolean isQueenOfSpades = playedCardCode.equals("QS");
+            boolean isHeart = attemptedCard.getSuit().equals("H");
+            boolean isQueenOfSpades = attemptedCard.getCode().equals("QS");
 
             if (isHeart || isQueenOfSpades) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -591,17 +585,15 @@ public class GameService {
 
         // Must follow suit if possible
         List<Card> hand = player.getCardsInHand().stream()
-                .map(c -> {
-                    Card card = new Card();
-                    card.setCode(c.getCard());
-                    return card;
-                }).toList();
+                .map(c -> CardUtils.fromCode(c.getCard()))
+                .toList();
 
         List<GameStats> currentTrick = getCurrentTrick(game); // helper: last 0–3 cards in round
         if (!currentTrick.isEmpty()) {
-            Suit leadSuit = currentTrick.get(0).getSuit();
-            boolean hasLeadSuit = hand.stream().anyMatch(c -> c.getSuit().equals(leadSuit.toString()));
-            if (hasLeadSuit && !attemptedCard.getSuit().equals(leadSuit.toString())) {
+            String leadSuit = currentTrick.get(0).getSuit().getSymbol(); // "H", "C", etc.
+            boolean hasLeadSuit = hand.stream().anyMatch(c -> c.getSuit().equals(leadSuit));
+
+            if (hasLeadSuit && !attemptedCard.getSuit().equals(leadSuit)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You must follow suit.");
             }
         }
@@ -675,8 +667,6 @@ public class GameService {
         // Check if all 12 cards have been passed (3 per player × 4 players)
         long passedCount = passedCardRepository.countByGame(game);
         if (passedCount == 12) {
-            // System.out.println("All cards were passed — time to collect and
-            // redistribute!");
             collectPassedCards(game);
         }
 
@@ -811,13 +801,13 @@ public class GameService {
                 continue;
             }
 
-            if (isFirstRound && (suit.equals("Hearts") || code.equals("QS"))) {
+            if (isFirstRound && (suit.equals("H") || code.equals("QS"))) {
                 continue;
             }
 
             if (isLeading) {
-                if (suit.equals("Hearts") && !heartsBroken) {
-                    boolean onlyHearts = sortedHand.stream().allMatch(c -> c.getSuit().equals("Hearts"));
+                if (suit.equals("H") && !heartsBroken) {
+                    boolean onlyHearts = sortedHand.stream().allMatch(c -> c.getSuit().equals("H"));
                     if (!onlyHearts) {
                         continue;
                     }
@@ -830,7 +820,7 @@ public class GameService {
                         playable.add(card);
                     }
                 } else {
-                    if (isFirstRound && (suit.equals("Hearts") || code.equals("QS"))) {
+                    if (isFirstRound && (suit.equals("H") || code.equals("QS"))) {
                         continue;
                     }
                     playable.add(card);
@@ -845,7 +835,6 @@ public class GameService {
     public void playAiTurns(Game game) {
         Game currentGame = game;
         int aiTurnLimit = 4; // absolute max in 4-player game
-
         while (aiTurnLimit-- > 0 && !isGameFinished(currentGame)) {
             int currentSlot = currentGame.getCurrentSlot();
             User aiPlayer = currentGame.getMatch().getUserBySlot(currentSlot);

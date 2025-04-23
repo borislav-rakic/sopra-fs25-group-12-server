@@ -6,7 +6,7 @@ import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 public class PlayerCardDTO {
     private Long gameId;
     private Long playerId;
-    private Card card; // <- changed from String to Card
+    private Card card;
     private int gameNumber;
 
     public Long getGameId() {
