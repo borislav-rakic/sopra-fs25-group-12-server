@@ -11,7 +11,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import javax.transaction.Transactional;
 import java.util.ArrayList;
@@ -45,7 +47,7 @@ public class GameStatsService {
                 gameStats.setPlayOrder(0);
                 gameStats.setPlayedBy(0);
                 gameStats.setPointsWorth(
-                        suit == Suit.C && rank == Rank.Q ? 13 : (suit == Suit.H ? 1 : 0));
+                        suit == Suit.S && rank == Rank.Q ? 13 : (suit == Suit.H ? 1 : 0));
                 gameStats.setPossibleHolders(0b1111);
                 gameStats.setPointsBilledTo(0);
                 gameStats.setCardHolder(0); // to be filled right after
@@ -62,7 +64,14 @@ public class GameStatsService {
             throw new IllegalArgumentException("Match not found with ID: " + matchId);
         }
 
-        return gameStatsRepository.findByMatch(match);
+        List<GameStats> stats = gameStatsRepository.findByMatch(match);
+
+        if (stats == null || stats.isEmpty()) {
+            // You can also use HttpStatus.NOT_FOUND if this is an API layer
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No game stats found for this match");
+        }
+
+        return stats;
     }
 
     public void deleteGameStatsForMatch(Match match) {

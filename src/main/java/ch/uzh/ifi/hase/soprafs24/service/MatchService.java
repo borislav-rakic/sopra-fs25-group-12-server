@@ -113,9 +113,10 @@ public class MatchService {
         matchRepository.save(match);
         matchRepository.flush();
 
-        System.out.println("MATCHID: " + match.getMatchId());
+        // System.out.println("MATCHID: " + match.getMatchId());
 
-        System.out.println("PLAYERID: " + match.getMatchPlayers().get(0).getPlayerId());
+        // System.out.println("PLAYERID: " +
+        // match.getMatchPlayers().get(0).getPlayerId());
 
         return match;
     }

@@ -148,7 +148,7 @@ public class GameService {
                     "Requesting Player does not appear to be part of this Match.");
         }
 
-        System.out.println(matchPlayers);
+        // System.out.println(matchPlayers);
 
         PlayerMatchInformationDTO dto = new PlayerMatchInformationDTO();
 
@@ -390,7 +390,7 @@ public class GameService {
         Mono<NewDeckResponse> newDeckResponseMono = externalApiClientService.createNewDeck();
 
         newDeckResponseMono.subscribe(response -> {
-            System.out.println("Deck id: " + response.getDeck_id());
+            // System.out.println("Deck id: " + response.getDeck_id());
 
             Game savedGame = gameRepository.findById(savedGameId)
                     .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + savedGameId));
@@ -561,6 +561,10 @@ public class GameService {
             game.setHeartsBroken(true);
         }
         gameRepository.save(game);
+
+        if (!isGameFinished(game)) {
+            playAiTurns(game);
+        }
     }
 
     private void validateCardPlay(MatchPlayer player, Game game, String playedCardCode) {
@@ -672,7 +676,8 @@ public class GameService {
         // Check if all 12 cards have been passed (3 per player × 4 players)
         long passedCount = passedCardRepository.countByGame(game);
         if (passedCount == 12) {
-            System.out.println("All cards were passed — time to collect and redistribute!");
+            // System.out.println("All cards were passed — time to collect and
+            // redistribute!");
             collectPassedCards(game);
         }
 
@@ -835,6 +840,32 @@ public class GameService {
         }
 
         return playable;
+    }
+
+    @Transactional
+    public void playAiTurns(Game game) {
+        Game currentGame = game;
+        int aiTurnLimit = 4; // absolute max in 4-player game
+
+        while (aiTurnLimit-- > 0 && !isGameFinished(currentGame)) {
+            int currentSlot = currentGame.getCurrentSlot();
+            User aiPlayer = currentGame.getMatch().getUserBySlot(currentSlot);
+
+            if (aiPlayer == null || !aiPlayer.getIsAiPlayer()) {
+                break; // Stop if not AI
+            }
+
+            List<Card> playableCards = getPlayableCardsForPlayer(currentGame.getMatch(), currentGame, aiPlayer);
+            if (playableCards.isEmpty()) {
+                break; // Fallback
+            }
+
+            PlayedCardDTO dto = new PlayedCardDTO();
+            dto.setCard(playableCards.get(0).getCode());
+            playCard(aiPlayer.getToken(), currentGame.getGameId(), dto);
+
+            currentGame = getGameByGameId(currentGame.getGameId());
+        }
     }
 
 }
