@@ -59,7 +59,7 @@ public class MatchControllerTest {
                 match.setMatchId(1L);
                 match.setStarted(false);
                 match.setMatchPlayers(matchPlayers);
-                match.setHost("User");
+                match.setHostId(4L);
                 match.setMatchGoal(100);
                 match.setInvites(new HashMap<>());
                 match.setAiPlayers(new HashMap<>());

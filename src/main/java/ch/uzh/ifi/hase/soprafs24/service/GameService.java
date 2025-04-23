@@ -152,7 +152,7 @@ public class GameService {
         PlayerMatchInformationDTO dto = new PlayerMatchInformationDTO();
 
         dto.setMatchId(match.getMatchId());
-        dto.setHost(match.getHost());
+        dto.setHostId(match.getHostId());
         dto.setMatchPlayers(matchPlayers);
         dto.setAiPlayers(match.getAiPlayers());
         dto.setMatchGoal(match.getMatchGoal());
@@ -243,33 +243,31 @@ public class GameService {
         dto.setPlayerPoints(points);
 
         // Return a current trick only if cards have actually been played
-        if (!allPlays.isEmpty()) {
+        if ((latestGame.getPhase() == GamePhase.FIRSTROUND ||
+                latestGame.getPhase() == GamePhase.NORMALROUND ||
+                latestGame.getPhase() == GamePhase.FINALROUND ||
+                latestGame.getPhase() == GamePhase.RESULT ||
+                latestGame.getPhase() == GamePhase.FINISHED)
+                && !allPlays.isEmpty()) {
             List<GameStats> currentTrickStats = allPlays.subList(
                     Math.max(0, allPlays.size() - (trickSize == 0 ? 4 : trickSize)),
                     allPlays.size());
 
-            List<Card> currentTrick = currentTrickStats.stream()
+            dto.setCurrentTrick(currentTrickStats.stream()
                     .map(CardUtils::fromGameStats)
-                    .collect(Collectors.toList());
-            dto.setCurrentTrick(currentTrick);
+                    .toList());
 
-            // Trick leader (only if trick has started)
-            if (!currentTrickStats.isEmpty()) {
-                dto.setTrickLeaderSlot(currentTrickStats.get(0).getPlayedBy());
-            }
+            dto.setTrickLeaderSlot(currentTrickStats.get(0).getPlayedBy());
 
-            // Last played card
             GameStats last = allPlays.get(allPlays.size() - 1);
             dto.setLastPlayedCard(CardUtils.fromGameStats(last));
 
-            // Trick winner & points only if full trick completed
             if (trickSize == 0 && allPlays.size() >= 4) {
                 List<GameStats> lastTrick = allPlays.subList(allPlays.size() - 4, allPlays.size());
                 int winnerSlot = determineTrickWinner(lastTrick);
                 int trickPoints = calculateTrickPoints(lastTrick);
                 dto.setLastTrickWinnerSlot(winnerSlot);
                 dto.setLastTrickPoints(trickPoints);
-                latestGame.setCurrentSlot(winnerSlot);
             }
         }
 
@@ -331,7 +329,7 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
 
-        if (!givenUser.getUsername().equals(givenMatch.getHost())) {
+        if (!givenUser.getId().equals(givenMatch.getHostId())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can start the match");
         }
 

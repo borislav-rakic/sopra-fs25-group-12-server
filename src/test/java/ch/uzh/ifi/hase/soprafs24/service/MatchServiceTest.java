@@ -76,7 +76,7 @@ public class MatchServiceTest {
         matchPlayers.get(0).setMatch(match);
 
         match.setMatchPlayers(matchPlayers);
-        match.setHost(user.getUsername());
+        match.setHostId(user.getId());
         match.setMatchGoal(100);
         match.setStarted(false);
         match.setPlayer1(user);
@@ -102,7 +102,7 @@ public class MatchServiceTest {
         assertEquals(match.getPlayer2(), result.getPlayer2());
         assertEquals(match.getPlayer3(), result.getPlayer3());
         assertEquals(match.getPlayer4(), result.getPlayer4());
-        assertEquals(match.getHost(), result.getHost());
+        assertEquals(match.getHostId(), result.getHostId());
         assertEquals(match.getMatchGoal(), result.getMatchGoal());
         assertEquals(match.getStarted(), result.getStarted());
     }
@@ -162,15 +162,18 @@ public class MatchServiceTest {
 
     @Test
     public void testDeleteMatchByHostUserNotHost() {
-        user.setUsername("notHost");
+        // Arrange
+        user.setId(99L); // Not the host!
+        match.setHostId(4L); // Real host has ID 4
 
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
         given(userRepository.findUserByToken(Mockito.any())).willReturn(user);
 
+        // Act & Assert
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchService.deleteMatchByHost(1L, "1234"),
-                "Expected deleteMatchByHost to throw an exception");
+                "Expected deleteMatchByHost to throw an exception when user is not host");
     }
 
     @Test
@@ -226,7 +229,7 @@ public class MatchServiceTest {
         user2.setStatus(UserStatus.ONLINE);
 
         match.setInvites(null); // simulate invites being null
-        match.setHost(user.getUsername()); // host is user
+        match.setHostId(user.getId()); // host is user
 
         given(userRepository.findById(user2.getId())).willReturn(Optional.of(user2));
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);

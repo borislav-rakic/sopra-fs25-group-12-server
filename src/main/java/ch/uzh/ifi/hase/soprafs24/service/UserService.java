@@ -22,6 +22,8 @@ import org.springframework.security.crypto.bcrypt.BCrypt;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+
+import javax.persistence.EntityNotFoundException;
 import javax.persistence.criteria.Predicate;
 import java.util.Map;
 
@@ -94,7 +96,8 @@ public class UserService {
     if (user == null || !BCrypt.checkpw(password, user.getPassword())) {
       throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid credentials");
     }
-    // Set new token. Makes developing more difficult, should not be enforced, yet. /dsj
+    // Set new token. Makes developing more difficult, should not be enforced, yet.
+    // /dsj
     // user.setToken(UUID.randomUUID().toString());
     user.setStatus(UserStatus.ONLINE);
     user.setIsGuest(false);
@@ -263,9 +266,10 @@ public class UserService {
           InviteGetDTO dto = new InviteGetDTO();
           dto.setMatchId(match.getMatchId());
           dto.setPlayerSlot(slot);
-          dto.setHost(match.getHost());
+          dto.setHostId(match.getHostId());
           dto.setUserId(user.getId());
-          User hostUser = userRepository.findUserByUsername(match.getHost());
+          User hostUser = userRepository.findById(match.getHostId())
+              .orElseThrow(() -> new EntityNotFoundException("Host not found"));
           dto.setFromUsername(hostUser.getUsername());
           invites.add(dto);
         }

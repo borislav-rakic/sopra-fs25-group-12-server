@@ -91,7 +91,7 @@ public class GameServiceTest {
         user = new User();
         user.setUsername("username");
         user.setPassword("password");
-        user.setId(1L);
+        user.setId(4L);
         user.setToken("1234");
 
         match = new Match();
@@ -110,7 +110,7 @@ public class GameServiceTest {
         matchPlayers.get(0).setCardsInHand(matchPlayerCards);
 
         match.setMatchPlayers(matchPlayers);
-        match.setHost(user.getUsername());
+        match.setHostId(4L);
         match.setMatchGoal(100);
         match.setStarted(false);
         match.setPlayer1(user);
@@ -133,17 +133,17 @@ public class GameServiceTest {
     public void testGetPlayerMatchInformationSuccess() {
         // Create actual User instances
         User user = new User();
-        user.setId(42L);
+        user.setId(4L);
         user.setUsername("testuser");
 
         User p2 = new User();
-        p2.setId(2L);
+        p2.setId(5L);
         p2.setUsername("bot2");
         User p3 = new User();
-        p3.setId(3L);
+        p3.setId(6L);
         p3.setUsername("bot3");
         User p4 = new User();
-        p4.setId(4L);
+        p4.setId(7L);
         p4.setUsername("bot4");
 
         // Create Match and assign users
@@ -153,7 +153,7 @@ public class GameServiceTest {
         match.setPlayer2(p2);
         match.setPlayer3(p3);
         match.setPlayer4(p4);
-        match.setHost("hostUser");
+        match.setHostId(4L);
         match.setMatchGoal(100);
         match.setPhase(MatchPhase.READY);
         match.setCurrentSlot(1);
@@ -206,7 +206,7 @@ public class GameServiceTest {
 
         // Assert general match/game info
         assertEquals(1L, result.getMatchId());
-        assertEquals("hostUser", result.getHost());
+        assertEquals(4, result.getHostId());
         assertEquals(100, result.getMatchGoal());
         assertEquals(GamePhase.FINISHED, result.getGamePhase());
         assertEquals(MatchPhase.READY, result.getMatchPhase());
@@ -258,9 +258,8 @@ public class GameServiceTest {
         match.setPlayer4(p4);
 
         // Mock basic user and match setup
-        Mockito.when(user.getUsername()).thenReturn("hostUser");
-        Mockito.when(user.getId()).thenReturn(1L);
-        match.setHost("hostUser");
+        Mockito.when(user.getId()).thenReturn(4L);
+        match.setHostId(4L);
         match.setPlayer1(user);
         match.setInvites(Map.of(1, 1L));
         match.setJoinRequests(Map.of(1L, "accepted"));
@@ -270,16 +269,16 @@ public class GameServiceTest {
 
         // Simulate game creation with ID
         Game savedGame = new Game();
-        savedGame.setGameId(42L);
+        savedGame.setGameId(1L);
         savedGame.setMatch(match);
 
         Mockito.when(gameRepository.save(Mockito.any(Game.class))).thenAnswer(invocation -> {
             Game game = invocation.getArgument(0);
-            game.setGameId(42L);
+            game.setGameId(1L);
             return game;
         });
 
-        Mockito.when(gameRepository.findById(42L)).thenReturn(Optional.of(savedGame));
+        Mockito.when(gameRepository.findById(1L)).thenReturn(Optional.of(savedGame));
 
         // Mock deck and cards
         NewDeckResponse newDeckResponse = new NewDeckResponse();

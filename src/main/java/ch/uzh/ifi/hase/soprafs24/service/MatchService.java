@@ -75,7 +75,7 @@ public class MatchService {
      * <li>{@code matchId} – Unique identifier of the match.</li>
      * <li>{@code matchPlayerIds} – List of player IDs participating in the
      * match.</li>
-     * <li>{@code host} – The username of the player who created the match.</li>
+     * <li>{@code hostId} – The User Id of the player who created the match.</li>
      * <li>{@code matchGoal} – Default match goal (set to 100).</li>
      * <li>{@code started} – Initially {@code false}, indicating the match hasn't
      * begun.</li>
@@ -105,7 +105,7 @@ public class MatchService {
         matchPlayers.get(0).setSlot(1);
 
         match.setMatchPlayers(matchPlayers);
-        match.setHost(user.getUsername());
+        match.setHostId(user.getId());
         match.setMatchGoal(100);
         match.setStarted(false);
         match.setPlayer1(user);
@@ -146,9 +146,9 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
 
-        String userName = user.getUsername();
+        Long userId = user.getId();
 
-        if (!match.getHost().equals(userName)) {
+        if (!match.getHostId().equals(userId)) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can delete matches");
         }
 
@@ -198,7 +198,7 @@ public class MatchService {
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found."));
 
-        if (user.getUsername().equals(match.getHost())) {
+        if (user.getId().equals(match.getHostId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Hosts cannot invite themselves.");
         }
 
@@ -552,7 +552,7 @@ public class MatchService {
         }
 
         // Don't allow the host to leave
-        if (match.getHost().equals(user.getUsername())) {
+        if (match.getHostId().equals(user.getId())) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Host cannot leave the match.");
         }
 

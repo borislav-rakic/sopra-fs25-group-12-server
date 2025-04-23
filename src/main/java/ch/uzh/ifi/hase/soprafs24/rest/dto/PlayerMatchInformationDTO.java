@@ -10,7 +10,7 @@ import ch.uzh.ifi.hase.soprafs24.model.Card;
 public class PlayerMatchInformationDTO {
     private Long matchId;
     private List<String> matchPlayers;
-    private String host;
+    private Long hostId;
     private int matchGoal;
     private int slot;
     private Map<Integer, Integer> aiPlayers;
@@ -45,12 +45,12 @@ public class PlayerMatchInformationDTO {
         this.matchPlayers = matchPlayers;
     }
 
-    public String getHost() {
-        return host;
+    public Long getHostId() {
+        return hostId;
     }
 
-    public void setHost(String host) {
-        this.host = host;
+    public void setHostId(Long hostId) {
+        this.hostId = hostId;
     }
 
     public int getMatchGoal() {

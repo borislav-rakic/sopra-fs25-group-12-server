@@ -10,7 +10,7 @@ import java.util.Map;
 public class MatchDTO {
     private Long matchId;
     private List<Long> matchPlayerIds;
-    private String host;
+    private Long hostId;
     private int matchGoal;
     private boolean started;
     private Map<Integer, Long> invites;
@@ -43,12 +43,12 @@ public class MatchDTO {
         return matchPlayerIds;
     }
 
-    public void setHost(String host) {
-        this.host = host;
+    public void setHostId(Long hostId) {
+        this.hostId = hostId;
     }
 
-    public String getHost() {
-        return host;
+    public Long getHostId() {
+        return hostId;
     }
 
     public void setMatchGoal(int matchGoal) {

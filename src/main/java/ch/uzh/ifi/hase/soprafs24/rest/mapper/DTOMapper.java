@@ -124,7 +124,7 @@ public interface DTOMapper {
   LeaderboardDTO convertToLeaderboardDTO(User user);
 
   @Mapping(source = "matchId", target = "matchId")
-  @Mapping(source = "host", target = "host")
+  @Mapping(source = "hostId", target = "hostId")
   @Mapping(source = "matchGoal", target = "matchGoal")
   @Mapping(source = "matchPlayers", target = "matchPlayerIds")
   @Mapping(source = "started", target = "started")

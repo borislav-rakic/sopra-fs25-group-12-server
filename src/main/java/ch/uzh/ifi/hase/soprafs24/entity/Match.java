@@ -22,8 +22,8 @@ public class Match implements Serializable {
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
     private List<MatchPlayer> matchPlayers = new ArrayList<>();
 
-    @Column(name = "host")
-    private String host;
+    @Column(name = "host_id")
+    private Long hostId;
 
     @Column(name = "matchGoal")
     private int matchGoal;
@@ -116,12 +116,12 @@ public class Match implements Serializable {
         this.matchPlayers = matchPlayers;
     }
 
-    public void setHost(String host) {
-        this.host = host;
+    public void setHostId(Long hostId) {
+        this.hostId = hostId;
     }
 
-    public String getHost() {
-        return host;
+    public Long getHostId() {
+        return hostId;
     }
 
     public void setMatchGoal(int matchGoal) {

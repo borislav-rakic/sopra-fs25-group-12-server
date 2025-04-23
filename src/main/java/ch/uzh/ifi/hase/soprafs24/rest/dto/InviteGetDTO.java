@@ -4,7 +4,7 @@ public class InviteGetDTO {
     private Long matchId;
     private int playerSlot;
     private String fromUsername;
-    private String host;
+    private Long hostId;
     private Long userId;
 
     public Long getMatchId() {
@@ -31,12 +31,12 @@ public class InviteGetDTO {
         this.fromUsername = fromUsername;
     }
 
-    public String getHost() {
-        return host;
+    public Long getHostId() {
+        return hostId;
     }
 
-    public void setHost(String host) {
-        this.host = host;
+    public void setHostId(Long hostId) {
+        this.hostId = hostId;
     }
 
     public Long getUserId() {
@@ -46,5 +46,5 @@ public class InviteGetDTO {
     public void setUserId(Long userId) {
         this.userId = userId;
     }
-    
+
 }
