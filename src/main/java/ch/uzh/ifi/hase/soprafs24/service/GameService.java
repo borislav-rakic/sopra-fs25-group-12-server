@@ -24,7 +24,6 @@ import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayerCards;
-import ch.uzh.ifi.hase.soprafs24.entity.MatchStats;
 import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
@@ -36,7 +35,6 @@ import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerCardsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.MatchStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
@@ -64,7 +62,6 @@ public class GameService {
     private final GameRepository gameRepository;
     private final UserRepository userRepository;
     private final MatchPlayerRepository matchPlayerRepository;
-    private final MatchStatsRepository matchStatsRepository;
     private final GameStatsRepository gameStatsRepository;
     private final ExternalApiClientService externalApiClientService;
     private final UserService userService;
@@ -79,7 +76,6 @@ public class GameService {
             @Qualifier("matchRepository") MatchRepository matchRepository,
             @Qualifier("userRepository") UserRepository userRepository,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
-            @Qualifier("matchStatsRepository") MatchStatsRepository matchStatsRepository,
             @Qualifier("gameStatsRepository") GameStatsRepository gameStatsRepository,
             @Qualifier("gameRepository") GameRepository gameRepository,
             @Qualifier("matchPlayerCardsRepository") MatchPlayerCardsRepository matchPlayerCardsRepository,
@@ -90,7 +86,6 @@ public class GameService {
         this.matchRepository = matchRepository;
         this.userRepository = userRepository;
         this.matchPlayerRepository = matchPlayerRepository;
-        this.matchStatsRepository = matchStatsRepository;
         this.gameStatsRepository = gameStatsRepository;
         this.externalApiClientService = externalApiClientService;
         this.userService = userService;
@@ -177,7 +172,7 @@ public class GameService {
         }
 
         dto.setPlayerCards(playerCardDTOList);
-        dto.setMyTurn(match.getCurrentPlayer() == user);
+        dto.setMyTurn(matchPlayer.getSlot() == match.getCurrentSlot());
         dto.setGamePhase(latestGame.getPhase());
         dto.setMatchPhase(match.getPhase());
 
@@ -260,15 +255,9 @@ public class GameService {
         List<MatchPlayer> matchPlayers = givenMatch.getMatchPlayers();
 
         for (MatchPlayer matchPlayer : matchPlayers) {
-            MatchStats matchStats = new MatchStats();
-            matchStats.setMatch(givenMatch);
-            matchStats.setPlayer(matchPlayer.getPlayerId());
-            matchStats.setMalusPoints(0);
-            matchStats.setPerfectGames(0);
-            matchStats.setShotTheMoonCount(0);
-
-            matchStatsRepository.save(matchStats);
-            matchStatsRepository.flush();
+            matchPlayer.setScore(0);
+            matchPlayer.setPerfectGames(0);
+            matchPlayer.setShotTheMoonCount(0);
         }
 
         Mono<NewDeckResponse> newDeckResponseMono = externalApiClientService.createNewDeck();
@@ -316,8 +305,9 @@ public class GameService {
                     Suit suit = Suit.fromSymbol(code.substring(code.length() - 1));
 
                     if (code.equals("2C")) {
-                        match.setCurrentPlayer(matchPlayer.getPlayerId());
-                        game.setCurrentPlayer(matchPlayer.getPlayerId());
+                        int slot = matchPlayer.getSlot();
+                        match.setCurrentSlot(slot);
+                        game.setCurrentSlot(slot);
                         matchRepository.save(match);
                         gameRepository.save(game);
                     }
@@ -350,14 +340,16 @@ public class GameService {
     }
 
     private User determineNextPlayer(Game game) {
-        List<User> players = game.getMatch().getMatchPlayers()
-                .stream()
-                .map(MatchPlayer::getPlayerId)
-                .toList();
+        Match match = game.getMatch();
 
-        int currentIndex = players.indexOf(game.getCurrentPlayer());
-        int nextIndex = (currentIndex + 1) % players.size();
-        return players.get(nextIndex);
+        // Get current slot
+        int currentSlot = game.getCurrentSlot();
+
+        // Calculate next slot (1–4 in circular order)
+        int nextSlot = (currentSlot % 4) + 1;
+
+        // Look up the User assigned to that slot
+        return match.getUserBySlot(nextSlot);
     }
 
     private boolean isGameFinished(Game game) {
@@ -368,17 +360,19 @@ public class GameService {
     public void playCard(String token, Long gameId, PlayedCardDTO playedCardDTO) {
         User player = userService.getUserByToken(token);
         Game game = getGameByGameId(gameId);
+        Match match = game.getMatch();
 
-        if (!player.equals(game.getCurrentPlayer())) {
+        MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(player, match);
+        int playerSlot = matchPlayer.getSlot();
+
+        // 🔒 Validate it's their turn
+        if (playerSlot != game.getCurrentSlot()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "It is not your turn.");
         }
 
         String playedCardCode = playedCardDTO.getCard();
 
-        // Validate card exists in player's hand (matchPlayer entity)
-        Match match = game.getMatch();
-        MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(player, match);
-
+        // Validate card exists in player's hand
         boolean hasCard = matchPlayer.getCardsInHand().stream()
                 .anyMatch(card -> card.getCard().equals(playedCardCode));
 
@@ -390,21 +384,22 @@ public class GameService {
         matchPlayer.getCardsInHand().removeIf(card -> card.getCard().equals(playedCardCode));
         matchPlayerRepository.save(matchPlayer);
 
-        // Log or record the card play (e.g. GameStats)
+        // Record the card play
         GameStats gameStats = new GameStats();
         gameStats.setCardFromString(playedCardCode);
         gameStats.setGame(game);
         gameStats.setMatch(match);
-        gameStats.setPlayedBy(matchPlayer.getSlot());
+        gameStats.setPlayedBy(playerSlot);
         gameStats.setPlayOrder(game.getPlayedCards().size() + 1);
 
         gameStatsRepository.save(gameStats);
         game.getPlayedCards().add(gameStats);
 
-        // Next turn
-        User nextPlayer = determineNextPlayer(game);
-        game.setCurrentPlayer(nextPlayer);
+        // Update turn
+        int nextSlot = (playerSlot % 4) + 1;
+        game.setCurrentSlot(nextSlot);
 
+        // Check game end
         if (isGameFinished(game)) {
             game.setPhase(GamePhase.FINISHED);
         }

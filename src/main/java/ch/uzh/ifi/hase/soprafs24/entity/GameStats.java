@@ -37,7 +37,7 @@ public class GameStats {
     private int playOrder;
 
     @Column(nullable = false)
-    private int playedBy; // 0 = not yet played; 1–4 = player number
+    private int playedBy; // 0 = not yet played; 1–4 = slot number
 
     @Column(nullable = false)
     private int possibleHolders;
@@ -49,7 +49,7 @@ public class GameStats {
     private int pointsWorth;
 
     @Column(nullable = false)
-    private int cardHolder = 0; // 1–4 for players, or 0 for unassigned
+    private int cardHolder = 0; // 1–4 for slots, or 0 for unassigned
 
     // Automatically set rankSuit on persist/update
     @PrePersist

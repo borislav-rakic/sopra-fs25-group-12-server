@@ -49,9 +49,6 @@ public class GameServiceTest {
     private MatchPlayerRepository matchPlayerRepository = Mockito.mock(MatchPlayerRepository.class);
 
     @Mock
-    private MatchStatsRepository matchStatsRepository = Mockito.mock(MatchStatsRepository.class);
-
-    @Mock
     private GameStatsRepository gameStatsRepository = Mockito.mock(GameStatsRepository.class);
 
     @Mock
@@ -74,7 +71,6 @@ public class GameServiceTest {
             matchRepository,
             userRepository,
             matchPlayerRepository,
-            matchStatsRepository,
             gameStatsRepository,
             gameRepository,
             matchPlayerCardsRepository,
@@ -159,7 +155,7 @@ public class GameServiceTest {
         match.setHost("hostUser");
         match.setLength(13);
         match.setPhase(MatchPhase.READY);
-        match.setCurrentPlayer(user);
+        match.setCurrentSlot(1);
         match.setAiPlayers(new HashMap<>());
 
         // Setup MatchPlayer

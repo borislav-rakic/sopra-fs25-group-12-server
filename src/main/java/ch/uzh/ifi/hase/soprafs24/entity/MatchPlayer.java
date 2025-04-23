@@ -33,6 +33,12 @@ public class MatchPlayer {
     @Column(name = "score")
     private int score;
 
+    @Column(nullable = false)
+    private int perfectGames;
+
+    @Column(nullable = false)
+    private int shotTheMoonCount;
+
     public Long getMatchPlayerId() {
         return matchPlayerId;
     }
@@ -79,5 +85,34 @@ public class MatchPlayer {
 
     public void setSlot(int slot) {
         this.slot = slot;
+    }
+
+    public int getPerfectGames() {
+        return perfectGames;
+    }
+
+    public void setPerfectGames(int perfectGames) {
+        this.perfectGames = perfectGames;
+    }
+
+    public int getShotTheMoonCount() {
+        return shotTheMoonCount;
+    }
+
+    public void setShotTheMoonCount(int shotTheMoonCount) {
+        this.shotTheMoonCount = shotTheMoonCount;
+    }
+
+    // Optional: Increment helper methods
+    public void addToScore(int points) {
+        this.score += points;
+    }
+
+    public void incrementPerfectGames() {
+        this.perfectGames++;
+    }
+
+    public void incrementShotTheMoon() {
+        this.shotTheMoonCount++;
     }
 }

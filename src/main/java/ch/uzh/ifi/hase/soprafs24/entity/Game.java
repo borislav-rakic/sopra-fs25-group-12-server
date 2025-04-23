@@ -18,9 +18,8 @@ public class Game {
     @JoinColumn(name = "match_id", nullable = false)
     private Match match;
 
-    @ManyToOne
-    @JoinColumn(name = "current_player_id")
-    private User currentPlayer;
+    @Column(name = "current_slot", nullable = false)
+    private int currentSlot = 0; // values 1–4
 
     @Column(nullable = false)
     private int gameNumber;
@@ -56,12 +55,12 @@ public class Game {
         this.match = match;
     }
 
-    public User getCurrentPlayer() {
-        return currentPlayer;
+    public int getCurrentSlot() {
+        return currentSlot;
     }
 
-    public void setCurrentPlayer(User currentPlayer) {
-        this.currentPlayer = currentPlayer;
+    public void setCurrentSlot(int currentSlot) {
+        this.currentSlot = currentSlot;
     }
 
     public int getGameNumber() {

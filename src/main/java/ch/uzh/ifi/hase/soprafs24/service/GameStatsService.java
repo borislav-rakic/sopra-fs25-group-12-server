@@ -70,21 +70,21 @@ public class GameStatsService {
         log.info("Deleted game stats for Match ID: {}", match.getMatchId());
     }
 
-    public void setPossibleHolder(GameStats stats, int playerNumber) {
-        validatePlayerNumber(playerNumber);
-        int mask = 1 << (playerNumber - 1);
+    public void setPossibleHolder(GameStats stats, int slotNumber) {
+        validateSlotNumber(slotNumber);
+        int mask = 1 << (slotNumber - 1);
         stats.setPossibleHolders(stats.getPossibleHolders() | mask);
     }
 
-    public void clearPossibleHolder(GameStats stats, int playerNumber) {
-        validatePlayerNumber(playerNumber);
-        int mask = ~(1 << (playerNumber - 1));
+    public void clearPossibleHolder(GameStats stats, int slotNumber) {
+        validateSlotNumber(slotNumber);
+        int mask = ~(1 << (slotNumber - 1));
         stats.setPossibleHolders(stats.getPossibleHolders() & mask);
     }
 
-    public boolean isPossibleHolder(GameStats stats, int playerNumber) {
-        validatePlayerNumber(playerNumber);
-        int mask = 1 << (playerNumber - 1);
+    public boolean isPossibleHolder(GameStats stats, int slotNumber) {
+        validateSlotNumber(slotNumber);
+        int mask = 1 << (slotNumber - 1);
         return (stats.getPossibleHolders() & mask) != 0;
     }
 
@@ -98,9 +98,9 @@ public class GameStatsService {
         return holders;
     }
 
-    private void validatePlayerNumber(int playerNumber) {
-        if (playerNumber < 1 || playerNumber > 4) {
-            throw new IllegalArgumentException("Player number must be between 1 and 4");
+    private void validateSlotNumber(int slotNumber) {
+        if (slotNumber < 1 || slotNumber > 4) {
+            throw new IllegalArgumentException("Slot number must be between 1 and 4");
         }
     }
 

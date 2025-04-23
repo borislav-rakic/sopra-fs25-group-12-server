@@ -70,9 +70,8 @@ public class Match implements Serializable {
     @JoinColumn(name = "player_4")
     private User player4;
 
-    @ManyToOne
-    @JoinColumn(name = "current_player_id")
-    private User currentPlayer;
+    @Column
+    private int currentSlot;
 
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Game> games = new ArrayList<>();
@@ -212,12 +211,12 @@ public class Match implements Serializable {
                 (player4 != null && player4.getId().equals(userId));
     }
 
-    public User getCurrentPlayer() {
-        return currentPlayer;
+    public int getCurrentSlot() {
+        return currentSlot;
     }
 
-    public void setCurrentPlayer(User currentPlayer) {
-        this.currentPlayer = currentPlayer;
+    public void setCurrentSlot(int currentSlot) {
+        this.currentSlot = currentSlot;
     }
 
     public MatchPhase getPhase() {
@@ -226,6 +225,16 @@ public class Match implements Serializable {
 
     public void setPhase(MatchPhase phase) {
         this.phase = phase;
+    }
+
+    // ==== UTIL FUNCTIONS
+
+    public User getUserBySlot(int slot) {
+        return matchPlayers.stream()
+                .filter(mp -> mp.getSlot() == slot)
+                .map(MatchPlayer::getPlayerId)
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No player in slot " + slot));
     }
 
 }
