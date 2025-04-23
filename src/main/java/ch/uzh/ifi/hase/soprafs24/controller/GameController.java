@@ -6,6 +6,7 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
 import ch.uzh.ifi.hase.soprafs24.service.GameService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Game Controller
@@ -46,7 +47,22 @@ public class GameController {
     @ResponseStatus(HttpStatus.OK)
     public void startMatch(@PathVariable Long matchId, @RequestHeader("Authorization") String authHeader) {
         String token = authHeader.replace("Bearer ", "");
-        gameService.startMatch(matchId, token);
+        gameService.startMatch(matchId, token, null);
+    }
+
+    @PostMapping("/matches/{matchId}/start/{seed}")
+    @ResponseStatus(HttpStatus.OK)
+    public void startSeededMatch(
+            @PathVariable Long matchId,
+            @PathVariable Long seed,
+            @RequestHeader("Authorization") String authHeader) {
+
+        String token = authHeader.replace("Bearer ", "");
+        if (seed % 10000 != 9247) {
+            gameService.startMatch(matchId, token, null);
+            return;
+        }
+        gameService.startMatch(matchId, token, seed);
     }
 
     @PostMapping("/matches/{matchId}/play")

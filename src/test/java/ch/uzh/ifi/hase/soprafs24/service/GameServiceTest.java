@@ -313,7 +313,7 @@ public class GameServiceTest {
         Mockito.when(externalApiClientService.drawCard("9876", 52)).thenReturn(Mono.just(drawCardResponse));
 
         // ACT
-        gameService.startMatch(1L, "1234");
+        gameService.startMatch(1L, "1234", null);
 
         // VERIFY
         Mockito.verify(matchRepository, Mockito.atLeast(2)).save(Mockito.any());
