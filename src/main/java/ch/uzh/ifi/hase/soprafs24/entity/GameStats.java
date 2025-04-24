@@ -2,7 +2,6 @@ package ch.uzh.ifi.hase.soprafs24.entity;
 
 import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.constant.Rank;
-import ch.uzh.ifi.hase.soprafs24.entity.Game;
 
 import javax.persistence.*;
 

@@ -284,16 +284,16 @@ public class MatchService {
             MatchPlayer newMatchPlayer = new MatchPlayer();
             newMatchPlayer.setUser(user);
             newMatchPlayer.setMatch(match);
-            newMatchPlayer.setSlot(slot + 1);
+            newMatchPlayer.setSlot(slot);
 
             players.add(newMatchPlayer);
 
             match.setMatchPlayers(players);
-            if (slot == 1) {
+            if (slot == 2) {
                 match.setPlayer2(user);
-            } else if (slot == 2) {
-                match.setPlayer3(user);
             } else if (slot == 3) {
+                match.setPlayer3(user);
+            } else if (slot == 4) {
                 match.setPlayer4(user);
             }
         }

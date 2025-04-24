@@ -373,12 +373,26 @@ public class GameService {
                     "Cannot start match: not all player slots are filled");
         }
 
+        // Prevent creating a new game if an active one already exists
+        if (givenMatch.getActiveGame() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "An active game already exists for this match.");
+        }
+
+        // Determine next game number (increment from existing games)
+        int nextGameNumber = givenMatch.getGames().stream()
+                .mapToInt(Game::getGameNumber)
+                .max()
+                .orElse(0) + 1;
+
+        // Create new game
         Game game = new Game();
         game.setMatch(givenMatch);
-        game.setGameNumber(1);
+        game.setGameNumber(nextGameNumber);
         game.setPhase(GamePhase.PRESTART);
+
         gameRepository.save(game);
         gameRepository.flush();
+
         Long savedGameId = game.getGameId();
 
         givenMatch.getGames().add(game);
@@ -600,9 +614,13 @@ public class GameService {
         return game.getPlayedCards().size() >= EXPECTED_CARD_COUNT;
     }
 
-    public void playCard(String token, Long gameId, PlayedCardDTO playedCardDTO) {
+    public void playCard(String token, Long matchId, PlayedCardDTO playedCardDTO) {
         User player = userService.getUserByToken(token);
-        Game game = getGameByGameId(gameId);
+
+        // Force refresh of the Game to get latest state from DB
+        Game game = gameRepository.findById(getActiveGameByMatchId(matchId).getGameId())
+                .orElseThrow(() -> new EntityNotFoundException("Game not found"));
+
         Match match = game.getMatch();
 
         MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(player, match);
@@ -610,13 +628,22 @@ public class GameService {
 
         // Validate it's their turn
         if (playerSlot != game.getCurrentSlot()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "It is not your turn.");
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "It is not your turn. You are slot " + playerSlot + ", but current slot is "
+                            + game.getCurrentSlot());
         }
 
         String playedCardCode = playedCardDTO.getCard();
 
         // Validate card exists in player's hand
+        System.out.println("Checking played card: '" + playedCardCode + "'");
+        System.out.println("Cards in hand:");
+        for (MatchPlayerCards card : matchPlayer.getCardsInHand()) {
+            System.out.println(" - '" + card.getCard() + "'");
+        }
+
         boolean hasCard = matchPlayer.getCardsInHand().stream()
+                .peek(card -> System.out.println("🧪 Comparing '" + card.getCard() + "' to '" + playedCardCode + "'"))
                 .anyMatch(card -> card.getCard().equals(playedCardCode));
 
         if (!hasCard) {
@@ -652,13 +679,23 @@ public class GameService {
         matchPlayer.getCardsInHand().removeIf(card -> card.getCard().equals(playedCardCode));
         matchPlayerRepository.save(matchPlayer);
 
-        // Record the card play
-        GameStats gameStats = new GameStats();
-        gameStats.setCardFromString(playedCardCode);
-        gameStats.setGame(game);
-        gameStats.setMatch(match);
+        // Fetch existing GameStats if present
+        GameStats gameStats = gameStatsRepository.findByGameAndRankSuit(game, playedCardCode);
+
+        if (gameStats == null) {
+            gameStats = new GameStats();
+            gameStats.setCardFromString(playedCardCode);
+            gameStats.setGame(game);
+            gameStats.setMatch(match);
+        }
+
+        // Set/update play-related fields
         gameStats.setPlayedBy(playerSlot);
-        gameStats.setPlayOrder(game.getPlayedCards().size() + 1);
+        long playedCount = game.getPlayedCards().stream()
+                .filter(GameStats::isPlayed)
+                .count();
+        gameStats.setPlayOrder((int) playedCount + 1);
+        gameStats.setCardHolder(playerSlot);
 
         gameStatsRepository.save(gameStats);
         game.getPlayedCards().add(gameStats);
@@ -679,7 +716,7 @@ public class GameService {
         gameRepository.save(game);
 
         if (!isGameFinished(game)) {
-            playAiTurns(game);
+            playAiTurns(game.getMatch().getMatchId());
         }
     }
 
@@ -727,19 +764,6 @@ public class GameService {
         return allPlays.subList(Math.max(0, allPlays.size() - trickSize), allPlays.size());
     }
 
-    public Game getGameByGameId(Long gameId) {
-        return gameRepository.findById(gameId)
-                .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + gameId));
-    }
-
-    public Game getGameByMatchId(Long matchId) {
-        Game game = gameRepository.findGameByMatch_MatchId(matchId);
-        if (game == null) {
-            throw new EntityNotFoundException("Game not found with Match ID: " + matchId);
-        }
-        return game;
-    };
-
     @Transactional
     public void makePassingHappen(Long matchId, GamePassingDTO passingDTO, String token) {
         Long playerId = passingDTO.getPlayerId();
@@ -754,7 +778,7 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only pass cards for yourself.");
         }
 
-        Game game = getGameByMatchId(matchId);
+        Game game = getActiveGameByMatchId(matchId);
         Match match = game.getMatch();
 
         if (!match.containsPlayer(playerId)) {
@@ -808,7 +832,7 @@ public class GameService {
 
         // If all 12 cards passed, proceed to collect
         if (passedCount == 12) {
-            collectPassedCards(game);
+            collectPassedCards(matchId);
         }
 
     }
@@ -844,7 +868,8 @@ public class GameService {
         return cardCode != null && cardCode.matches("^[02-9JQKA][HDCS]$");
     }
 
-    public void collectPassedCards(Game game) {
+    public void collectPassedCards(Long matchId) {
+        Game game = getActiveGameByMatchId(matchId);
         List<PassedCard> passedCards = passedCardRepository.findByGame(game);
         if (passedCards.size() != 12) {
             throw new IllegalStateException("Cannot collect cards: not all cards have been passed yet.");
@@ -874,6 +899,20 @@ public class GameService {
                     System.out.printf("Passing %s: %d → %d%n", card.getRankSuit(), fromSlot, toSlot);
                     gameStat.setCardHolder(toSlot);
                     gameStatsRepository.save(gameStat);
+                    // Also update MatchPlayer.cardsInHand to include received cards
+                    MatchPlayer receiver = game.getMatch().getMatchPlayers().stream()
+                            .filter(mp -> mp.getSlot() == toSlot)
+                            .findFirst()
+                            .orElseThrow(() -> new IllegalStateException("No MatchPlayer found for slot " + toSlot));
+
+                    MatchPlayerCards newCard = new MatchPlayerCards();
+                    newCard.setCard(card.getRankSuit());
+                    newCard.setMatchPlayer(receiver);
+
+                    if (receiver.getCardsInHand() == null) {
+                        receiver.setCardsInHand(new ArrayList<>());
+                    }
+                    receiver.getCardsInHand().add(newCard);
                 } else {
                     System.out.printf("WARN: Could not find GameStat for %s from slot %d%n", card.getRankSuit(),
                             fromSlot);
@@ -883,8 +922,21 @@ public class GameService {
 
         // Cleanup
         passedCardRepository.deleteAll(passedCards);
-        game.setPhase(GamePhase.FIRSTROUND);
-        gameRepository.save(game);
+
+        // Ensure we're working with a managed Game entity
+        Game managedGame = gameRepository.findById(game.getGameId())
+                .orElseThrow(() -> new EntityNotFoundException("Game not found"));
+
+        GameStats twoOfClubs = gameStatsRepository.findByRankAndSuitAndGame(Rank._2, Suit.C, managedGame);
+        if (twoOfClubs != null) {
+            managedGame.setCurrentSlot(twoOfClubs.getCardHolder());
+            System.out.printf("Passed cards: 2C holder is slot %d%n", twoOfClubs.getCardHolder());
+        } else {
+            throw new IllegalStateException("2♣ not found after passing.");
+        }
+
+        managedGame.setPhase(GamePhase.FIRSTROUND);
+        gameRepository.save(managedGame);
     }
 
     private Map<Integer, Integer> determinePassingDirection(int gameNumber) {
@@ -947,7 +999,7 @@ public class GameService {
         List<Card> playable = new ArrayList<>();
 
         boolean isFirstRound = game.getGameNumber() == 1;
-        boolean heartsBroken = false; // 🔧 fallback — track this in future
+        boolean heartsBroken = game.getHeartsBroken() != null && game.getHeartsBroken();
         boolean isFirstCardOfGame = game.getPlayedCards().isEmpty();
 
         // Current trick: last 1-4 cards
@@ -1003,32 +1055,62 @@ public class GameService {
             }
         }
 
-        return playable;
+        // Sort playable cards by card order
+        List<String> orderedCodes = CardUtils.sortCardsByOrder(
+                playable.stream().map(Card::getCode).toList());
+
+        List<Card> sortedPlayable = orderedCodes.stream().map(code -> {
+            Card card = new Card();
+            card.setCode(code);
+            return card;
+        }).toList();
+
+        return sortedPlayable;
     }
 
     @Transactional
-    public void playAiTurns(Game game) {
-        Game currentGame = game;
-        int aiTurnLimit = 4; // absolute max in 4-player game
-        while (aiTurnLimit-- > 0 && !isGameFinished(currentGame)) {
-            int currentSlot = currentGame.getCurrentSlot();
-            User aiPlayer = currentGame.getMatch().getUserBySlot(currentSlot);
+    public void playAiTurns(Long matchId) {
+        Game currentGame = getActiveGameByMatchId(matchId);
+        int aiTurnLimit = 4; // max 4 AI turns (e.g. full round)
 
-            if (aiPlayer == null || !aiPlayer.getIsAiPlayer()) {
-                break; // Stop if not AI
+        while (aiTurnLimit-- > 0 && !isGameFinished(currentGame)) {
+            Match match = currentGame.getMatch();
+            int currentSlot = currentGame.getCurrentSlot();
+            User aiPlayer = match.getUserBySlot(currentSlot);
+
+            if (aiPlayer == null || !Boolean.TRUE.equals(aiPlayer.getIsAiPlayer())) {
+                break;
             }
 
-            List<Card> playableCards = getPlayableCardsForPlayer(currentGame.getMatch(), currentGame, aiPlayer);
+            List<Card> playableCards = getPlayableCardsForPlayer(match, currentGame, aiPlayer);
             if (playableCards.isEmpty()) {
-                break; // Fallback
+                break;
             }
 
             PlayedCardDTO dto = new PlayedCardDTO();
             dto.setCard(playableCards.get(0).getCode());
-            playCard(aiPlayer.getToken(), currentGame.getGameId(), dto);
 
-            currentGame = getGameByGameId(currentGame.getGameId());
+            playCard(aiPlayer.getToken(), matchId, dto);
+
+            // Re-fetch the game to update state
+            currentGame = getActiveGameByMatchId(matchId);
         }
     }
 
+    public Game getActiveGameByMatchId(Long matchId) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        if (match == null) {
+            throw new EntityNotFoundException("Match not found");
+        }
+
+        // Always fetch the Game from the database based on match and phase
+        Game game = gameRepository.findFirstByMatchAndPhaseNotIn(
+                match, List.of(GamePhase.FINISHED, GamePhase.ABORTED));
+
+        if (game == null) {
+            throw new IllegalStateException("No active game found for this match");
+        }
+
+        return game;
+    }
 }

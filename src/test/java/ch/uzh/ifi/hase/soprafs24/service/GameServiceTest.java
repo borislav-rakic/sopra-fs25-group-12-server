@@ -19,6 +19,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import reactor.core.publisher.Mono;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyList;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
@@ -31,9 +36,11 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.BDDMockito.given;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.*;
 
 import java.util.Optional;
@@ -334,42 +341,86 @@ public class GameServiceTest {
 
     @Test
     public void testPlayCard() {
-        List<GameStats> gameStatsList = new ArrayList<>();
+        // Setup entities
+        User user = new User();
+        user.setId(1L);
+        user.setToken("1234");
 
-        // Adds 51 different cards to game.playedCards
+        Match match = new Match();
+        match.setMatchId(1L);
+
+        Game game = new Game();
+        game.setGameId(42L);
+        game.setPhase(GamePhase.FIRSTROUND); // mark it active
+        game.setCurrentSlot(1);
+        game.setMatch(match);
+        game.setMatch(match);
+        match.setGames(List.of(game));
+
+        match.setCurrentSlot(1); // match confirms it's player 1's turn
+        match.setGames(new ArrayList<>(List.of(game)));
+        match.setPlayer1(user);
+
+        MatchPlayer matchPlayer = new MatchPlayer();
+        matchPlayer.setSlot(1);
+        matchPlayer.setUser(user);
+        matchPlayer.setMatch(match);
+
+        // Use a mutable list for cards in hand
+        MatchPlayerCards cardInHand = new MatchPlayerCards();
+        cardInHand.setCard("5C");
+        List<MatchPlayerCards> mutableHand = new ArrayList<>();
+        mutableHand.add(cardInHand);
+        matchPlayer.setCardsInHand(mutableHand);
+
+        // 51 cards already played (excluding "5C")
+        List<GameStats> playedCards = new ArrayList<>();
         for (Rank rank : Rank.values()) {
             for (Suit suit : Suit.values()) {
-                String rankSuit = rank.toString() + suit.toString();
-                if (!rankSuit.equals("5C")) {
-                    GameStats gameStats = new GameStats();
-                    gameStats.setGame(game);
-                    gameStats.setRank(rank);
-                    gameStats.setSuit(suit);
-                    gameStatsList.add(gameStats);
+                String code = rank.toString() + suit.toString();
+                if (!code.equals("5C")) {
+                    GameStats gs = new GameStats();
+                    gs.setRank(rank);
+                    gs.setSuit(suit);
+                    gs.setGame(game);
+                    gs.setMatch(match);
+                    playedCards.add(gs);
                 }
             }
         }
+        game.getPlayedCards().addAll(playedCards);
 
-        game.getPlayedCards().addAll(gameStatsList);
+        // Setup existing GameStats for the card to be played
+        GameStats fiveCStats = new GameStats();
+        fiveCStats.setGame(game);
+        fiveCStats.setMatch(match);
+        fiveCStats.setRank(Rank._5);
+        fiveCStats.setSuit(Suit.C);
 
+        // DTO setup
         PlayedCardDTO playedCardDTO = new PlayedCardDTO();
         playedCardDTO.setCard("5C");
-        playedCardDTO.setGameId(game.getGameId());
-        playedCardDTO.setPlayerId(user.getId());
 
-        given(userService.getUserByToken(Mockito.any())).willReturn(user);
-
-        given(gameRepository.findById(Mockito.any())).willReturn(Optional.of(game));
-
-        given(matchPlayerRepository.findByUserAndMatch(Mockito.any(), Mockito.any())).willReturn(matchPlayer);
+        // === Mocks ===
+        given(gameStatsRepository.findByGameAndRankSuit(game, "5C")).willReturn(fiveCStats);
+        given(userService.getUserByToken("1234")).willReturn(user);
+        given(matchRepository.findMatchByMatchId(1L)).willReturn(match);
+        given(matchPlayerRepository.findByUserAndMatch(user, match)).willReturn(matchPlayer);
+        given(gameStatsRepository.save(Mockito.any())).willReturn(fiveCStats);
         given(matchPlayerRepository.save(Mockito.any())).willReturn(matchPlayer);
-
-        given(gameStatsRepository.save(Mockito.any())).willReturn(new GameStats());
-
         given(gameRepository.save(Mockito.any())).willReturn(game);
+        given(gameRepository.findFirstByMatchAndPhaseNotIn(eq(match), anyList())).willReturn(game);
+        given(gameRepository.findById(42L)).willReturn(Optional.of(game));
 
-        gameService.playCard("1234", 1L, playedCardDTO);
+        // === Act ===
+        try {
+            gameService.playCard("1234", 1L, playedCardDTO);
+        } catch (Exception e) {
+            e.printStackTrace();
+            fail("Exception thrown: " + e.getMessage());
+        }
 
+        // === Verify ===
         verify(matchPlayerRepository).save(Mockito.any());
         verify(gameStatsRepository).save(Mockito.any());
         verify(gameRepository).save(Mockito.any());
@@ -378,8 +429,19 @@ public class GameServiceTest {
     @Test
     public void testMakePassingHappen() {
         // Setup game + match linkage
-        match.setPlayer1(user); // ensure player is in slot 1
+        match.setMatchId(1L);
+        match.setPlayer1(user); // Ensure player is in slot 1
+        game.setGameId(42L);
         game.setMatch(match);
+        game.setPhase(GamePhase.PASSING);
+        match.setGames(List.of(game));
+
+        // Register slot mapping
+        MatchPlayer matchPlayer = new MatchPlayer();
+        matchPlayer.setUser(user);
+        matchPlayer.setMatch(match);
+        matchPlayer.setSlot(1);
+        match.setMatchPlayers(List.of(matchPlayer));
 
         // Mock owned cards for slot 1 (rank + suit)
         List<GameStats> gameStatsList = new ArrayList<>();
@@ -391,13 +453,13 @@ public class GameServiceTest {
         List<String> cards = List.of("3H", "0H", "0S");
 
         GamePassingDTO dto = new GamePassingDTO();
-        dto.setGameId(game.getGameId());
         dto.setPlayerId(user.getId());
         dto.setCards(cards);
 
-        // Mocks for dependencies
+        // === Mocks ===
         given(userService.getUserByToken("1234")).willReturn(user);
-        given(gameRepository.findGameByMatch_MatchId(1L)).willReturn(game);
+        given(matchRepository.findMatchByMatchId(1L)).willReturn(match);
+        given(gameRepository.findFirstByMatchAndPhaseNotIn(eq(match), anyList())).willReturn(game);
 
         // Simulate card ownership
         given(gameStatsRepository.findByRankSuitAndGameAndCardHolder("3H", game, 1)).willReturn(gameStatsList.get(0));
@@ -417,57 +479,116 @@ public class GameServiceTest {
         // Return a dummy PassedCard on save
         given(passedCardRepository.save(Mockito.any())).willReturn(new PassedCard());
 
+        // === ACT ===
         gameService.makePassingHappen(1L, dto, "1234");
 
-        // Verify all three cards were processed
+        // === VERIFY ===
         verify(passedCardRepository, Mockito.times(1)).saveAll(Mockito.anyList());
     }
 
     @Test
     public void testCollectPassedCards_withSlotBasedPassing() {
-        // Setup slots 1 to 4 (each slot passes 3 cards)
-        int totalPlayers = 4;
-        int cardsPerPlayer = 3;
-        int gameNumber = 1;
+        // === Setup ===
+        Game game = new Game();
+        game.setGameId(42L);
+        game.setGameNumber(1);
+        game.setPhase(GamePhase.PASSING);
 
-        List<String> dummyCodes = List.of("2H", "3H", "4H", "5H", "6H", "7H", "8H", "9H", "10H", "JH", "QH", "KH");
+        Match match = new Match();
+        match.setMatchId(1L);
+        game.setMatch(match);
+        match.setGames(List.of(game)); // 🔧 Necessary for getActiveGameByMatchId
+
+        List<MatchPlayer> matchPlayers = new ArrayList<>();
+        for (int i = 1; i <= 4; i++) {
+            MatchPlayer mp = new MatchPlayer();
+            mp.setSlot(i);
+            mp.setCardsInHand(new ArrayList<>());
+            matchPlayers.add(mp);
+        }
+        match.setMatchPlayers(matchPlayers);
+
+        // Setup dummy passed cards (3 per player)
+        List<String> dummyCodes = List.of("2H", "3H", "4H", "5H", "6H", "7H", "8H", "9H", "0H", "JH", "QH", "KH");
         List<PassedCard> passedCardsList = new ArrayList<>();
+        Map<String, GameStats> gameStatsMap = new HashMap<>();
 
-        for (int slot = 1; slot <= totalPlayers; slot++) {
-            for (int i = 0; i < cardsPerPlayer; i++) {
-                String cardCode = dummyCodes.get((slot - 1) * cardsPerPlayer + i);
+        for (int slot = 1; slot <= 4; slot++) {
+            for (int i = 0; i < 3; i++) {
+                String code = dummyCodes.get((slot - 1) * 3 + i);
+                PassedCard pc = new PassedCard();
+                pc.setFromSlot(slot);
+                pc.setRankSuit(code);
+                pc.setGame(game);
+                pc.setGameNumber(1);
+                passedCardsList.add(pc);
 
-                PassedCard passedCard = new PassedCard();
-                passedCard.setGame(game);
-                passedCard.setFromSlot(slot);
-                passedCard.setRankSuit(cardCode);
-                passedCard.setGameNumber(gameNumber);
-
-                passedCardsList.add(passedCard);
+                GameStats gs = new GameStats();
+                gs.setGame(game);
+                gs.setCardHolder(slot);
+                setRankSuit(gs, code);
+                gameStatsMap.put(code + "_" + slot, gs);
             }
         }
 
-        // Mock repository behavior
-        given(passedCardRepository.findByGame(Mockito.any())).willReturn(passedCardsList);
+        // === Mocks ===
+        given(matchRepository.findMatchByMatchId(1L)).willReturn(match);
+        given(gameRepository.findFirstByMatchAndPhaseNotIn(eq(match),
+                eq(List.of(GamePhase.FINISHED, GamePhase.ABORTED)))).willReturn(game);
+        given(passedCardRepository.findByGame(game)).willReturn(passedCardsList);
 
-        given(gameStatsRepository.findByRankSuitAndGameAndCardHolder(Mockito.anyString(), Mockito.any(Game.class),
-                Mockito.anyInt()))
-                .willReturn(new GameStats());
+        given(gameStatsRepository.findByRankSuitAndGameAndCardHolder(anyString(), eq(game), anyInt()))
+                .willAnswer(inv -> {
+                    String code = inv.getArgument(0);
+                    int fromSlot = inv.getArgument(2);
+                    return gameStatsMap.get(code + "_" + fromSlot);
+                });
 
-        given(gameStatsRepository.save(Mockito.any())).willReturn(new GameStats());
+        given(gameStatsRepository.save(Mockito.any()))
+                .willAnswer(inv -> inv.getArgument(0));
 
-        doNothing().when(passedCardRepository).deleteAll();
+        doNothing().when(passedCardRepository).deleteAll(any());
 
-        // Execute
-        gameService.collectPassedCards(game);
+        // Provide 2C holder
+        // Provide 2C holder
+        GameStats twoC = new GameStats();
+        twoC.setRank(Rank._2);
+        twoC.setSuit(Suit.C);
+        twoC.setCardHolder(2);
 
-        // Verify that passed cards were deleted after collection
-        verify(passedCardRepository).deleteAll(Mockito.any());
+        given(gameStatsRepository.findByRankAndSuitAndGame(eq(Rank._2), eq(Suit.C), eq(game)))
+                .willReturn(twoC);
+
+        given(gameRepository.findById(game.getGameId()))
+                .willReturn(Optional.of(game));
+        given(gameRepository.findById(game.getGameId())).willReturn(Optional.of(game));
+        // === Act ===
+        gameService.collectPassedCards(1L);
+
+        // === Verify ===
+        verify(passedCardRepository).deleteAll(passedCardsList);
+        verify(gameRepository).save(game);
+        assertEquals(2, game.getCurrentSlot());
+
+        for (GameStats gs : gameStatsMap.values()) {
+            assertTrue(gs.getCardHolder() >= 1 && gs.getCardHolder() <= 4, "Card holder reassigned");
+        }
     }
 
     private CardResponse createCard(String code) {
         CardResponse card = new CardResponse();
         card.setCode(code);
         return card;
+    }
+
+    private void setRankSuit(GameStats gs, String code) {
+        String rankStr = code.substring(0, code.length() - 1);
+        String suitStr = code.substring(code.length() - 1);
+
+        Rank rank = Rank.fromSymbol(rankStr); // You'll need this to exist
+        Suit suit = Suit.fromSymbol(suitStr); // You'll need this too
+
+        gs.setRank(rank);
+        gs.setSuit(suit);
     }
 }

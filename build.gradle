@@ -77,6 +77,24 @@ test {
     maxParallelForks = 1
 }
 
+tasks.register('testeroo', Test) {
+    useJUnitPlatform()
+
+    // Example: Only run tests matching this pattern
+    include '**/*ServiceTest.class'
+
+    testLogging {
+        events "failed"
+        exceptionFormat "short"
+        showExceptions true
+        showCauses true
+        showStackTraces true
+        showStandardStreams = false
+    }
+
+    maxParallelForks = 1
+}
+
 File secretPropsFile = file('./local.properties')
 if (secretPropsFile.exists()) {
     Properties p = new Properties()

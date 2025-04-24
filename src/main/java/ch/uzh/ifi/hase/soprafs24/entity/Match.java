@@ -7,7 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
-
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 
 @Entity
@@ -254,6 +254,20 @@ public class Match implements Serializable {
                 .map(mp -> mp.getUser().getId())
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No player in slot " + slot));
+    }
+
+    public Game getActiveGameOrThrow() {
+        return this.getGames().stream()
+                .filter(game -> game.getPhase() != GamePhase.FINISHED && game.getPhase() != GamePhase.ABORTED)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No active game found for this match"));
+    }
+
+    public Game getActiveGame() {
+        return this.getGames().stream()
+                .filter(game -> game.getPhase() != GamePhase.FINISHED && game.getPhase() != GamePhase.ABORTED)
+                .findFirst()
+                .orElse(null);
     }
 
 }
