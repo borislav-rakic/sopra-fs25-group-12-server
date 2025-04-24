@@ -830,13 +830,26 @@ public class GameService {
         }
     }
 
-    private List<GameStats> getCurrentTrick(Game game) {
+    public List<GameStats> getCurrentTrick(Game game) {
+        // Fetch all plays with a playOrder greater than 0, sorted by playOrder in
+        // ascending order
         List<GameStats> allPlays = gameStatsRepository.findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
+
+        // Reverse the order to get the highest playOrder values first (descending
+        // order)
+        Collections.reverse(allPlays);
+
+        // Calculate the trick size based on the number of cards played so far
         int trickSize = allPlays.size() % 4;
 
-        return allPlays.subList(
-                Math.max(0, allPlays.size() - trickSize),
-                allPlays.size());
+        // If trickSize is 0, it means it's the last trick and should contain 4 cards
+        if (trickSize == 0 && allPlays.size() > 0) {
+            trickSize = 4;
+        }
+
+        // Get the last 'trickSize' cards from allPlays (after reversing to ensure
+        // highest playOrder values)
+        return allPlays.subList(0, trickSize);
     }
 
     @Transactional

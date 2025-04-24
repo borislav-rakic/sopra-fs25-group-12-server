@@ -597,4 +597,78 @@ public class GameServiceTest {
         gs.setRank(rank);
         gs.setSuit(suit);
     }
+
+    @Test
+    public void testGetCurrentTrick_VaryingCardCounts_WithPlayOrder() {
+        // Setup: Create the common game and match objects
+        Game game = new Game();
+        game.setGameId(42L);
+        game.setGameNumber(1);
+        game.setPhase(GamePhase.PASSING); // Just an example, could be any phase
+
+        Match match = new Match();
+        match.setMatchId(1L);
+        game.setMatch(match);
+        match.setGames(List.of(game));
+
+        // List of test cases with varying numbers of cards played
+        int[] cardsPlayedList = { 0, 1, 2, 3, 4, 52 }; // Test with 0, 1, 2, 3, 4, and more than 4 cards
+
+        for (int cardsPlayed : cardsPlayedList) {
+            // Prepare a list of GameStats based on the number of cards to simulate
+            List<GameStats> playedCards = new ArrayList<>();
+            for (int i = 1; i <= cardsPlayed; i++) {
+                GameStats gs = new GameStats();
+                gs.setRank(Rank._2); // Simulating all same rank for simplicity
+                gs.setSuit(Suit.C);
+                gs.setPlayedBy(i % 4 + 1); // Distribute cards to players 1 to 4
+                gs.setPlayOrder(i); // Set playOrder to match the order in which cards were played
+                playedCards.add(gs);
+            }
+
+            // Mock gameStatsRepository to return the appropriate number of played cards
+            given(gameStatsRepository.findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0))
+                    .willReturn(playedCards);
+
+            // Act: Get current trick based on the number of cards played
+            List<GameStats> currentTrick = gameService.getCurrentTrick(game);
+
+            // Assert: The trick should return the correct number of cards based on the
+            // current scenario
+            if (cardsPlayed == 0) {
+                assertEquals(0, currentTrick.size(),
+                        "The current trick should contain 0 cards when no cards are played.");
+            } else if (cardsPlayed == 1) {
+                assertEquals(1, currentTrick.size(), "The current trick should contain 1 card.");
+                assertEquals(1, currentTrick.get(0).getPlayOrder(), "The card should have playOrder 1.");
+            } else if (cardsPlayed == 2) {
+                assertEquals(2, currentTrick.size(), "The current trick should contain 2 cards.");
+                // Check that the cards are ordered by playOrder
+                assertTrue(currentTrick.get(0).getPlayOrder() > currentTrick.get(1).getPlayOrder(),
+                        "The cards should be sorted in descending playOrder.");
+            } else if (cardsPlayed == 3) {
+                assertEquals(3, currentTrick.size(), "The current trick should contain 3 cards.");
+                // Check that the cards are ordered by playOrder
+                assertTrue(currentTrick.get(0).getPlayOrder() > currentTrick.get(1).getPlayOrder() &&
+                        currentTrick.get(1).getPlayOrder() > currentTrick.get(2).getPlayOrder(),
+                        "The cards should be sorted in descending playOrder.");
+            } else if (cardsPlayed == 4) {
+                assertEquals(4, currentTrick.size(), "The current trick should contain 4 cards.");
+                // Check that the cards are ordered by playOrder
+                assertTrue(currentTrick.get(0).getPlayOrder() > currentTrick.get(1).getPlayOrder() &&
+                        currentTrick.get(1).getPlayOrder() > currentTrick.get(2).getPlayOrder() &&
+                        currentTrick.get(2).getPlayOrder() > currentTrick.get(3).getPlayOrder(),
+                        "The cards should be sorted in descending playOrder.");
+            } else if (cardsPlayed >= 52) {
+                assertEquals(4, currentTrick.size(),
+                        "The current trick should contain 4 cards even after 52 cards have been played.");
+                // Check that the cards are ordered by playOrder
+                assertTrue(currentTrick.get(0).getPlayOrder() > currentTrick.get(1).getPlayOrder() &&
+                        currentTrick.get(1).getPlayOrder() > currentTrick.get(2).getPlayOrder() &&
+                        currentTrick.get(2).getPlayOrder() > currentTrick.get(3).getPlayOrder(),
+                        "The cards should be sorted in descending playOrder.");
+            }
+        }
+    }
+
 }
