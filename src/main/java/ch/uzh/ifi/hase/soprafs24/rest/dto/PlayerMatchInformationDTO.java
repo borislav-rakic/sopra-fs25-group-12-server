@@ -28,6 +28,7 @@ public class PlayerMatchInformationDTO {
     private Card lastPlayedCard;
     private Map<Integer, Integer> cardsInHandPerPlayer;
     private List<String> avatarUrls;
+    private boolean trickInProgress;
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -187,6 +188,14 @@ public class PlayerMatchInformationDTO {
 
     public void setAvatarUrls(List<String> avatarUrls) {
         this.avatarUrls = avatarUrls;
+    }
+
+    public boolean isTrickInProgress() {
+        return trickInProgress;
+    }
+
+    public void setTrickInProgress(boolean trickInProgress) {
+        this.trickInProgress = trickInProgress;
     }
 
 }

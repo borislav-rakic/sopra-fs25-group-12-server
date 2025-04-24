@@ -35,4 +35,6 @@ public interface GameStatsRepository extends JpaRepository<GameStats, Long> {
 
     List<GameStats> findByGameAndPlayedByGreaterThan(Game game, int playedBy);
 
+    List<GameStats> findByGameAndCardHolderAndPlayedBy(Game game, int cardHolder, int playedBy);
+
 }

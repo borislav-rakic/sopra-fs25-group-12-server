@@ -53,14 +53,7 @@ public class Card {
     }
 
     private String extractSuit(String code) {
-        char suitChar = code.charAt(code.length() - 1);
-        return switch (suitChar) {
-            case 'H' -> "Hearts";
-            case 'D' -> "Diamonds";
-            case 'C' -> "Clubs";
-            case 'S' -> "Spades";
-            default -> "Unknown";
-        };
+        return String.valueOf(code.charAt(code.length() - 1)).toUpperCase(); // "H", "D", "C", "S"
     }
 
     private String generateImageUrl(String code) {
@@ -90,4 +83,13 @@ public class Card {
         return value;
     }
 
+    public String getSuitName() {
+        return switch (suit) {
+            case "H" -> "Hearts";
+            case "D" -> "Diamonds";
+            case "C" -> "Clubs";
+            case "S" -> "Spades";
+            default -> "Unknown";
+        };
+    }
 }

@@ -67,18 +67,9 @@ public class CardUtils {
     }
 
     /**
-     * Sort list of card codes by Hearts-style order.
-     */
-    public static List<String> sortCardsByOrder(List<String> cardCodes) {
-        return cardCodes.stream()
-                .sorted(CardUtils::compareCards)
-                .collect(Collectors.toList());
-    }
-
-    /**
      * Sort list of Card objects based on their calculated order.
      */
-    public static List<Card> sortCards(List<Card> cards) {
+    public static List<Card> sortCardsByCardOrder(List<Card> cards) {
         return cards.stream()
                 .sorted(Comparator.comparingInt(Card::getCardOrder))
                 .collect(Collectors.toList());

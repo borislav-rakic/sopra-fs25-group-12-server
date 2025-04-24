@@ -219,7 +219,8 @@ public class GameServiceTest {
         when(userRepository.findUserByToken("1234")).thenReturn(user);
         when(matchRepository.findMatchByMatchId(1L)).thenReturn(match);
         when(matchPlayerRepository.findByUserAndMatch(user, match)).thenReturn(matchPlayer);
-        when(gameStatsRepository.findByGameAndCardHolder(game, 1)).thenReturn(List.of(handCard)); // Slot 1 hand
+        when(gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, 1, 0))
+                .thenReturn(List.of(handCard));
         when(gameStatsRepository.findByGameAndPlayedByGreaterThan(game, 0))
                 .thenReturn(playedCards);
 
@@ -242,7 +243,7 @@ public class GameServiceTest {
         assertNotNull(result.getCurrentTrick());
         assertEquals(4, result.getCurrentTrick().size());
         assertEquals("2", result.getCurrentTrick().get(0).getRank());
-        assertEquals("Clubs", result.getCurrentTrick().get(0).getSuit());
+        assertEquals("C", result.getCurrentTrick().get(0).getSuit());
 
         // Trick info
         assertEquals(4, result.getLastTrickWinnerSlot());
@@ -428,7 +429,7 @@ public class GameServiceTest {
 
         // === Verify ===
         verify(matchPlayerRepository).save(Mockito.any());
-        verify(gameStatsRepository).save(Mockito.any());
+        verify(gameStatsRepository).saveAndFlush(Mockito.any());
         verify(gameRepository).save(Mockito.any());
     }
 

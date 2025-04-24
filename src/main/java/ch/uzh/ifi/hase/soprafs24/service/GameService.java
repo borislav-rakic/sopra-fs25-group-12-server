@@ -169,7 +169,8 @@ public class GameService {
 
         Game latestGame = match.getGames().get(match.getGames().size() - 1);
 
-        List<GameStats> hand = gameStatsRepository.findByGameAndCardHolder(latestGame, matchPlayer.getSlot());
+        List<GameStats> hand = gameStatsRepository.findByGameAndCardHolderAndPlayedBy(latestGame, matchPlayer.getSlot(),
+                0);
         for (GameStats gs : hand) {
             PlayerCardDTO dtoCard = new PlayerCardDTO();
             dtoCard.setCard(gs.getRankSuit());
@@ -180,6 +181,8 @@ public class GameService {
         }
 
         dto.setPlayerCards(playerCardDTOList);
+        System.out.println("My slot: " + matchPlayer.getSlot() + ", current slot: " + latestGame.getCurrentSlot());
+
         dto.setMyTurn(matchPlayer.getSlot() == latestGame.getCurrentSlot());
         dto.setGamePhase(latestGame.getPhase());
         dto.setMatchPhase(match.getPhase());
@@ -202,16 +205,21 @@ public class GameService {
 
         dto.setAvatarUrls(avatarUrls);
 
-        List<Card> playableCards = getPlayableCardsForPlayer(match, latestGame, user);
+        List<PlayerCardDTO> playableCardDTOList = new ArrayList<>();
 
-        List<PlayerCardDTO> playableCardDTOList = playableCards.stream().map(card -> {
-            PlayerCardDTO dtoCard = new PlayerCardDTO();
-            dtoCard.setCard(card.getCode());
-            dtoCard.setGameId(latestGame.getGameId());
-            dtoCard.setGameNumber(latestGame.getGameNumber());
-            dtoCard.setPlayerId(user.getId());
-            return dtoCard;
-        }).toList();
+        // Only show playable cards if it's this player's turn
+        if (matchPlayer.getSlot() == latestGame.getCurrentSlot()) {
+            List<Card> playableCards = getPlayableCardsForPlayer(match, latestGame, user);
+
+            playableCardDTOList = playableCards.stream().map(card -> {
+                PlayerCardDTO dtoCard = new PlayerCardDTO();
+                dtoCard.setCard(card.getCode());
+                dtoCard.setGameId(latestGame.getGameId());
+                dtoCard.setGameNumber(latestGame.getGameNumber());
+                dtoCard.setPlayerId(user.getId());
+                return dtoCard;
+            }).toList();
+        }
 
         dto.setPlayableCards(playableCardDTOList);
 
@@ -225,6 +233,11 @@ public class GameService {
         if (numberOfPlayedCards >= 4 && trickSize == 0) {
             List<GameStats> lastTrick = allPlays.subList(numberOfPlayedCards - 4, numberOfPlayedCards);
             int winnerSlot = determineTrickWinner(lastTrick);
+            for (GameStats card : lastTrick) {
+                card.setPointsBilledTo(winnerSlot);
+            }
+            gameStatsRepository.saveAll(lastTrick);
+
             int trickPoints = calculateTrickPoints(lastTrick);
 
             if (winnerSlot < 1 || winnerSlot > 4) {
@@ -234,7 +247,16 @@ public class GameService {
 
             dto.setLastTrickWinnerSlot(winnerSlot);
             dto.setLastTrickPoints(trickPoints);
+            if (latestGame.getPhase() == GamePhase.FIRSTROUND) {
+                latestGame.setPhase(GamePhase.NORMALROUND);
+            }
+            // Transition to LASTROUND just before final trick
+            if (numberOfPlayedCards == 48) {
+                latestGame.setPhase(GamePhase.FINALROUND);
+            }
             latestGame.setCurrentSlot(winnerSlot); // Next to lead
+
+            gameRepository.save(latestGame);
         }
 
         // Hearts broken?
@@ -243,7 +265,9 @@ public class GameService {
         // Cards-in-hand counts
         Map<Integer, Integer> handCounts = new HashMap<>();
         for (MatchPlayer mp : match.getMatchPlayers()) {
-            int count = gameStatsRepository.findByGameAndCardHolder(latestGame, mp.getSlot()).size();
+            int count = gameStatsRepository
+                    .findByGameAndCardHolderAndPlayedBy(latestGame, mp.getSlot(), 0)
+                    .size();
             handCounts.put(mp.getSlot(), count);
         }
         dto.setCardsInHandPerPlayer(handCounts);
@@ -255,33 +279,43 @@ public class GameService {
         }
         dto.setPlayerPoints(points);
 
-        // Return a current trick only if cards have actually been played
+        // Only return a current trick if it's in progress (1–3 cards played in this
+        // trick)
+        int cardsInTrick = numberOfPlayedCards % 4;
+        boolean trickInProgress = cardsInTrick > 0;
+        boolean trickJustFinished = cardsInTrick == 0 && numberOfPlayedCards > 0;
+
+        dto.setTrickInProgress(trickInProgress);
+
         if ((latestGame.getPhase() == GamePhase.FIRSTROUND ||
                 latestGame.getPhase() == GamePhase.NORMALROUND ||
                 latestGame.getPhase() == GamePhase.FINALROUND ||
-                latestGame.getPhase() == GamePhase.RESULT ||
                 latestGame.getPhase() == GamePhase.FINISHED)
-                && !allPlays.isEmpty()) {
-            List<GameStats> currentTrickStats = allPlays.subList(
-                    Math.max(0, allPlays.size() - (trickSize == 0 ? 4 : trickSize)),
-                    allPlays.size());
+                && (trickInProgress || trickJustFinished)) {
+
+            List<GameStats> currentTrickStats;
+
+            if (trickJustFinished) {
+                // Show the last completed trick (4 cards)
+                currentTrickStats = allPlays.subList(
+                        allPlays.size() - 4,
+                        allPlays.size());
+                dto.setTrickLeaderSlot(currentTrickStats.get(0).getPlayedBy());
+            } else {
+                // Show the new in-progress trick (1–3 cards)
+                currentTrickStats = allPlays.subList(
+                        allPlays.size() - cardsInTrick,
+                        allPlays.size());
+                dto.setTrickLeaderSlot(currentTrickStats.get(0).getPlayedBy());
+            }
 
             dto.setCurrentTrick(currentTrickStats.stream()
                     .map(CardUtils::fromGameStats)
                     .toList());
 
-            dto.setTrickLeaderSlot(currentTrickStats.get(0).getPlayedBy());
-
+            // Last card played, regardless of whether trick just started or finished
             GameStats last = allPlays.get(allPlays.size() - 1);
             dto.setLastPlayedCard(CardUtils.fromGameStats(last));
-
-            if (trickSize == 0 && allPlays.size() >= 4) {
-                List<GameStats> lastTrick = allPlays.subList(allPlays.size() - 4, allPlays.size());
-                int winnerSlot = determineTrickWinner(lastTrick);
-                int trickPoints = calculateTrickPoints(lastTrick);
-                dto.setLastTrickWinnerSlot(winnerSlot);
-                dto.setLastTrickPoints(trickPoints);
-            }
         }
 
         return dto;
@@ -467,8 +501,6 @@ public class GameService {
                         if (slot < 1 || slot > 4) {
                             throw new IllegalStateException("Invalid slot [6372]: " + slot);
                         }
-                        game.setCurrentSlot(slot);
-                        gameRepository.save(game);
                     }
 
                     MatchPlayerCards matchPlayerCards = new MatchPlayerCards();
@@ -643,15 +675,14 @@ public class GameService {
         }
 
         boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
-        boolean isFirstRound = game.getGameNumber() == 1;
+        boolean isFirstTrick = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) < 4;
 
         // Enforce "2C" must be the first card played
         if (isFirstCardOfGame && !playedCardCode.equals("2C")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "First card of the game must be the 2♣.");
         }
 
-        // Enforce no hearts or QS in first round, unless it's the 2C opening
-        if (isFirstRound && !isFirstCardOfGame) {
+        if (isFirstTrick) {
             Card card = new Card();
             card.setCode(playedCardCode);
 
@@ -660,7 +691,7 @@ public class GameService {
 
             if (isHeart || isQueenOfSpades) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Cannot play Hearts or Queen of Spades in the first round.");
+                        "Cannot play Hearts or Queen of Spades during the first trick.");
             }
         }
 
@@ -681,17 +712,56 @@ public class GameService {
             gameStats.setMatch(match);
         }
 
-        // Set/update play-related fields
-        gameStats.setPlayedBy(playerSlot);
+        // Count how many cards have been played before this one
         long playedCount = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0);
+
+        // Set/update play-related fields
         gameStats.setPlayOrder((int) playedCount + 1);
+        gameStats.setPlayedBy(playerSlot);
         gameStats.setCardHolder(playerSlot);
 
-        gameStatsRepository.save(gameStats);
-
+        gameStatsRepository.saveAndFlush(gameStats);
         // Update turn
         int nextSlot = (playerSlot % 4) + 1;
         game.setCurrentSlot(nextSlot);
+
+        // Check if trick just completed
+        List<GameStats> allPlays = gameStatsRepository.findByGameAndPlayedByGreaterThan(game, 0);
+        int numberOfPlayedCards = allPlays.size();
+        int trickSize = numberOfPlayedCards % 4;
+
+        if (trickSize == 0 && numberOfPlayedCards > 0) {
+            List<GameStats> lastTrick = allPlays.subList(numberOfPlayedCards - 4, numberOfPlayedCards);
+            int winnerSlot = determineTrickWinner(lastTrick);
+
+            // Set who gets the points for these 4 cards
+            for (GameStats card : lastTrick) {
+                card.setPointsBilledTo(winnerSlot);
+            }
+            gameStatsRepository.saveAll(lastTrick);
+
+            int trickPoints = calculateTrickPoints(lastTrick);
+
+            // Add points to the winning player's MatchPlayer score
+            MatchPlayer winner = match.getMatchPlayers().stream()
+                    .filter(mp -> mp.getSlot() == winnerSlot)
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalStateException("Winner slot not found in match players"));
+
+            winner.setScore(winner.getScore() + trickPoints);
+            matchPlayerRepository.save(winner); // Save score update
+
+            // Update game phase if needed
+            if (game.getPhase() == GamePhase.FIRSTROUND) {
+                game.setPhase(GamePhase.NORMALROUND);
+            }
+            if (numberOfPlayedCards == 48) {
+                game.setPhase(GamePhase.FINALROUND);
+            }
+
+            // Set next leader (winner of this trick)
+            game.setCurrentSlot(winnerSlot);
+        }
 
         // Check game end
         if (isGameFinished(game)) {
@@ -711,38 +781,51 @@ public class GameService {
 
     private void validateCardPlay(MatchPlayer player, Game game, String playedCardCode) {
         boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
-        boolean isFirstRound = game.getGameNumber() == 1;
+        boolean isFirstTrick = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) < 4;
 
         Card attemptedCard = CardUtils.fromCode(playedCardCode);
-
-        // First card of game must be 2C
-        if (isFirstCardOfGame && !playedCardCode.equals("2C")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "First card must be 2♣.");
-        }
-
-        // Hearts / QS not allowed in first round (except for 2C starter)
-        if (isFirstRound && !isFirstCardOfGame) {
-            boolean isHeart = attemptedCard.getSuit().equals("H");
-            boolean isQueenOfSpades = attemptedCard.getCode().equals("QS");
-
-            if (isHeart || isQueenOfSpades) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Cannot play Hearts or QS in the first round.");
-            }
-        }
-
-        // Must follow suit if possible
         List<Card> hand = player.getCardsInHand().stream()
                 .map(c -> CardUtils.fromCode(c.getCard()))
                 .toList();
 
-        List<GameStats> currentTrick = getCurrentTrick(game); // helper: last 0–3 cards in round
+        List<GameStats> currentTrick = getCurrentTrick(game);
+        boolean isLeadingTrick = currentTrick.isEmpty();
+
+        // 1. First card of the game must be 2♣
+        if (isFirstCardOfGame && !playedCardCode.equals("2C")) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "First card must be 2♣.");
+        }
+
+        // 2. Must follow suit if possible
+        boolean hasLeadSuit = false;
         if (!currentTrick.isEmpty()) {
-            String leadSuit = currentTrick.get(0).getSuit().getSymbol(); // "H", "C", etc.
-            boolean hasLeadSuit = hand.stream().anyMatch(c -> c.getSuit().equals(leadSuit));
+            String leadSuit = CardUtils.fromGameStats(currentTrick.get(0)).getSuit();
+            hasLeadSuit = hand.stream().anyMatch(c -> c.getSuit().equals(leadSuit));
 
             if (hasLeadSuit && !attemptedCard.getSuit().equals(leadSuit)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You must follow suit.");
+            }
+        }
+
+        // 3. No hearts/QS during first trick unless unable to follow suit
+        boolean isHeart = attemptedCard.getSuit().equals("H");
+        boolean isQueenOfSpades = attemptedCard.getCode().equals("QS");
+
+        if (isFirstTrick && (isHeart || isQueenOfSpades)) {
+            if (hasLeadSuit) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Cannot play Hearts or Queen of Spades during the first trick unless you have no cards in the lead suit.");
+            }
+            // Otherwise allowed
+        }
+
+        // 4. Cannot lead with hearts unless broken or only hearts remain
+        if (isLeadingTrick && isHeart && !game.getHeartsBroken()) {
+            boolean onlyHeartsLeft = hand.stream().allMatch(c -> c.getSuit().equals("H"));
+
+            if (!onlyHeartsLeft) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "You cannot lead with Hearts until they are broken, unless you only have Hearts.");
             }
         }
     }
@@ -980,13 +1063,7 @@ public class GameService {
                 .map(CardUtils::fromGameStats)
                 .collect(Collectors.toList());
 
-        // Sort the hand
-        List<Card> sortedHand = CardUtils.sortCardsByOrder(
-                hand.stream().map(Card::getCode).toList()).stream().map(code -> {
-                    Card card = new Card();
-                    card.setCode(code);
-                    return card;
-                }).toList();
+        List<Card> sortedHand = CardUtils.sortCardsByCardOrder(hand);
 
         List<Card> playable = new ArrayList<>();
 
@@ -1048,15 +1125,7 @@ public class GameService {
             }
         }
 
-        // Sort playable cards by card order
-        List<String> orderedCodes = CardUtils.sortCardsByOrder(
-                playable.stream().map(Card::getCode).toList());
-
-        List<Card> sortedPlayable = orderedCodes.stream().map(code -> {
-            Card card = new Card();
-            card.setCode(code);
-            return card;
-        }).toList();
+        List<Card> sortedPlayable = CardUtils.sortCardsByCardOrder(playable);
 
         return sortedPlayable;
     }
@@ -1110,4 +1179,9 @@ public class GameService {
     public long countPlayedCards(Game game) {
         return gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0);
     }
+
+    private boolean hasOnlyHearts(List<Card> hand) {
+        return hand.stream().allMatch(card -> card.getSuit().equals("H"));
+    }
+
 }
