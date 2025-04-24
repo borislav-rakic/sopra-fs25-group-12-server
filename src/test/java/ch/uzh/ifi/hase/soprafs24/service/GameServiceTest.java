@@ -205,7 +205,10 @@ public class GameServiceTest {
         gs4.setPlayedBy(4);
 
         List<GameStats> playedCards = List.of(gs1, gs2, gs3, gs4);
-        game.setPlayedCards(new ArrayList<>(playedCards));
+        for (GameStats gs : playedCards) {
+            gs.setGame(game);
+            gs.setMatch(match);
+        }
         match.setGames(List.of(game));
 
         // Set up mocked hand for user (via GameStatsRepository)
@@ -217,6 +220,8 @@ public class GameServiceTest {
         when(matchRepository.findMatchByMatchId(1L)).thenReturn(match);
         when(matchPlayerRepository.findByUserAndMatch(user, match)).thenReturn(matchPlayer);
         when(gameStatsRepository.findByGameAndCardHolder(game, 1)).thenReturn(List.of(handCard)); // Slot 1 hand
+        when(gameStatsRepository.findByGameAndPlayedByGreaterThan(game, 0))
+                .thenReturn(playedCards);
 
         // === Act ===
         PlayerMatchInformationDTO result = gameService.getPlayerMatchInformation("1234", 1L);
@@ -353,9 +358,6 @@ public class GameServiceTest {
         game.setPhase(GamePhase.FIRSTROUND); // mark it active
         game.setCurrentSlot(1);
         game.setMatch(match);
-        game.setMatch(match);
-        match.setGames(List.of(game));
-
         match.setGames(new ArrayList<>(List.of(game)));
         match.setPlayer1(user);
 
@@ -371,7 +373,7 @@ public class GameServiceTest {
         mutableHand.add(cardInHand);
         matchPlayer.setCardsInHand(mutableHand);
 
-        // 51 cards already played (excluding "5C")
+        // === Simulate 51 already played cards ===
         List<GameStats> playedCards = new ArrayList<>();
         for (Rank rank : Rank.values()) {
             for (Suit suit : Suit.values()) {
@@ -382,13 +384,12 @@ public class GameServiceTest {
                     gs.setSuit(suit);
                     gs.setGame(game);
                     gs.setMatch(match);
-                    gs.setPlayedBy(1); // simulate that it's already played
-                    gs.setPlayOrder(playedCards.size() + 1); // simulate play order
+                    gs.setPlayedBy(1);
+                    gs.setPlayOrder(playedCards.size() + 1);
                     playedCards.add(gs);
                 }
             }
         }
-        game.getPlayedCards().addAll(playedCards);
 
         // Setup existing GameStats for the card to be played
         GameStats fiveCStats = new GameStats();
@@ -396,6 +397,7 @@ public class GameServiceTest {
         fiveCStats.setMatch(match);
         fiveCStats.setRank(Rank._5);
         fiveCStats.setSuit(Suit.C);
+        fiveCStats.setCardFromString("5C");
 
         // DTO setup
         PlayedCardDTO playedCardDTO = new PlayedCardDTO();
@@ -403,6 +405,9 @@ public class GameServiceTest {
 
         // === Mocks ===
         given(gameStatsRepository.findByGameAndRankSuit(game, "5C")).willReturn(fiveCStats);
+        given(gameStatsRepository.findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0))
+                .willReturn(playedCards);
+
         given(userService.getUserByToken("1234")).willReturn(user);
         given(matchRepository.findMatchByMatchId(1L)).willReturn(match);
         given(matchPlayerRepository.findByUserAndMatch(user, match)).willReturn(matchPlayer);
@@ -414,6 +419,7 @@ public class GameServiceTest {
 
         // === Act ===
         try {
+            given(gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0)).willReturn(52L);
             gameService.playCard("1234", 1L, playedCardDTO);
         } catch (Exception e) {
             e.printStackTrace();

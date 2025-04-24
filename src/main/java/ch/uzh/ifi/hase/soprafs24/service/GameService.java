@@ -215,19 +215,25 @@ public class GameService {
 
         dto.setPlayableCards(playableCardDTOList);
 
-        List<GameStats> allPlays = latestGame.getPlayedCards();
-        int trickSize = allPlays.size() % 4;
+        // Only use cards that have actually been played
+        List<GameStats> allPlays = gameStatsRepository.findByGameAndPlayedByGreaterThan(latestGame,
+                0);
+        int numberOfPlayedCards = allPlays.size();
+        int trickSize = numberOfPlayedCards % 4;
 
         // Trick winner & points if just finished
-        if (trickSize == 0 && allPlays.size() >= 4) {
-            List<GameStats> lastTrick = allPlays.subList(allPlays.size() - 4, allPlays.size());
+        if (numberOfPlayedCards >= 4 && trickSize == 0) {
+            List<GameStats> lastTrick = allPlays.subList(numberOfPlayedCards - 4, numberOfPlayedCards);
             int winnerSlot = determineTrickWinner(lastTrick);
             int trickPoints = calculateTrickPoints(lastTrick);
+
+            if (winnerSlot < 1 || winnerSlot > 4) {
+                throw new IllegalStateException(
+                        "Invalid slot [3849]: " + winnerSlot + "/" + trickSize + "/" + numberOfPlayedCards);
+            }
+
             dto.setLastTrickWinnerSlot(winnerSlot);
             dto.setLastTrickPoints(trickPoints);
-            if (winnerSlot < 1 || winnerSlot > 4) {
-                throw new IllegalStateException("Invalid slot: " + winnerSlot);
-            }
             latestGame.setCurrentSlot(winnerSlot); // Next to lead
         }
 
@@ -459,7 +465,7 @@ public class GameService {
                     if (code.equals("2C")) {
                         int slot = matchPlayer.getSlot();
                         if (slot < 1 || slot > 4) {
-                            throw new IllegalStateException("Invalid slot: " + slot);
+                            throw new IllegalStateException("Invalid slot [6372]: " + slot);
                         }
                         game.setCurrentSlot(slot);
                         gameRepository.save(game);
@@ -597,9 +603,8 @@ public class GameService {
     }
 
     private boolean isGameFinished(Game game) {
-        return game.getPlayedCards().stream()
-                .filter(GameStats::isPlayed)
-                .count() >= EXPECTED_CARD_COUNT;
+        long playedCount = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0);
+        return playedCount >= EXPECTED_CARD_COUNT;
     }
 
     public void playCard(String token, Long matchId, PlayedCardDTO playedCardDTO) {
@@ -624,21 +629,20 @@ public class GameService {
         String playedCardCode = playedCardDTO.getCard();
 
         // Validate card exists in player's hand
-        System.out.println("Checking played card: '" + playedCardCode + "'");
-        System.out.println("Cards in hand:");
+        // System.out.println("Checking played card: '" + playedCardCode + "'");
+        // System.out.println("Cards in hand:");
         for (MatchPlayerCards card : matchPlayer.getCardsInHand()) {
-            System.out.println(" - '" + card.getCard() + "'");
+            // System.out.println(" - '" + card.getCard() + "'");
         }
 
         boolean hasCard = matchPlayer.getCardsInHand().stream()
-                .peek(card -> System.out.println("🧪 Comparing '" + card.getCard() + "' to '" + playedCardCode + "'"))
                 .anyMatch(card -> card.getCard().equals(playedCardCode));
 
         if (!hasCard) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Card not in hand.");
         }
 
-        boolean isFirstCardOfGame = game.getPlayedCards().isEmpty();
+        boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
         boolean isFirstRound = game.getGameNumber() == 1;
 
         // Enforce "2C" must be the first card played
@@ -679,14 +683,11 @@ public class GameService {
 
         // Set/update play-related fields
         gameStats.setPlayedBy(playerSlot);
-        long playedCount = game.getPlayedCards().stream()
-                .filter(GameStats::isPlayed)
-                .count();
+        long playedCount = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0);
         gameStats.setPlayOrder((int) playedCount + 1);
         gameStats.setCardHolder(playerSlot);
 
         gameStatsRepository.save(gameStats);
-        game.getPlayedCards().add(gameStats);
 
         // Update turn
         int nextSlot = (playerSlot % 4) + 1;
@@ -709,7 +710,7 @@ public class GameService {
     }
 
     private void validateCardPlay(MatchPlayer player, Game game, String playedCardCode) {
-        boolean isFirstCardOfGame = game.getPlayedCards().isEmpty();
+        boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
         boolean isFirstRound = game.getGameNumber() == 1;
 
         Card attemptedCard = CardUtils.fromCode(playedCardCode);
@@ -747,9 +748,12 @@ public class GameService {
     }
 
     private List<GameStats> getCurrentTrick(Game game) {
-        List<GameStats> allPlays = game.getPlayedCards();
+        List<GameStats> allPlays = gameStatsRepository.findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
         int trickSize = allPlays.size() % 4;
-        return allPlays.subList(Math.max(0, allPlays.size() - trickSize), allPlays.size());
+
+        return allPlays.subList(
+                Math.max(0, allPlays.size() - trickSize),
+                allPlays.size());
     }
 
     @Transactional
@@ -988,12 +992,13 @@ public class GameService {
 
         boolean isFirstRound = game.getGameNumber() == 1;
         boolean heartsBroken = game.getHeartsBroken() != null && game.getHeartsBroken();
-        boolean isFirstCardOfGame = game.getPlayedCards().isEmpty();
+        boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
 
         // Current trick: last 1-4 cards
-        List<GameStats> currentTrick = game.getPlayedCards().stream()
-                .skip(Math.max(0, game.getPlayedCards().size() - 4))
-                .toList();
+        List<GameStats> allPlays = gameStatsRepository.findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
+        List<GameStats> currentTrick = allPlays.subList(
+                Math.max(0, allPlays.size() - (allPlays.size() % 4 == 0 ? 4 : allPlays.size() % 4)),
+                allPlays.size());
 
         boolean isLeading = currentTrick.size() % 4 == 0 || currentTrick.isEmpty();
 
@@ -1100,5 +1105,9 @@ public class GameService {
         }
 
         return game;
+    }
+
+    public long countPlayedCards(Game game) {
+        return gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0);
     }
 }

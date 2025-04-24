@@ -34,9 +34,6 @@ public class Game {
     @Column(nullable = false)
     private GamePhase phase = GamePhase.PRESTART;
 
-    @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<GameStats> playedCards = new ArrayList<>();
-
     // === Getters and Setters ===
 
     public Long getGameId() {
@@ -69,14 +66,6 @@ public class Game {
 
     public void setGameNumber(int gameNumber) {
         this.gameNumber = gameNumber;
-    }
-
-    public List<GameStats> getPlayedCards() {
-        return playedCards;
-    }
-
-    public void setPlayedCards(List<GameStats> playedCards) {
-        this.playedCards = playedCards;
     }
 
     public String getDeckId() {

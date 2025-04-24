@@ -29,4 +29,10 @@ public interface GameStatsRepository extends JpaRepository<GameStats, Long> {
 
     GameStats findByGameAndRankSuit(Game game, String rankSuit);
 
+    long countByGameAndPlayedByGreaterThan(Game game, int threshold);
+
+    List<GameStats> findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(Game game, int playOrder);
+
+    List<GameStats> findByGameAndPlayedByGreaterThan(Game game, int playedBy);
+
 }
