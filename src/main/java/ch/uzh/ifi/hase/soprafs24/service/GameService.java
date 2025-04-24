@@ -180,7 +180,7 @@ public class GameService {
         }
 
         dto.setPlayerCards(playerCardDTOList);
-        dto.setMyTurn(matchPlayer.getSlot() == match.getCurrentSlot());
+        dto.setMyTurn(matchPlayer.getSlot() == latestGame.getCurrentSlot());
         dto.setGamePhase(latestGame.getPhase());
         dto.setMatchPhase(match.getPhase());
 
@@ -225,6 +225,9 @@ public class GameService {
             int trickPoints = calculateTrickPoints(lastTrick);
             dto.setLastTrickWinnerSlot(winnerSlot);
             dto.setLastTrickPoints(trickPoints);
+            if (winnerSlot < 1 || winnerSlot > 4) {
+                throw new IllegalStateException("Invalid slot: " + winnerSlot);
+            }
             latestGame.setCurrentSlot(winnerSlot); // Next to lead
         }
 
@@ -455,9 +458,10 @@ public class GameService {
 
                     if (code.equals("2C")) {
                         int slot = matchPlayer.getSlot();
-                        match.setCurrentSlot(slot);
+                        if (slot < 1 || slot > 4) {
+                            throw new IllegalStateException("Invalid slot: " + slot);
+                        }
                         game.setCurrentSlot(slot);
-                        matchRepository.save(match);
                         gameRepository.save(game);
                     }
 
@@ -506,9 +510,7 @@ public class GameService {
 
                 if (code.equals("2C")) {
                     int slot = matchPlayer.getSlot();
-                    match.setCurrentSlot(slot);
                     game.setCurrentSlot(slot);
-                    matchRepository.save(match);
                     gameRepository.save(game);
                 }
 
@@ -583,9 +585,7 @@ public class GameService {
 
                 // Optionally update current player if 2C is found
                 if (code.equals("2C")) {
-                    match.setCurrentSlot(player.getSlot());
                     game.setCurrentSlot(player.getSlot());
-                    matchRepository.save(match);
                     gameRepository.save(game);
                 }
 
@@ -596,22 +596,10 @@ public class GameService {
         gameStatsRepository.flush();
     }
 
-    private User determineNextPlayer(Game game) {
-        Match match = game.getMatch();
-
-        // Get current slot
-        int currentSlot = game.getCurrentSlot();
-
-        // Calculate next slot (1–4 in circular order)
-        int nextSlot = (currentSlot % 4) + 1;
-
-        // Look up the User assigned to that slot
-        return match.getUserBySlot(nextSlot);
-    }
-
     private boolean isGameFinished(Game game) {
-        // Example: all cards played, one player empty hand, etc.
-        return game.getPlayedCards().size() >= EXPECTED_CARD_COUNT;
+        return game.getPlayedCards().stream()
+                .filter(GameStats::isPlayed)
+                .count() >= EXPECTED_CARD_COUNT;
     }
 
     public void playCard(String token, Long matchId, PlayedCardDTO playedCardDTO) {

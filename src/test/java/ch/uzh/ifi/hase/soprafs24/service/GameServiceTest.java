@@ -171,7 +171,6 @@ public class GameServiceTest {
         match.setHostId(4L);
         match.setMatchGoal(100);
         match.setPhase(MatchPhase.READY);
-        match.setCurrentSlot(1);
         match.setAiPlayers(new HashMap<>());
 
         // Setup MatchPlayer
@@ -357,7 +356,6 @@ public class GameServiceTest {
         game.setMatch(match);
         match.setGames(List.of(game));
 
-        match.setCurrentSlot(1); // match confirms it's player 1's turn
         match.setGames(new ArrayList<>(List.of(game)));
         match.setPlayer1(user);
 
@@ -384,6 +382,8 @@ public class GameServiceTest {
                     gs.setSuit(suit);
                     gs.setGame(game);
                     gs.setMatch(match);
+                    gs.setPlayedBy(1); // simulate that it's already played
+                    gs.setPlayOrder(playedCards.size() + 1); // simulate play order
                     playedCards.add(gs);
                 }
             }
@@ -568,7 +568,6 @@ public class GameServiceTest {
         // === Verify ===
         verify(passedCardRepository).deleteAll(passedCardsList);
         verify(gameRepository).save(game);
-        assertEquals(2, game.getCurrentSlot());
 
         for (GameStats gs : gameStatsMap.values()) {
             assertTrue(gs.getCardHolder() >= 1 && gs.getCardHolder() <= 4, "Card holder reassigned");

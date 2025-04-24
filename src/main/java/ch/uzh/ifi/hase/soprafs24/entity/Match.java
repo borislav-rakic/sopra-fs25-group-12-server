@@ -6,7 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.HashMap;
-import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 
@@ -72,9 +71,6 @@ public class Match implements Serializable {
     @ManyToOne
     @JoinColumn(name = "player_4")
     private User player4;
-
-    @Column
-    private int currentSlot;
 
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Game> games = new ArrayList<>();
@@ -220,14 +216,6 @@ public class Match implements Serializable {
                 (player2 != null && player2.getId().equals(userId)) ||
                 (player3 != null && player3.getId().equals(userId)) ||
                 (player4 != null && player4.getId().equals(userId));
-    }
-
-    public int getCurrentSlot() {
-        return currentSlot;
-    }
-
-    public void setCurrentSlot(int currentSlot) {
-        this.currentSlot = currentSlot;
     }
 
     public MatchPhase getPhase() {
