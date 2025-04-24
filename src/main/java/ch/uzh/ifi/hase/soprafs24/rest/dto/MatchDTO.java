@@ -11,6 +11,7 @@ public class MatchDTO {
     private Long matchId;
     private List<Long> matchPlayerIds;
     private Long hostId;
+    private String hostUsername;
     private int matchGoal;
     private boolean started;
     private Map<Integer, Long> invites;
@@ -49,6 +50,14 @@ public class MatchDTO {
 
     public Long getHostId() {
         return hostId;
+    }
+
+    public void setHostUsername(String hostUsername) {
+        this.hostUsername = hostUsername;
+    }
+
+    public String getHostUsername() {
+        return hostUsername;
     }
 
     public void setMatchGoal(int matchGoal) {

@@ -106,6 +106,7 @@ public class MatchService {
 
         match.setMatchPlayers(matchPlayers);
         match.setHostId(user.getId());
+        match.setHostUsername(user.getUsername());
         match.setMatchGoal(100);
         match.setStarted(false);
         match.setPlayer1(user);

@@ -25,6 +25,9 @@ public class Match implements Serializable {
     @Column(name = "host_id")
     private Long hostId;
 
+    @Column(name = "host_username")
+    private String hostUsername;
+
     @Column(name = "matchGoal")
     private int matchGoal;
 
@@ -122,6 +125,14 @@ public class Match implements Serializable {
 
     public Long getHostId() {
         return hostId;
+    }
+
+    public void setHostUsername(String hostUsername) {
+        this.hostUsername = hostUsername;
+    }
+
+    public String getHostUsername() {
+        return hostUsername;
     }
 
     public void setMatchGoal(int matchGoal) {
