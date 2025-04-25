@@ -3,6 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.rest.dto;
 public class PlayedCardDTO {
     private Long gameId;
     private Long playerId;
+    private int playerSlot;
     private String card;
 
     public void setGameId(Long gameId) {
@@ -19,6 +20,14 @@ public class PlayedCardDTO {
 
     public Long getPlayerId() {
         return playerId;
+    }
+
+    public void setPlayerSlot(int playerSlot) {
+        this.playerSlot = playerSlot;
+    }
+
+    public int getPlayerSlot() {
+        return playerSlot;
     }
 
     public void setCard(String card) {

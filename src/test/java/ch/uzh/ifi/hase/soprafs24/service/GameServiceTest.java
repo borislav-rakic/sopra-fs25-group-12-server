@@ -589,6 +589,9 @@ public class GameServiceTest {
         given(gameRepository.findById(game.getGameId()))
                 .willReturn(Optional.of(game));
         given(gameRepository.findById(game.getGameId())).willReturn(Optional.of(game));
+
+        given(matchPlayerRepository.findByMatchAndSlot(Mockito.any(), Mockito.anyInt())).willReturn(matchPlayer);
+
         // === Act ===
         gameService.collectPassedCards(1L);
 

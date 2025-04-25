@@ -227,7 +227,7 @@ public class GameService {
 
         // Only show playable cards if it is this player's turn
         if (matchPlayer.getSlot() == game.getCurrentSlot()) {
-            List<Card> playableCards = getPlayableCardsForPlayer(match, game, user);
+            List<Card> playableCards = getPlayableCardsForPlayer(match, game, user, matchPlayer.getSlot());
 
             playableCardDTOList = playableCards.stream().map(card -> {
                 PlayerCardDTO dtoCard = new PlayerCardDTO();
@@ -433,6 +433,8 @@ public class GameService {
     }
 
     private void triggerAiTurns(Match match, Game game) {
+        System.out.println("Triggering AI turns...");
+
         // Find AI players in the match
         List<User> aiPlayers = match.getMatchPlayers().stream()
                 .filter(mp -> mp.getUser().getIsAiPlayer() != null && mp.getUser().getIsAiPlayer())
@@ -624,7 +626,14 @@ public class GameService {
 
         // long numberOfPlayedCards = countPlayedCards(game);
 
-        MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(player, match);
+        MatchPlayer matchPlayer;
+
+        if (playedCardDTO.getPlayerSlot() == 0) {
+            matchPlayer = matchPlayerRepository.findByUserAndMatch(player, match);
+        } else {
+            matchPlayer = matchPlayerRepository.findByUserAndMatchAndSlot(player, match, playedCardDTO.getPlayerSlot());
+        }
+
         if (matchPlayer == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player does not form part of this match.");
         }
@@ -1037,6 +1046,17 @@ public class GameService {
 
         managedGame.setPhase(GamePhase.FIRSTROUND);
         gameRepository.save(managedGame);
+        gameRepository.flush();
+
+        Match match = managedGame.getMatch();
+
+        MatchPlayer currentMatchPlayer = matchPlayerRepository.findByMatchAndSlot(match, managedGame.getCurrentSlot());
+
+        User user = currentMatchPlayer.getUser();
+
+        if (user.getIsAiPlayer()) {
+            triggerAiTurns(match, managedGame);
+        }
     }
 
     private Map<Integer, Integer> determinePassingDirection(int gameNumber) {
@@ -1073,14 +1093,13 @@ public class GameService {
         return direction;
     }
 
-    public List<Card> getPlayableCardsForPlayer(Match match, Game game, User player) {
-        MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(player, match);
+    public List<Card> getPlayableCardsForPlayer(Match match, Game game, User player, int slot) {
+        MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatchAndSlot(player, match, slot);
         if (matchPlayer == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not in this match.");
         }
 
         // Get player's hand from GameStats by slot
-        int slot = matchPlayer.getSlot();
         List<GameStats> handStats = gameStatsRepository.findByGameAndCardHolder(game, slot);
 
         // Convert to Card objects
@@ -1169,13 +1188,14 @@ public class GameService {
                 break;
             }
 
-            List<Card> playableCards = getPlayableCardsForPlayer(match, currentGame, aiPlayer);
+            List<Card> playableCards = getPlayableCardsForPlayer(match, currentGame, aiPlayer, currentSlot);
             if (playableCards.isEmpty()) {
                 break;
             }
 
             PlayedCardDTO dto = new PlayedCardDTO();
             dto.setCard(playableCards.get(0).getCode());
+            dto.setPlayerSlot(currentSlot);
 
             playCard(aiPlayer.getToken(), matchId, dto);
 
