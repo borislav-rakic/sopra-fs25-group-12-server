@@ -148,15 +148,9 @@ public class GameService {
                 .map(CardUtils::fromCode)
                 .collect(Collectors.toList());
 
-        // Last trick as GameStats [16]
-        List<GameStats> lastTrick = gameStatsRepository.findByGameAndTrickNumber(
-                game, game.getCurrentTrickNumber() - 1);
-        if (lastTrick == null) {
-            lastTrick = new ArrayList<>();
-        }
-        // Convert to List<Card>
-        List<Card> lastTrickAsCards = lastTrick.stream()
-                .map(CardUtils::fromGameStats)
+        // Last trick as List<Card> [14]
+        List<Card> lastTrickAsCards = game.getLastTrick().stream()
+                .map(CardUtils::fromCode)
                 .collect(Collectors.toList());
 
         // MATCHPLAYER
@@ -735,12 +729,13 @@ public class GameService {
 
     // Method to handle card play and trick completion
     public void handleCardPlayAndTrickCompletion(String playedCardCode, int playerSlot, Game game, Match match) {
+        // Add the card to the current trick and update the next player slot
+        addCardToCurrentTrick(playedCardCode, game, playerSlot);
+
+        // Now check if the trick is complete
         if (game.getCurrentTrickSize() == 4) {
             // A trick just ended, process the end of the trick
             handleTrickCompletion(game, match);
-        } else {
-            // Add the card to the current trick and update the next player slot
-            addCardToCurrentTrick(playedCardCode, game, playerSlot);
         }
     }
 
@@ -751,32 +746,42 @@ public class GameService {
         game.setCurrentSlot(nextSlot);
     }
 
-    // Method to handle trick completion (i.e., when 4 cards have been played)
     private void handleTrickCompletion(Game game, Match match) {
-        // Fetch all the played cards (GameStats)
+        System.out.println("Location: handleTrickCompletion.");
+
         List<GameStats> allPlays = gameStatsRepository.findByGameAndPlayedByGreaterThan(game, 0);
         int numberOfPlayedCards = allPlays.size();
 
-        // Determine the size of the trick (should be 4 cards)
         int trickSize = numberOfPlayedCards % 4;
 
         if (trickSize == 0 && numberOfPlayedCards > 0) {
-            List<GameStats> lastTrick = allPlays.subList(numberOfPlayedCards - 4, numberOfPlayedCards);
+            List<GameStats> lastTrickGameStats = allPlays.subList(numberOfPlayedCards - 4, numberOfPlayedCards);
 
-            // Determine the winner of the trick
-            int winnerSlot = determineTrickWinner(lastTrick);
+            // Determine the winner
+            int winnerSlot = determineTrickWinner(lastTrickGameStats);
+            System.out.println("Location: handleTrickCompletion, determining winnerSlot as " + winnerSlot + ".");
 
-            // Assign points to the winner
-            assignPointsToWinner(lastTrick, winnerSlot);
+            // Assign points
+            assignPointsToWinner(lastTrickGameStats, winnerSlot);
 
-            // Update match player's score
-            updateWinnerScore(match, winnerSlot, calculateTrickPoints(lastTrick));
+            // Update score
+            updateWinnerScore(match, winnerSlot, calculateTrickPoints(lastTrickGameStats));
 
             // Handle game phase transitions
             updateGamePhase(game, numberOfPlayedCards);
 
-            // Set the winner as the new trick leader
+            // Set new trick leader
             game.setCurrentSlot(winnerSlot);
+
+            // --- NEW: Move currentTrick into lastTrick ---
+            List<String> finishedTrick = game.getCurrentTrick();
+            game.setLastTrick(finishedTrick);
+
+            // Clear current trick
+            game.clearCurrentTrick();
+
+            // Update trick number if needed
+            game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
         }
     }
 
@@ -908,6 +913,7 @@ public class GameService {
         }
 
         Game game = getActiveGameByMatchId(matchId);
+
         Match match = game.getMatch();
 
         if (!match.containsPlayer(playerId)) {

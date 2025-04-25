@@ -44,6 +44,11 @@ public class Game {
     @Column(name = "card_code")
     private Set<String> currentTrick = new LinkedHashSet<>();
 
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "last_trick", joinColumns = @JoinColumn(name = "game_id"))
+    @Column(name = "card_code")
+    private Set<String> lastTrick = new LinkedHashSet<>();
+
     @Column(nullable = false)
     private int currentTrickNumber = 0;
 
@@ -117,6 +122,14 @@ public class Game {
 
     public void setCurrentTrick(List<String> currentTrick) {
         this.currentTrick = new LinkedHashSet<>(currentTrick); // preserve order & remove duplicates
+    }
+
+    public List<String> getLastTrick() {
+        return new ArrayList<>(lastTrick);
+    }
+
+    public void setLastTrick(List<String> lastTrick) {
+        this.lastTrick = new LinkedHashSet<>(lastTrick);
     }
 
     public Integer getTrickLeaderSlot() {
