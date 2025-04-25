@@ -480,6 +480,9 @@ public class GameService {
                         if (slot < 1 || slot > 4) {
                             throw new IllegalStateException("Invalid slot [6372]: " + slot);
                         }
+                        game.setCurrentSlot(slot);
+                        gameRepository.save(game);
+                        gameRepository.flush();
                     }
 
                     MatchPlayerCards matchPlayerCards = new MatchPlayerCards();
