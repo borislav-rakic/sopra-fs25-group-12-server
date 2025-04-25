@@ -426,6 +426,25 @@ public class GameService {
             gameStatsService.initializeGameStats(savedMatch, savedGame);
 
             distributeCards(savedMatch, savedGame, seed);
+
+            // Trigger AI turns after the match starts (if applicable)
+            triggerAiTurns(savedMatch, savedGame);
+        });
+    }
+
+    private void triggerAiTurns(Match match, Game game) {
+        // Find AI players in the match
+        List<User> aiPlayers = match.getMatchPlayers().stream()
+                .filter(mp -> mp.getUser().getIsAiPlayer() != null && mp.getUser().getIsAiPlayer())
+                .map(MatchPlayer::getUser)
+                .collect(Collectors.toList());
+
+        // Start the AI turns automatically (assuming each AI player will play one turn)
+        aiPlayers.forEach(aiPlayer -> {
+            if (game.getPhase() == GamePhase.PRESTART) {
+                // Automatically trigger AI to play their starting card (e.g., 2 of Clubs)
+                playAiTurns(game.getMatch().getMatchId());
+            }
         });
     }
 
