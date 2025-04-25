@@ -898,16 +898,13 @@ public class GameService {
 
     @Transactional
     public void makePassingHappen(Long matchId, GamePassingDTO passingDTO, String token) {
-        Long playerId = passingDTO.getPlayerId();
+        User user = userService.getUserByToken(token);
+
+        Long playerId = user.getId();
         List<String> cardsToPass = passingDTO.getCards();
 
         if (cardsToPass == null || cardsToPass.size() != 3) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exactly 3 cards must be passed.");
-        }
-
-        User user = userService.getUserByToken(token);
-        if (!user.getId().equals(playerId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "You can only pass cards for yourself.");
         }
 
         Game game = getActiveGameByMatchId(matchId);
