@@ -124,29 +124,6 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "There is no active  game in this match.");
         }
 
-        /// AI PLAYER
-        int currentSlot = game.getCurrentSlot();
-        System.out.println("\nNext Player is " + currentSlot);
-        User currentSlotUser = match.getUserBySlot(currentSlot);
-        System.out.println(
-                "Location: Polling. Slot: " + currentSlot + ". getId = " + currentSlotUser.getId() + " IsAiPlayer = "
-                        + currentSlotUser.getIsAiPlayer() + ". game.getPhase() = " + game.getPhase() + ".");
-
-        if (currentSlotUser != null && Boolean.TRUE.equals(currentSlotUser.getIsAiPlayer())
-                && (game.getPhase() == GamePhase.FIRSTROUND || game.getPhase() == GamePhase.NORMALROUND
-                        || game.getPhase() == GamePhase.FINALROUND)) {
-            System.out.println("Location: Polling. It is an AI player's turn: Slot " + currentSlot);
-            playAiTurns(matchId);
-        } else if (currentSlotUser != null
-                && (game.getPhase() == GamePhase.FIRSTROUND || game.getPhase() == GamePhase.NORMALROUND
-                        || game.getPhase() == GamePhase.FINALROUND)) {
-            System.out.println("Location: Polling. Waiting for humanPlayer to play a card: "
-                    + currentSlotUser.getUsername() + "(id="
-                    + currentSlotUser.getId() + ", slot=" + currentSlot + ")");
-        }
-
-        /// END: AI PLAYER
-
         // TRICK [12]
         boolean isTrickInProgress = game.getCurrentTrickSize() > 0 && game.getCurrentTrickSize() < 4;
 
@@ -177,6 +154,31 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Requesting Player does not appear to be part of this Match.");
         }
+
+        /// AI PLAYER
+        int currentSlot = game.getCurrentSlot();
+        System.out.println("\nNext Player is " + currentSlot);
+        User currentSlotUser = match.getUserBySlot(currentSlot);
+        System.out.println(
+                "Location: Polling. Slot: " + currentSlot + ". getId = " + currentSlotUser.getId() + " IsAiPlayer = "
+                        + currentSlotUser.getIsAiPlayer() + ". game.getPhase() = " + game.getPhase() + ".");
+
+        if (currentSlotUser != null
+                && Boolean.TRUE.equals(currentSlotUser.getIsAiPlayer())
+                && (game.getPhase() == GamePhase.FIRSTROUND || game.getPhase() == GamePhase.NORMALROUND
+                        || game.getPhase() == GamePhase.FINALROUND)
+                && requestingMatchPlayer.getSlot() == 1) { // <-- check that user polling is in slot 1
+            System.out.println("Location: Polling. It is an AI player's turn: Slot " + currentSlot);
+            playAiTurns(matchId);
+        } else if (currentSlotUser != null
+                && (game.getPhase() == GamePhase.FIRSTROUND || game.getPhase() == GamePhase.NORMALROUND
+                        || game.getPhase() == GamePhase.FINALROUND)) {
+            System.out.println("Location: Polling. Waiting for humanPlayer to play a card: "
+                    + currentSlotUser.getUsername() + "(id="
+                    + currentSlotUser.getId() + ", slot=" + currentSlot + ")");
+        }
+
+        /// END: AI PLAYER
 
         // OTHER PLAYERS
 
@@ -829,63 +831,50 @@ public class GameService {
     }
 
     private void validateCardPlay(MatchPlayer player, Game game, String playedCardCode) {
+        List<String> currentTrickCodes = game.getCurrentTrick();
+        List<Card> currentTrickAsCards = currentTrickCodes.stream()
+                .map(CardUtils::fromCode)
+                .collect(Collectors.toList());
+
         boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
         boolean isFirstTrick = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) < 4;
-        System.out.println(
-                "Location: validateCardPlay. I received " + playedCardCode + " from userId " + player.getUser().getId()
-                        + " in slot " + player.getSlot());
 
         Card attemptedCard = CardUtils.fromCode(playedCardCode);
         List<Card> hand = player.getCardsInHand().stream()
                 .map(c -> CardUtils.fromCode(c.getCard()))
                 .toList();
 
-        System.out.println(
-                "Location: validateCardPlay. I understood " + attemptedCard.getCode() + " from userId "
-                        + player.getUser().getId()
-                        + " in slot " + player.getSlot() + "\n");
-        List<GameStats> currentTrick = getCurrentTrick(game);
-        boolean isLeadingTrick = currentTrick.isEmpty();
+        boolean isLeadingTrick = currentTrickAsCards.isEmpty();
 
-        // 1. First card of the game must be 2♣
         if (isFirstCardOfGame && !playedCardCode.equals("2C")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "First card must be 2♣, you played " + playedCardCode + ".");
         }
 
-        // 2. Must follow suit if possible
-        boolean hasLeadSuit = false;
+        // Extract the leading suit
+        final String leadSuit = currentTrickAsCards.isEmpty() ? null : currentTrickAsCards.get(0).getSuit();
 
-        if (!currentTrick.isEmpty()) {
-            String leadSuit = CardUtils.fromGameStats(currentTrick.get(0)).getSuit();
-            hasLeadSuit = hand.stream().anyMatch(c -> c.getSuit().equals(leadSuit));
+        boolean hasLeadSuit = (leadSuit != null) && hand.stream().anyMatch(c -> c.getSuit().equals(leadSuit));
 
-            if (hasLeadSuit && !attemptedCard.getSuit().equals(leadSuit)) {
-                System.out.println(
-                        "Location: validateCardPlay. You played " + playedCardCode + ", but I expected " + leadSuit);
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "You must follow suit, expected " + leadSuit + ", received " + playedCardCode + ".");
-            }
+        // If you must follow suit but didn't
+        if (hasLeadSuit && !attemptedCard.getSuit().equals(leadSuit)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "You must follow suit, expected " + leadSuit + ", received " + playedCardCode + ".");
         }
 
-        // 3. No hearts/QS during first trick unless unable to follow suit
         boolean isHeart = attemptedCard.getSuit().equals("H");
         boolean isQueenOfSpades = attemptedCard.getCode().equals("QS");
 
         if (isFirstTrick && (isHeart || isQueenOfSpades)) {
             if (hasLeadSuit) {
-                String leadSuit = CardUtils.fromGameStats(currentTrick.get(0)).getSuit();
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Cannot play Hearts or Queen of Spades during the first trick unless you have no cards in the lead suit. Lead suit "
                                 + leadSuit + ", you played " + playedCardCode + ".");
             }
-            // Otherwise allowed
         }
 
-        // 4. Cannot lead with hearts unless broken or only hearts remain
         if (isLeadingTrick && isHeart && !game.getHeartsBroken()) {
             boolean onlyHeartsLeft = hand.stream().allMatch(c -> c.getSuit().equals("H"));
-
             if (!onlyHeartsLeft) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "You cannot lead with Hearts (" + playedCardCode
@@ -1142,77 +1131,92 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not in this match.");
         }
 
-        // Get player's hand from GameStats by slot
-        List<GameStats> handStats = gameStatsRepository.findByGameAndCardHolder(game, slot);
+        // Get unplayed cards in hand
+        List<GameStats> handStats = gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, slot, 0);
 
-        // Convert to Card objects
         List<Card> hand = handStats.stream()
                 .map(CardUtils::fromGameStats)
                 .collect(Collectors.toList());
 
         List<Card> sortedHand = CardUtils.sortCardsByCardOrder(hand);
 
-        List<Card> playable = new ArrayList<>();
+        String cardsAsString = sortedHand.stream()
+                .map(Card::getCode)
+                .collect(Collectors.joining(", "));
+        System.out.println("Location: getPlayableCardsForPlayer "
+                + (player.getIsAiPlayer() ? "ai" : "human")
+                + " player [id=" + player.getId() + "], hand: " + cardsAsString);
 
+        // Game state flags
         boolean isFirstRound = game.getGameNumber() == 1;
-        boolean heartsBroken = game.getHeartsBroken() != null && game.getHeartsBroken();
+        boolean heartsBroken = Boolean.TRUE.equals(game.getHeartsBroken());
         boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
 
-        // Current trick: last 1-4 cards
-        List<GameStats> allPlays = gameStatsRepository.findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
-        List<GameStats> currentTrick = allPlays.subList(
-                Math.max(0, allPlays.size() - (allPlays.size() % 4 == 0 ? 4 : allPlays.size() % 4)),
-                allPlays.size());
+        // Current trick
+        List<String> currentTrickCodes = game.getCurrentTrick();
+        List<Card> currentTrickAsCards = currentTrickCodes.stream()
+                .map(CardUtils::fromCode)
+                .collect(Collectors.toList());
 
-        boolean isLeading = currentTrick.size() % 4 == 0 || currentTrick.isEmpty();
+        boolean isLeading = currentTrickAsCards.isEmpty();
 
-        final String trickSuitLocal;
-        if (!isLeading && !currentTrick.isEmpty()) {
-            Card leadingCard = CardUtils.fromGameStats(currentTrick.get(0));
-            trickSuitLocal = leadingCard.getSuit(); // e.g. "H"
-        } else {
-            trickSuitLocal = null;
-        }
+        final String trickSuitLocal = isLeading ? null : currentTrickAsCards.get(0).getSuit();
+
+        boolean hasSuitInHand = trickSuitLocal != null &&
+                sortedHand.stream().anyMatch(c -> c.getSuit().equals(trickSuitLocal));
+
+        List<Card> playable = new ArrayList<>();
 
         for (Card card : sortedHand) {
             String code = card.getCode();
             String suit = card.getSuit();
 
             if (isFirstCardOfGame) {
-                if (code.equals("2C")) {
+                if ("2C".equals(code)) {
                     playable.add(card);
                 }
                 continue;
             }
 
             if (isFirstRound && (suit.equals("H") || code.equals("QS"))) {
-                continue;
+                continue; // Cannot play hearts or Queen of Spades in first round unless forced
             }
 
             if (isLeading) {
                 if (suit.equals("H") && !heartsBroken) {
                     boolean onlyHearts = sortedHand.stream().allMatch(c -> c.getSuit().equals("H"));
                     if (!onlyHearts) {
-                        continue;
+                        continue; // Cannot lead hearts if hearts not broken
                     }
                 }
                 playable.add(card);
             } else {
-                boolean hasSuit = sortedHand.stream().anyMatch(c -> c.getSuit().equals(trickSuitLocal));
-                if (hasSuit) {
+                if (hasSuitInHand) {
+                    // Must follow suit
                     if (suit.equals(trickSuitLocal)) {
                         playable.add(card);
                     }
                 } else {
-                    if (isFirstRound && (suit.equals("H") || code.equals("QS"))) {
-                        continue;
-                    }
+                    // No card of lead suit -> can play anything (even Hearts/Queen)
                     playable.add(card);
                 }
             }
+
         }
 
         List<Card> sortedPlayable = CardUtils.sortCardsByCardOrder(playable);
+
+        // Debugging outputs
+        String currentTrickAsString = currentTrickAsCards.stream()
+                .map(Card::getCode)
+                .collect(Collectors.joining(", "));
+        System.out.println("Current Trick: " + currentTrickAsString);
+
+        String sortedPlayableAsString = sortedPlayable.stream()
+                .map(Card::getCode)
+                .collect(Collectors.joining(", "));
+        System.out.println("Playable cards for " + (player.getIsAiPlayer() ? "ai" : "human")
+                + " player [id=" + player.getId() + "]: " + sortedPlayableAsString);
 
         return sortedPlayable;
     }
@@ -1223,20 +1227,32 @@ public class GameService {
         if (currentGame == null) {
             System.out.println(
                     "Location: playAiTurns. Initiating an AiTurn, but not finding a Game for matchId=" + matchId + ".");
-        }
-        System.out.println("Location: playAiTurns. Initiating an AiTurn. GamePhase=" + currentGame.getPhase());
-
-        if (isGameFinished(currentGame)) {
-            System.out
-                    .println("Location: playAiTurns. Game is apparently finished. GamePhase=" + currentGame.getPhase()
-                            + ".");
             return;
         }
 
         Match match = currentGame.getMatch();
+
+        // Handle full trick before playing
+        if (currentGame.getCurrentTrick().size() == 4) {
+            System.out.println("Current trick is full. Handling trick completion.");
+            handleTrickCompletion(currentGame, match); // PASS BOTH game and match
+            currentGame = getActiveGameByMatchId(matchId); // Reload updated game state after trick is completed
+            match = currentGame.getMatch();
+        }
+
+        System.out.println("Location: playAiTurns. Initiating an AiTurn. GamePhase=" + currentGame.getPhase());
+
+        if (isGameFinished(currentGame)) {
+            System.out.println(
+                    "Location: playAiTurns. Game is apparently finished. GamePhase=" + currentGame.getPhase() + ".");
+            return;
+        }
+
         int currentSlot = currentGame.getCurrentSlot();
         User aiPlayer = match.getUserBySlot(currentSlot);
-        System.out.println("Location: playAiTurns. UserId: " + aiPlayer.getId());
+
+        System.out.println("Location: playAiTurns. UserId: " + (aiPlayer != null ? aiPlayer.getId() : "null"));
+
         // Stop if it's a human's turn or no AI player
         if (aiPlayer == null || !Boolean.TRUE.equals(aiPlayer.getIsAiPlayer())) {
             return;
@@ -1247,9 +1263,10 @@ public class GameService {
             return; // Something went wrong — no cards to play
         }
 
-        Collections.shuffle(playableCards);
+        // Randomization not very practical for testing
+        // Collections.shuffle(playableCards);
         String cardCode = playableCards.get(0).getCode();
-        System.out.println("Location: playAiTurns ready toplayCardAsAi. cardCode: " + cardCode);
+        System.out.println("Location: playAiTurns ready to playCardAsAi. cardCode: " + cardCode);
 
         playCardAsAi(matchId, currentSlot, cardCode);
 
