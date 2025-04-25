@@ -229,12 +229,27 @@ public class Match implements Serializable {
     // ==== UTIL FUNCTIONS
 
     public User getUserBySlot(int slot) {
+        System.out.println("getUserBySlot: searching for slot " + slot);
         return matchPlayers.stream()
                 .filter(mp -> mp.getSlot() == slot)
+                .peek(mp -> System.out.println("Checking MatchPlayer slot: " + mp.getSlot()))
                 .map(MatchPlayer::getUser)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No player in slot " + slot));
     }
+
+    // public User getUserBySlot(int slot) {
+    // System.out.println("Looking for slot: " + slot);
+    // matchPlayers.forEach(mp -> System.out.println("MatchPlayer slot: " +
+    // mp.getSlot()));
+
+    // return matchPlayers.stream()
+    // .filter(mp -> mp.getSlot() == slot)
+    // .map(MatchPlayer::getUser)
+    // .findFirst()
+    // .orElseThrow(() -> new IllegalArgumentException("No player in slot " +
+    // slot));
+    // }
 
     public Long getUserIdBySlot(int slot) {
         return matchPlayers.stream()

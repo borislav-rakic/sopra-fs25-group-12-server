@@ -124,6 +124,22 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "There is no active  game in this match.");
         }
 
+        /// AI PLAYER
+        int currentSlot = game.getCurrentSlot();
+        System.out.println("AI PLAYER Abklärung currentSlot = " + currentSlot);
+        User currentSlotUser = match.getUserBySlot(currentSlot);
+        System.out.println("AI PLAYER Abklärung getId = " + currentSlotUser.getId() + " IsAiPlayer = "
+                + currentSlotUser.getIsAiPlayer());
+
+        if (currentSlotUser != null && Boolean.TRUE.equals(currentSlotUser.getIsAiPlayer())
+                && (game.getPhase() == GamePhase.FIRSTROUND && game.getPhase() == GamePhase.NORMALROUND
+                        && game.getPhase() == GamePhase.FINALROUND)) {
+            System.out.println("AI player's turn detected during polling: Slot " + currentSlot);
+            playAiTurns(matchId);
+        }
+
+        /// END: AI PLAYER
+
         // TRICK [12]
         boolean isTrickInProgress = game.getCurrentTrickSize() > 0 && game.getCurrentTrickSize() < 4;
 
@@ -575,22 +591,21 @@ public class GameService {
     private void overwriteGameStatsWithSeed(List<CardResponse> deck, Match match, Game game) {
         List<MatchPlayer> players = match.getMatchPlayers();
         int cardsPerPlayer = 13;
-
         int cardIndex = 0;
 
         for (MatchPlayer player : players) {
             for (int i = 0; i < cardsPerPlayer; i++) {
                 String code = deck.get(cardIndex).getCode();
-                Rank rank = Rank.fromSymbol(code.substring(0, code.length() - 1));
-                Suit suit = Suit.fromSymbol(code.substring(code.length() - 1));
-
+                Card card = CardUtils.fromCode(code); // your Card class
+                Rank rank = Rank.fromSymbol(card.getRank());
+                Suit suit = Suit.fromSymbol(card.getSuit());
                 GameStats stats = gameStatsRepository.findByRankAndSuitAndGame(rank, suit, game);
+
                 if (stats != null) {
                     stats.setCardHolder(player.getSlot());
                     gameStatsRepository.save(stats);
                 }
 
-                // Optionally update current player if 2C is found
                 if (code.equals("2C")) {
                     game.setCurrentSlot(player.getSlot());
                     gameRepository.save(game);
@@ -599,7 +614,6 @@ public class GameService {
                 cardIndex++;
             }
         }
-
         gameStatsRepository.flush();
     }
 
@@ -626,7 +640,7 @@ public class GameService {
                     "It is not your turn. You are slot " + matchPlayer.getSlot() + ", but current slot is "
                             + game.getCurrentSlot());
         }
-
+        System.out.println("Location: playCard. I received " + dto.getCard() + " from username " + user.getUsername());
         executeCardPlay(matchPlayer, match, game, dto.getCard());
     }
 
@@ -643,6 +657,9 @@ public class GameService {
         if (slot != game.getCurrentSlot()) {
             throw new IllegalStateException("AI tried to play out of turn (slot " + slot + ").");
         }
+        System.out.println(
+                "Location: playCardAsAi. I received " + cardCode + " from userId " + matchPlayer.getUser().getId()
+                        + " in slot " + slot);
 
         executeCardPlay(matchPlayer, match, game, cardCode);
     }
@@ -653,14 +670,19 @@ public class GameService {
                 .anyMatch(card -> card.getCard().equals(cardCode));
 
         if (!hasCard) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Card not in hand.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Card " + cardCode + " not in hand.");
         }
+
+        System.out.println(
+                "Location: executeCardPlay. I received " + cardCode + " from userId " + matchPlayer.getUser().getId()
+                        + " in slot " + matchPlayer.getSlot());
 
         boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
         boolean isFirstTrick = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) < 4;
 
         if (isFirstCardOfGame && !cardCode.equals("2C")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "First card of the game must be the 2♣.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "First card of the game must be the 2♣, you played " + "cardCode" + ".");
         }
 
         if (isFirstTrick) {
@@ -709,10 +731,6 @@ public class GameService {
         }
 
         gameRepository.save(game);
-
-        if (!isGameFinished(game)) {
-            playAiTurns(match.getMatchId()); // Continue with AI loop if needed
-        }
     }
 
     // Method to handle card play and trick completion
@@ -794,28 +812,39 @@ public class GameService {
     private void validateCardPlay(MatchPlayer player, Game game, String playedCardCode) {
         boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
         boolean isFirstTrick = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) < 4;
+        System.out.println(
+                "Location: validateCardPlay. I received " + playedCardCode + " from userId " + player.getUser().getId()
+                        + " in slot " + player.getSlot());
 
         Card attemptedCard = CardUtils.fromCode(playedCardCode);
         List<Card> hand = player.getCardsInHand().stream()
                 .map(c -> CardUtils.fromCode(c.getCard()))
                 .toList();
 
+        System.out.println(
+                "Location: validateCardPlay. I understood " + attemptedCard.getCode() + " from userId "
+                        + player.getUser().getId()
+                        + " in slot " + player.getSlot() + "\n");
         List<GameStats> currentTrick = getCurrentTrick(game);
         boolean isLeadingTrick = currentTrick.isEmpty();
 
         // 1. First card of the game must be 2♣
         if (isFirstCardOfGame && !playedCardCode.equals("2C")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "First card must be 2♣.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "First card must be 2♣, you played " + playedCardCode + ".");
         }
 
         // 2. Must follow suit if possible
         boolean hasLeadSuit = false;
+
         if (!currentTrick.isEmpty()) {
             String leadSuit = CardUtils.fromGameStats(currentTrick.get(0)).getSuit();
             hasLeadSuit = hand.stream().anyMatch(c -> c.getSuit().equals(leadSuit));
 
             if (hasLeadSuit && !attemptedCard.getSuit().equals(leadSuit)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "You must follow suit.");
+                System.out.println("You played " + playedCardCode + ", but I expected " + leadSuit);
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "You must follow suit, expected " + leadSuit + ", received " + playedCardCode + ".");
             }
         }
 
@@ -825,8 +854,10 @@ public class GameService {
 
         if (isFirstTrick && (isHeart || isQueenOfSpades)) {
             if (hasLeadSuit) {
+                String leadSuit = CardUtils.fromGameStats(currentTrick.get(0)).getSuit();
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Cannot play Hearts or Queen of Spades during the first trick unless you have no cards in the lead suit.");
+                        "Cannot play Hearts or Queen of Spades during the first trick unless you have no cards in the lead suit. Lead suit "
+                                + leadSuit + ", you played " + playedCardCode + ".");
             }
             // Otherwise allowed
         }
@@ -837,7 +868,8 @@ public class GameService {
 
             if (!onlyHeartsLeft) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "You cannot lead with Hearts until they are broken, unless you only have Hearts.");
+                        "You cannot lead with Hearts (" + playedCardCode
+                                + ") until they are broken, unless you only have Hearts.");
             }
         }
     }
@@ -1178,7 +1210,7 @@ public class GameService {
         Match match = currentGame.getMatch();
         int currentSlot = currentGame.getCurrentSlot();
         User aiPlayer = match.getUserBySlot(currentSlot);
-
+        System.out.println("Location: playAiTurns. UserId: " + aiPlayer.getId());
         // Stop if it's a human's turn or no AI player
         if (aiPlayer == null || !Boolean.TRUE.equals(aiPlayer.getIsAiPlayer())) {
             return;
@@ -1191,6 +1223,7 @@ public class GameService {
 
         Collections.shuffle(playableCards);
         String cardCode = playableCards.get(0).getCode();
+        System.out.println("Location: playAiTurns ready toplayCardAsAi. cardCode: " + cardCode);
 
         playCardAsAi(matchId, currentSlot, cardCode);
 

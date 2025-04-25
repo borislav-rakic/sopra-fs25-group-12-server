@@ -150,16 +150,20 @@ public class GameServiceTest {
         User user = new User();
         user.setId(4L);
         user.setUsername("testuser");
+        user.setIsAiPlayer(false);
 
         User p2 = new User();
         p2.setId(5L);
         p2.setUsername("bot2");
+        p2.setIsAiPlayer(false);
         User p3 = new User();
         p3.setId(6L);
         p3.setUsername("bot3");
+        p3.setIsAiPlayer(false);
         User p4 = new User();
         p4.setId(7L);
         p4.setUsername("bot4");
+        p4.setIsAiPlayer(false);
 
         // === Setup Match ===
         Match match = new Match();
@@ -177,7 +181,25 @@ public class GameServiceTest {
         MatchPlayer matchPlayer = new MatchPlayer();
         matchPlayer.setUser(user);
         matchPlayer.setSlot(1);
-        match.setMatchPlayers(List.of(matchPlayer));
+
+        MatchPlayer mp2 = new MatchPlayer();
+        mp2.setUser(p2);
+        mp2.setSlot(2);
+
+        MatchPlayer mp3 = new MatchPlayer();
+        mp3.setUser(p3);
+        mp3.setSlot(3);
+
+        MatchPlayer mp4 = new MatchPlayer();
+        mp4.setUser(p4);
+        mp4.setSlot(4);
+
+        matchPlayer.setScore(0);
+        mp2.setScore(0);
+        mp3.setScore(0);
+        mp4.setScore(0);
+
+        match.setMatchPlayers(List.of(matchPlayer, mp2, mp3, mp4));
 
         // === Setup Game ===
         Game game = new Game();
@@ -190,6 +212,7 @@ public class GameServiceTest {
         game.setLastTrickPoints(0);
         game.setTrickLeaderSlot(1);
         game.setHeartsBroken(false);
+        game.setCurrentSlot(1);
 
         // === Setup Played Trick (trickNumber = 1) ===
         GameStats gs1 = new GameStats();
@@ -236,10 +259,18 @@ public class GameServiceTest {
         when(gameRepository.findFirstByMatchAndPhaseNotIn(eq(match), anyList())).thenReturn(game);
         when(gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, 1, 0))
                 .thenReturn(List.of(handCard));
+        when(gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, 2, 0))
+                .thenReturn(List.of());
+        when(gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, 3, 0))
+                .thenReturn(List.of());
+        when(gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, 4, 0))
+                .thenReturn(List.of());
         when(gameStatsRepository.findByGameAndTrickNumber(game, 1))
                 .thenReturn(List.of(gs1, gs2, gs3, gs4));
+        when(matchPlayerRepository.findByUserAndMatchAndSlot(user, match, 1)).thenReturn(matchPlayer);
 
         // === Act ===
+        System.out.println("Players in match: " + match.getMatchPlayers().size());
         PlayerMatchInformationDTO result = gameService.getPlayerMatchInformation("1234", 1L);
 
         // === Assert ===
