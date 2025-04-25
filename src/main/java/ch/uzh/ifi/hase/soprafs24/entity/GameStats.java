@@ -20,7 +20,7 @@ public class GameStats {
     @JoinColumn(name = "match_id", nullable = false)
     private Match match;
 
-    @ManyToOne(cascade = CascadeType.ALL)
+    @ManyToOne
     @JoinColumn(name = "game_id")
     private Game game;
 
