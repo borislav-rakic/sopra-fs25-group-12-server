@@ -96,6 +96,16 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
 
+        // Check if the user is already hosting an active match (that hasn't started)
+        Match activeMatch = matchRepository.findByHostIdAndStarted(user.getId(), false);
+
+        if (activeMatch != null) {
+            // If the user is already hosting a match, return the matchId of the active
+            // match
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "User is already hosting a match. Match ID: " + activeMatch.getMatchId());
+        }
+
         Match match = new Match();
 
         List<MatchPlayer> matchPlayers = new ArrayList<>();
