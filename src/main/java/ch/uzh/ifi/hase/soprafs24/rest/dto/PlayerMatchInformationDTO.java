@@ -8,27 +8,35 @@ import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 
 public class PlayerMatchInformationDTO {
-    private Long matchId;
-    private List<String> matchPlayers;
-    private Long hostId;
-    private int matchGoal;
-    private int slot;
-    private Map<Integer, Integer> aiPlayers;
-    private List<PlayerCardDTO> playerCards;
-    private List<PlayerCardDTO> playableCards;
-    private boolean isMyTurn = false;
-    private GamePhase gamePhase;
-    private MatchPhase matchPhase;
-    private List<Card> currentTrick;
-    private int trickLeaderSlot;
-    private int lastTrickWinnerSlot;
-    private int lastTrickPoints;
-    private Map<Integer, Integer> playerPoints;
-    private boolean heartsBroken;
-    private Card lastPlayedCard;
-    private Map<Integer, Integer> cardsInHandPerPlayer;
-    private List<String> avatarUrls;
-    private boolean trickInProgress;
+    // Info about the Match context
+    private Long matchId; // [1]
+    private int matchGoal; // [2]
+    private Long hostId; // [3]
+    private MatchPhase matchPhase; // [4]
+
+    // Info about the game state
+    private GamePhase gamePhase; // [11]
+    private boolean trickInProgress; // [12]
+    private boolean heartsBroken; // [13]
+
+    private List<Card> currentTrick; // [14]
+    private int currentTrickLeaderSlot; // [15]
+
+    private List<Card> lastTrick; // [16]
+    private int lastTrickWinnerSlot; // [17]
+    private int lastTrickPoints; // [18]
+
+    // Info about the other players
+    private List<String> matchPlayers; // [21]
+    private List<String> avatarUrls; // [22]
+    private Map<Integer, Integer> cardsInHandPerPlayer; // [23]
+    private Map<Integer, Integer> playerPoints; // [24]
+    private Map<Integer, Integer> aiPlayers; // [25]
+    // Info about myself
+    private int slot; // [31]
+    private boolean isMyTurn = false; // [32]
+    private List<PlayerCardDTO> playerCards; // [33]
+    private List<PlayerCardDTO> playableCards; // [34]
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -118,6 +126,14 @@ public class PlayerMatchInformationDTO {
         this.matchPhase = matchPhase;
     }
 
+    public List<Card> getLastTrick() {
+        return lastTrick;
+    }
+
+    public void setLastTrick(List<Card> lastTrick) {
+        this.lastTrick = lastTrick;
+    }
+
     public List<Card> getCurrentTrick() {
         return currentTrick;
     }
@@ -126,12 +142,12 @@ public class PlayerMatchInformationDTO {
         this.currentTrick = currentTrick;
     }
 
-    public int getTrickLeaderSlot() {
-        return trickLeaderSlot;
+    public int getCurrentTrickLeaderSlot() {
+        return currentTrickLeaderSlot;
     }
 
-    public void setTrickLeaderSlot(int trickLeaderSlot) {
-        this.trickLeaderSlot = trickLeaderSlot;
+    public void setCurrentTrickLeaderSlot(int currentTrickLeaderSlot) {
+        this.currentTrickLeaderSlot = currentTrickLeaderSlot;
     }
 
     public int getLastTrickWinnerSlot() {
@@ -156,14 +172,6 @@ public class PlayerMatchInformationDTO {
 
     public void setHeartsBroken(boolean heartsBroken) {
         this.heartsBroken = heartsBroken;
-    }
-
-    public Card getLastPlayedCard() {
-        return lastPlayedCard;
-    }
-
-    public void setLastPlayedCard(Card lastPlayedCard) {
-        this.lastPlayedCard = lastPlayedCard;
     }
 
     public Map<Integer, Integer> getPlayerPoints() {

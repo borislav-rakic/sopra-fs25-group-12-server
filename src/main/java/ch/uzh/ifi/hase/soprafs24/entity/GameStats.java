@@ -50,6 +50,9 @@ public class GameStats {
     @Column(nullable = false)
     private int cardHolder = 0; // 1–4 for slots, or 0 for unassigned
 
+    @Column(name = "trick_number", nullable = false)
+    private int trickNumber;
+
     // Automatically set rankSuit on persist/update
     @PrePersist
     @PreUpdate
@@ -182,4 +185,13 @@ public class GameStats {
     public void setCardHolder(int cardHolder) {
         this.cardHolder = cardHolder;
     }
+
+    public int getTrickNumber() {
+        return trickNumber;
+    }
+
+    public void setTrickNumber(int trickNumber) {
+        this.trickNumber = trickNumber;
+    }
+
 }

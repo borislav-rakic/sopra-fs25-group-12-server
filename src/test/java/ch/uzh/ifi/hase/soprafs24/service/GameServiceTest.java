@@ -67,7 +67,7 @@ public class GameServiceTest {
     @MockBean
     private UserService userService = Mockito.mock(UserService.class);
 
-    @MockBean
+    @Mock
     private GameStatsService gameStatsService = Mockito.mock(GameStatsService.class);
 
     @Mock
@@ -183,7 +183,7 @@ public class GameServiceTest {
         Game game = new Game();
         game.setGameId(1L);
         game.setGameNumber(1);
-        game.setPhase(GamePhase.FINISHED);
+        game.setPhase(GamePhase.FIRSTROUND);
         game.setMatch(match);
 
         // Simulate a complete trick with 4 cards — all Clubs (no points)
@@ -191,18 +191,22 @@ public class GameServiceTest {
         gs1.setRank(Rank._2);
         gs1.setSuit(Suit.C);
         gs1.setPlayedBy(1);
+        gs1.setPlayOrder(1);
         GameStats gs2 = new GameStats();
         gs2.setRank(Rank._3);
         gs2.setSuit(Suit.C);
         gs2.setPlayedBy(2);
+        gs2.setPlayOrder(2);
         GameStats gs3 = new GameStats();
         gs3.setRank(Rank._4);
         gs3.setSuit(Suit.C);
         gs3.setPlayedBy(3);
+        gs3.setPlayOrder(3);
         GameStats gs4 = new GameStats();
         gs4.setRank(Rank._5);
         gs4.setSuit(Suit.C);
         gs4.setPlayedBy(4);
+        gs4.setPlayOrder(4);
 
         List<GameStats> playedCards = List.of(gs1, gs2, gs3, gs4);
         for (GameStats gs : playedCards) {
@@ -223,6 +227,9 @@ public class GameServiceTest {
                 .thenReturn(List.of(handCard));
         when(gameStatsRepository.findByGameAndPlayedByGreaterThan(game, 0))
                 .thenReturn(playedCards);
+        when(gameRepository.findFirstByMatchAndPhaseNotIn(match, List.of(GamePhase.FINISHED, GamePhase.ABORTED)))
+                .thenReturn(game);
+        when(gameStatsService.getLastCompletedTrick(game)).thenReturn(playedCards);
 
         // === Act ===
         PlayerMatchInformationDTO result = gameService.getPlayerMatchInformation("1234", 1L);
@@ -231,7 +238,7 @@ public class GameServiceTest {
         assertEquals(1L, result.getMatchId());
         assertEquals(4, result.getHostId());
         assertEquals(100, result.getMatchGoal());
-        assertEquals(GamePhase.FINISHED, result.getGamePhase());
+        assertEquals(GamePhase.FIRSTROUND, result.getGamePhase());
         assertEquals(MatchPhase.READY, result.getMatchPhase());
         assertEquals(List.of("testuser", "bot2", "bot3", "bot4"), result.getMatchPlayers());
 
@@ -248,7 +255,7 @@ public class GameServiceTest {
         // Trick info
         assertEquals(4, result.getLastTrickWinnerSlot());
         assertEquals(0, result.getLastTrickPoints());
-        assertEquals(1, result.getTrickLeaderSlot());
+        assertEquals(1, result.getCurrentTrickLeaderSlot());
     }
 
     @Test

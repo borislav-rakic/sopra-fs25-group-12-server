@@ -113,4 +113,42 @@ public class GameStatsService {
         }
     }
 
+    public List<GameStats> getLastCompletedTrick(Game game) {
+        List<GameStats> playedCards = gameStatsRepository
+                .findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
+
+        if (playedCards.size() < 4) {
+            return new ArrayList<>();
+        }
+
+        // Group cards into tricks (chunks of 4)
+        List<List<GameStats>> tricks = new ArrayList<>();
+        for (int i = 0; i <= playedCards.size() - 4; i += 4) {
+            List<GameStats> trick = playedCards.subList(i, i + 4);
+            // Ensure all 4 cards belong to the same round (e.g. same game number or round
+            // identifier if you have one)
+            tricks.add(trick);
+        }
+
+        return tricks.isEmpty() ? new ArrayList<>() : tricks.get(tricks.size() - 1);
+    }
+
+    public List<GameStats> getTrickByIndex(Game game, int trickIndex) {
+        List<GameStats> allPlays = gameStatsRepository
+                .findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
+
+        int start = trickIndex * 4;
+        int end = Math.min(start + 4, allPlays.size());
+
+        if (start >= allPlays.size()) {
+            return List.of(); // no such trick
+        }
+
+        return allPlays.subList(start, end);
+    }
+
+    public List<GameStats> getPlayedCards(Game game) {
+        return gameStatsRepository.findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
+    }
+
 }
