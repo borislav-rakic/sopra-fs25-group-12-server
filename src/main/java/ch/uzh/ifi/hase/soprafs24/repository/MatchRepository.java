@@ -12,4 +12,6 @@ public interface MatchRepository extends JpaRepository<Match, Long>, JpaSpecific
     boolean existsByHostIdAndStarted(Long hostId, boolean started);
 
     Match findByHostIdAndStarted(Long hostId, boolean started);
+
+    Match findByMatchPlayersUserId(Long userId);
 }

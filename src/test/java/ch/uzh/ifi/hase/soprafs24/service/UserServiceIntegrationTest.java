@@ -15,10 +15,12 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.Mockito.*;
 
 /**
  * Test class for the UserService integration test.
  */
+
 @WebAppConfiguration
 @SpringBootTest
 public class UserServiceIntegrationTest {
@@ -47,6 +49,10 @@ public class UserServiceIntegrationTest {
     // given
     assertNull(userRepository.findUserByUsername("testUsername"));
 
+    // Mock the MatchRepository to return null (no active match)
+    when(matchRepository.findByMatchPlayersUserId(anyLong()))
+        .thenReturn(null); // Mocking no active match for the user
+
     User testUser = new User();
     testUser.setUsername("testUsername");
     testUser.setPassword("testPassword");
@@ -68,6 +74,10 @@ public class UserServiceIntegrationTest {
   public void createUser_duplicateUsername_throwsException() {
     // given
     assertNull(userRepository.findUserByUsername("testUsername"));
+
+    // Mocking MatchRepository to return null (no active match)
+    when(matchRepository.findByMatchPlayersUserId(anyLong()))
+        .thenReturn(null); // Mocking no active match
 
     User testUser = new User();
     testUser.setUsername("testUsername");
@@ -95,5 +105,4 @@ public class UserServiceIntegrationTest {
     // when / then
     assertThrows(ResponseStatusException.class, () -> userService.createUser(testUser2));
   }
-
 }

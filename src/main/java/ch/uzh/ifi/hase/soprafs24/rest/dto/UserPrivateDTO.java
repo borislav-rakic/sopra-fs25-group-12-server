@@ -14,6 +14,7 @@ public class UserPrivateDTO {
   private LocalDate birthday;
   private String userSettings;
   private Boolean isGuest;
+  private Long participantOfActiveMatchId;
 
   public Long getId() {
     return id;
@@ -69,6 +70,14 @@ public class UserPrivateDTO {
 
   public void setIsGuest(boolean isGuest) {
     this.isGuest = isGuest;
+  }
+
+  public Long getParticipantOfActiveMatchId() {
+    return participantOfActiveMatchId;
+  }
+
+  public void setParticipantOfActiveMatchId(Long participantOfActiveMatchId) {
+    this.participantOfActiveMatchId = participantOfActiveMatchId;
   }
 
 }

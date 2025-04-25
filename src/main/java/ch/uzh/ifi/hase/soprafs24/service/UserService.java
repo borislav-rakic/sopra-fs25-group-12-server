@@ -1,11 +1,15 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteGetDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPrivateDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -277,6 +281,39 @@ public class UserService {
     }
 
     return invites;
+  }
+
+  public UserPrivateDTO getUserInformation(Long userId) {
+    // Fetch the user by ID
+    User user = userRepository.findUserById(userId);
+
+    if (user == null) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
+    }
+
+    // Fetch the match the user is participating in
+    Match activeMatch = matchRepository.findByMatchPlayersUserId(userId);
+
+    // Default to 0 if no active match is found, or match is finished/aborted
+    Long participantOfActiveMatchId = 0L;
+
+    // Check if the active match exists and it's not in FINISHED or ABORTED phase
+    if (activeMatch != null && isActiveMatch(activeMatch)) {
+      participantOfActiveMatchId = activeMatch.getMatchId(); // Set the match ID if it's active
+    } else {
+      participantOfActiveMatchId = null; // Return null if no active match
+    }
+
+    // Convert User to UserPrivateDTO and set participantOfActiveMatchId
+    UserPrivateDTO userDTO = DTOMapper.INSTANCE.convertEntityToUserPrivateDTO(user);
+    userDTO.setParticipantOfActiveMatchId(participantOfActiveMatchId);
+
+    return userDTO;
+  }
+
+  private boolean isActiveMatch(Match match) {
+    // Check if the match phase is neither FINISHED nor ABORTED
+    return match.getPhase() != MatchPhase.FINISHED && match.getPhase() != MatchPhase.ABORTED;
   }
 
   // public List<InviteGetDTO> getPendingInvitesForUser(User user) {
