@@ -6,6 +6,8 @@ import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.Match; // <-- ADD THIS IMPORT
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -38,5 +40,8 @@ public interface GameStatsRepository extends JpaRepository<GameStats, Long> {
     List<GameStats> findByGameAndCardHolderAndPlayedBy(Game game, int cardHolder, int playedBy);
 
     List<GameStats> findByGameAndTrickNumber(Game game, int trickNumber);
+
+    @Query("SELECT COALESCE(SUM(gs.pointsWorth), 0) FROM GameStats gs WHERE gs.game = :game AND gs.playedBy = :slot")
+    int sumPointsWorthByGameAndPlayedBy(@Param("game") Game game, @Param("slot") int slot);
 
 }

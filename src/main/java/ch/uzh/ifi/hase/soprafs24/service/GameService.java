@@ -40,6 +40,7 @@ import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.GameResultDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
@@ -772,7 +773,7 @@ public class GameService {
             System.out.println("Location: handleTrickCompletion, determining winnerSlot as " + winnerSlot + ".");
 
             // Assign points
-            assignPointsToWinner(lastTrickGameStats, winnerSlot);
+            assignPointsToWinner(game, lastTrickGameStats, winnerSlot);
 
             // Update score
             updateWinnerScore(match, winnerSlot, calculateTrickPoints(lastTrickGameStats));
@@ -799,11 +800,15 @@ public class GameService {
     }
 
     // Method to assign points to the winner of the trick
-    private void assignPointsToWinner(List<GameStats> lastTrick, int winnerSlot) {
+    // Updated method
+    private void assignPointsToWinner(Game game, List<GameStats> lastTrick, int winnerSlot) {
         for (GameStats card : lastTrick) {
             card.setPointsBilledTo(winnerSlot);
         }
         gameStatsRepository.saveAll(lastTrick);
+
+        // Now safe to call
+        concludeGameIfFinished(game);
     }
 
     // Method to update the winner's score
@@ -1312,8 +1317,100 @@ public class GameService {
     private void checkAndBreakHearts(Game game, Card attemptedCard) {
         if ("H".equals(attemptedCard.getSuit()) && !game.getHeartsBroken()) {
             game.setHeartsBroken(true);
-            System.out.println("💔 Hearts are now broken due to card: " + attemptedCard.getCode());
+            System.out.println("Hearts are now broken due to card: " + attemptedCard.getCode());
         }
+    }
+
+    @Transactional
+    public void concludeGameIfFinished(Game game) {
+        long cardsPlayed = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0);
+        if (cardsPlayed < 52) {
+            return; // not finished
+        }
+
+        Match match = game.getMatch();
+        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
+
+        // Sum points per player
+        Map<Integer, Integer> pointsPerSlot = new HashMap<>();
+        for (MatchPlayer player : matchPlayers) {
+            int slot = player.getSlot();
+            int points = gameStatsRepository.sumPointsWorthByGameAndPlayedBy(game, slot);
+            pointsPerSlot.put(slot, points);
+        }
+
+        // Check if anyone shot the moon
+        Integer shooterSlot = null;
+        for (Map.Entry<Integer, Integer> entry : pointsPerSlot.entrySet()) {
+            if (entry.getValue() == 26) {
+                shooterSlot = entry.getKey();
+                break;
+            }
+        }
+
+        if (shooterSlot != null) {
+            // Moon shooter: all others get +26, shooter gets 0
+            for (MatchPlayer player : matchPlayers) {
+                if (player.getSlot() == shooterSlot) {
+                    player.setScore(player.getScore());
+                } else {
+                    player.setScore(player.getScore() + 26);
+                }
+                matchPlayerRepository.save(player);
+            }
+        } else {
+            // Normal score adding
+            for (MatchPlayer player : matchPlayers) {
+                int points = pointsPerSlot.getOrDefault(player.getSlot(), 0);
+                player.setScore(player.getScore() + points);
+                matchPlayerRepository.save(player);
+            }
+        }
+
+        game.setPhase(GamePhase.FINISHED);
+        gameRepository.save(game);
+
+        // Start new game
+        Game newGame = new Game();
+        newGame.setMatch(match);
+        newGame.setGameNumber(match.getGames().size() + 1);
+        newGame.setPhase(GamePhase.PASSING);
+        newGame.setCurrentSlot(1);
+        newGame = gameRepository.save(newGame);
+
+        gameStatsService.initializeGameStats(match, newGame);
+
+        match.getGames().add(newGame);
+        matchRepository.save(match);
+
+        GameResultDTO gameResult = buildGameResult(game);
+        // We will have to figure out later how to deal with this...
+    }
+
+    private GameResultDTO buildGameResult(Game game) {
+        Match match = game.getMatch();
+        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
+
+        List<GameResultDTO.PlayerScore> scores = new ArrayList<>();
+
+        for (MatchPlayer player : matchPlayers) {
+            GameResultDTO.PlayerScore score = new GameResultDTO.PlayerScore();
+            score.setUsername(player.getUser().getUsername());
+            score.setTotalScore(player.getScore());
+
+            // Calculate points this game
+            int pointsThisGame = gameStatsRepository.sumPointsWorthByGameAndPlayedBy(game, player.getSlot());
+            score.setPointsThisGame(pointsThisGame);
+
+            scores.add(score);
+        }
+
+        GameResultDTO resultDTO = new GameResultDTO();
+        resultDTO.setMatchId(match.getMatchId());
+        resultDTO.setGameNumber(game.getGameNumber());
+        resultDTO.setPlayerScores(scores);
+
+        return resultDTO;
     }
 
 }
