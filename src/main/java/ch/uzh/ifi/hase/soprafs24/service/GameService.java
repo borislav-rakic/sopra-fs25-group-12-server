@@ -126,16 +126,23 @@ public class GameService {
 
         /// AI PLAYER
         int currentSlot = game.getCurrentSlot();
-        System.out.println("AI PLAYER Abklärung currentSlot = " + currentSlot);
+        System.out.println("\nNext Player is " + currentSlot);
         User currentSlotUser = match.getUserBySlot(currentSlot);
-        System.out.println("AI PLAYER Abklärung getId = " + currentSlotUser.getId() + " IsAiPlayer = "
-                + currentSlotUser.getIsAiPlayer());
+        System.out.println(
+                "Location: Polling. Slot: " + currentSlot + ". getId = " + currentSlotUser.getId() + " IsAiPlayer = "
+                        + currentSlotUser.getIsAiPlayer() + ". game.getPhase() = " + game.getPhase() + ".");
 
         if (currentSlotUser != null && Boolean.TRUE.equals(currentSlotUser.getIsAiPlayer())
-                && (game.getPhase() == GamePhase.FIRSTROUND && game.getPhase() == GamePhase.NORMALROUND
-                        && game.getPhase() == GamePhase.FINALROUND)) {
-            System.out.println("AI player's turn detected during polling: Slot " + currentSlot);
+                && (game.getPhase() == GamePhase.FIRSTROUND || game.getPhase() == GamePhase.NORMALROUND
+                        || game.getPhase() == GamePhase.FINALROUND)) {
+            System.out.println("Location: Polling. It is an AI player's turn: Slot " + currentSlot);
             playAiTurns(matchId);
+        } else if (currentSlotUser != null
+                && (game.getPhase() == GamePhase.FIRSTROUND || game.getPhase() == GamePhase.NORMALROUND
+                        || game.getPhase() == GamePhase.FINALROUND)) {
+            System.out.println("Location: Polling. Waiting for humanPlayer to play a card: "
+                    + currentSlotUser.getUsername() + "(id="
+                    + currentSlotUser.getId() + ", slot=" + currentSlot + ")");
         }
 
         /// END: AI PLAYER
@@ -440,7 +447,7 @@ public class GameService {
     }
 
     private void triggerAiTurns(Match match, Game game) {
-        System.out.println("Triggering AI turns...");
+        System.out.println("Location triggerAiTurns. Triggering a first AI turn.");
 
         int currentSlot = game.getCurrentSlot();
 
@@ -452,6 +459,7 @@ public class GameService {
 
         // If current player is an AI, trigger their turn(s)
         if (currentPlayer != null && Boolean.TRUE.equals(currentPlayer.getUser().getIsAiPlayer())) {
+            System.out.println("Location: triggerAiTurns. Repeated Call.");
             playAiTurns(match.getMatchId());
         }
     }
@@ -774,17 +782,20 @@ public class GameService {
             updateGamePhase(game, numberOfPlayedCards);
 
             // Set new trick leader
-            game.setCurrentSlot(winnerSlot);
+            game.setCurrentSlot(winnerSlot); // ###
 
-            // --- NEW: Move currentTrick into lastTrick ---
+            // Move currentTrick into lastTrick
             List<String> finishedTrick = game.getCurrentTrick();
             game.setLastTrick(finishedTrick);
+            game.setLastTrickWinnerSlot(winnerSlot);
+            game.setLastTrickPoints(calculateTrickPoints(lastTrickGameStats));
 
             // Clear current trick
             game.clearCurrentTrick();
 
             // Update trick number if needed
             game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
+            gameRepository.save(game);
         }
     }
 
@@ -850,7 +861,8 @@ public class GameService {
             hasLeadSuit = hand.stream().anyMatch(c -> c.getSuit().equals(leadSuit));
 
             if (hasLeadSuit && !attemptedCard.getSuit().equals(leadSuit)) {
-                System.out.println("You played " + playedCardCode + ", but I expected " + leadSuit);
+                System.out.println(
+                        "Location: validateCardPlay. You played " + playedCardCode + ", but I expected " + leadSuit);
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "You must follow suit, expected " + leadSuit + ", received " + playedCardCode + ".");
             }
@@ -1085,7 +1097,7 @@ public class GameService {
         User user = currentMatchPlayer.getUser();
 
         if (user.getIsAiPlayer()) {
-            System.err.println("triggerAiTurns was called in collectPassedCards");
+            System.err.println("Location: collectPassedCards. triggerAiTurns was called in collectPassedCards");
             triggerAiTurns(match, managedGame);
         }
     }
@@ -1208,8 +1220,16 @@ public class GameService {
     @Transactional
     public void playAiTurns(Long matchId) {
         Game currentGame = getActiveGameByMatchId(matchId);
+        if (currentGame == null) {
+            System.out.println(
+                    "Location: playAiTurns. Initiating an AiTurn, but not finding a Game for matchId=" + matchId + ".");
+        }
+        System.out.println("Location: playAiTurns. Initiating an AiTurn. GamePhase=" + currentGame.getPhase());
 
         if (isGameFinished(currentGame)) {
+            System.out
+                    .println("Location: playAiTurns. Game is apparently finished. GamePhase=" + currentGame.getPhase()
+                            + ".");
             return;
         }
 
