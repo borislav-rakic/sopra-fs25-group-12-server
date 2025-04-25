@@ -612,45 +612,49 @@ public class GameService {
         return playedCount >= EXPECTED_CARD_COUNT;
     }
 
-    public void playCard(String token, Long matchId, PlayedCardDTO playedCardDTO) {
-        User player = userService.getUserByToken(token);
-
-        // Force refresh of the Game to get latest state from DB
-        Game game = gameRepository.findById(getActiveGameByMatchId(matchId).getGameId())
-                .orElseThrow(() -> new EntityNotFoundException("Game not found"));
-
+    public void playCard(String token, Long matchId, PlayedCardDTO dto) {
+        User user = userService.getUserByToken(token);
+        Game game = getActiveGameByMatchId(matchId);
         Match match = game.getMatch();
-        if (match == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "This game does not belong to a Match.");
-        }
 
-        // long numberOfPlayedCards = countPlayedCards(game);
-
-        MatchPlayer matchPlayer;
-
-        if (playedCardDTO.getPlayerSlot() == 0) {
-            matchPlayer = matchPlayerRepository.findByUserAndMatch(player, match);
-        } else {
-            matchPlayer = matchPlayerRepository.findByUserAndMatchAndSlot(player, match, playedCardDTO.getPlayerSlot());
-        }
+        MatchPlayer matchPlayer = (dto.getPlayerSlot() == 0)
+                ? matchPlayerRepository.findByUserAndMatch(user, match)
+                : matchPlayerRepository.findByUserAndMatchAndSlot(user, match, dto.getPlayerSlot());
 
         if (matchPlayer == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player does not form part of this match.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not in match.");
         }
-        int playerSlot = matchPlayer.getSlot();
 
-        // Validate it's their turn
-        if (playerSlot != game.getCurrentSlot()) {
+        if (matchPlayer.getSlot() != game.getCurrentSlot()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "It is not your turn. You are slot " + playerSlot + ", but current slot is "
+                    "It is not your turn. You are slot " + matchPlayer.getSlot() + ", but current slot is "
                             + game.getCurrentSlot());
         }
 
-        String playedCardCode = playedCardDTO.getCard();
+        executeCardPlay(matchPlayer, match, game, dto.getCard());
+    }
 
-        // Validate card exists in player's hand
+    public void playCardAsAi(Long matchId, int slot, String cardCode) {
+        Game game = getActiveGameByMatchId(matchId);
+        Match match = game.getMatch();
+
+        MatchPlayer matchPlayer = matchPlayerRepository.findByMatchAndSlot(match, slot);
+
+        if (matchPlayer == null || !Boolean.TRUE.equals(matchPlayer.getUser().getIsAiPlayer())) {
+            throw new IllegalStateException("Slot " + slot + " is not controlled by an AI.");
+        }
+
+        if (slot != game.getCurrentSlot()) {
+            throw new IllegalStateException("AI tried to play out of turn (slot " + slot + ").");
+        }
+
+        executeCardPlay(matchPlayer, match, game, cardCode);
+    }
+
+    private void executeCardPlay(MatchPlayer matchPlayer, Match match, Game game, String cardCode) {
+        // Ensure card is in hand
         boolean hasCard = matchPlayer.getCardsInHand().stream()
-                .anyMatch(card -> card.getCard().equals(playedCardCode));
+                .anyMatch(card -> card.getCard().equals(cardCode));
 
         if (!hasCard) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Card not in hand.");
@@ -659,67 +663,59 @@ public class GameService {
         boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
         boolean isFirstTrick = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) < 4;
 
-        // Enforce "2C" must be the first card played
-        if (isFirstCardOfGame && !playedCardCode.equals("2C")) {
+        if (isFirstCardOfGame && !cardCode.equals("2C")) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "First card of the game must be the 2♣.");
         }
 
         if (isFirstTrick) {
             Card card = new Card();
-            card.setCode(playedCardCode);
+            card.setCode(cardCode);
 
-            boolean isHeart = card.getSuit().equals("H");
-            boolean isQueenOfSpades = playedCardCode.equals("QS");
-
-            if (isHeart || isQueenOfSpades) {
+            if (card.getSuit().equals("H") || cardCode.equals("QS")) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Cannot play Hearts or Queen of Spades during the first trick.");
             }
         }
 
-        // Is it okay to play this card?
-        validateCardPlay(matchPlayer, game, playedCardCode);
+        // Validate play according to rules
+        validateCardPlay(matchPlayer, game, cardCode);
 
-        // CARD IS OK!
-
-        // Remove card from hand
-        matchPlayer.getCardsInHand().removeIf(card -> card.getCard().equals(playedCardCode));
+        // Remove from hand
+        matchPlayer.getCardsInHand().removeIf(card -> card.getCard().equals(cardCode));
         matchPlayerRepository.save(matchPlayer);
 
-        // Fetch existing GameStats if present
-        GameStats gameStats = gameStatsRepository.findByGameAndRankSuit(game, playedCardCode);
-
+        // Create or update GameStats entry
+        GameStats gameStats = gameStatsRepository.findByGameAndRankSuit(game, cardCode);
         if (gameStats == null) {
             gameStats = new GameStats();
-            gameStats.setCardFromString(playedCardCode);
+            gameStats.setCardFromString(cardCode);
             gameStats.setGame(game);
             gameStats.setMatch(match);
         }
 
-        // Count how many cards have been played before this one
         long playedCount = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0);
-        // Set/update play-related fields
+        int slot = matchPlayer.getSlot();
+
         gameStats.setPlayOrder((int) playedCount + 1);
-        gameStats.setPlayedBy(playerSlot);
-        gameStats.setCardHolder(playerSlot);
+        gameStats.setPlayedBy(slot);
+        gameStats.setCardHolder(slot);
         gameStats.setTrickNumber((int) playedCount % 4 + 1);
         gameStatsRepository.saveAndFlush(gameStats);
 
-        handleCardPlayAndTrickCompletion(playedCardCode, playerSlot, game, match);
+        handleCardPlayAndTrickCompletion(cardCode, slot, game, match);
 
-        // Check game end
         if (isGameFinished(game)) {
             game.setPhase(GamePhase.FINISHED);
         }
 
-        // Check if the card played is a Heart, and if hearts weren't broken yet
         if (gameStats.getSuit() == Suit.H && !game.getHeartsBroken()) {
             game.setHeartsBroken(true);
         }
+
         gameRepository.save(game);
 
         if (!isGameFinished(game)) {
-            playAiTurns(game.getMatch().getMatchId());
+            playAiTurns(match.getMatchId()); // Continue with AI loop if needed
         }
     }
 
