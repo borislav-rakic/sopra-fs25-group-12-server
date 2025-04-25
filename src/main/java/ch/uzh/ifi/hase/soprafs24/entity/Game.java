@@ -36,8 +36,8 @@ public class Game {
     @Column(nullable = false)
     private GamePhase phase = GamePhase.PRESTART;
 
-    @Column(name = "trick_leader_slot")
-    private Integer trickLeaderSlot;
+    @Column(name = "trick_leader_slot", nullable = false)
+    private Integer trickLeaderSlot = 0;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "current_trick", joinColumns = @JoinColumn(name = "game_id"))
@@ -46,6 +46,12 @@ public class Game {
 
     @Column(nullable = false)
     private int currentTrickNumber = 0;
+
+    @Column(name = "last_trick_winner_slot")
+    private int lastTrickWinnerSlot;
+
+    @Column(name = "last_trick_points")
+    private int lastTrickPoints;
 
     // === Getters and Setters ===
 
@@ -127,6 +133,22 @@ public class Game {
 
     public void setCurrentTrickNumber(int currentTrickNumber) {
         this.currentTrickNumber = currentTrickNumber;
+    }
+
+    public int getLastTrickWinnerSlot() {
+        return lastTrickWinnerSlot;
+    }
+
+    public void setLastTrickWinnerSlot(int lastTrickWinnerSlot) {
+        this.lastTrickWinnerSlot = lastTrickWinnerSlot;
+    }
+
+    public int getLastTrickPoints() {
+        return lastTrickPoints;
+    }
+
+    public void setLastTrickPoints(int lastTrickPoints) {
+        this.lastTrickPoints = lastTrickPoints;
     }
 
     // === Game logic convenience methods ===

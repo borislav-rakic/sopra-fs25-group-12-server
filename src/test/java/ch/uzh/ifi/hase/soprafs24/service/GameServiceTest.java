@@ -146,7 +146,7 @@ public class GameServiceTest {
 
     @Test
     public void testGetPlayerMatchInformationSuccess() {
-        // Create actual User instances
+        // === Setup Users ===
         User user = new User();
         user.setId(4L);
         user.setUsername("testuser");
@@ -161,7 +161,7 @@ public class GameServiceTest {
         p4.setId(7L);
         p4.setUsername("bot4");
 
-        // Create Match and assign users
+        // === Setup Match ===
         Match match = new Match();
         match.setMatchId(1L);
         match.setPlayer1(user);
@@ -173,20 +173,25 @@ public class GameServiceTest {
         match.setPhase(MatchPhase.READY);
         match.setAiPlayers(new HashMap<>());
 
-        // Setup MatchPlayer
+        // === Setup MatchPlayer ===
         MatchPlayer matchPlayer = new MatchPlayer();
         matchPlayer.setUser(user);
-        matchPlayer.setSlot(1); // Ensure this matches the mocked call
+        matchPlayer.setSlot(1);
         match.setMatchPlayers(List.of(matchPlayer));
 
-        // Setup Game
+        // === Setup Game ===
         Game game = new Game();
         game.setGameId(1L);
         game.setGameNumber(1);
         game.setPhase(GamePhase.FIRSTROUND);
         game.setMatch(match);
+        game.setCurrentTrickNumber(2);
+        game.setLastTrickWinnerSlot(4);
+        game.setLastTrickPoints(0);
+        game.setTrickLeaderSlot(1);
+        game.setHeartsBroken(false);
 
-        // Simulate a complete trick with 4 cards — all Clubs (no points)
+        // === Setup Played Trick (trickNumber = 1) ===
         GameStats gs1 = new GameStats();
         gs1.setRank(Rank._2);
         gs1.setSuit(Suit.C);
@@ -208,33 +213,37 @@ public class GameServiceTest {
         gs4.setPlayedBy(4);
         gs4.setPlayOrder(4);
 
-        List<GameStats> playedCards = List.of(gs1, gs2, gs3, gs4);
-        for (GameStats gs : playedCards) {
+        for (GameStats gs : List.of(gs1, gs2, gs3, gs4)) {
             gs.setGame(game);
             gs.setMatch(match);
+            gs.setTrickNumber(1);
         }
-        match.setGames(List.of(game));
 
-        // Set up mocked hand for user (via GameStatsRepository)
+        // === Setup Player Hand ===
         GameStats handCard = new GameStats();
         handCard.setCardFromString("2C");
+        handCard.setGame(game);
+        handCard.setCardHolder(1);
+        handCard.setPlayedBy(0);
 
-        // === Mocks ===
+        // === Tie Game to Match ===
+        match.setGames(List.of(game));
+
+        // === Mock Repositories ===
         when(userRepository.findUserByToken("1234")).thenReturn(user);
         when(matchRepository.findMatchByMatchId(1L)).thenReturn(match);
         when(matchPlayerRepository.findByUserAndMatch(user, match)).thenReturn(matchPlayer);
+        when(gameRepository.findFirstByMatchAndPhaseNotIn(eq(match), anyList())).thenReturn(game);
         when(gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, 1, 0))
                 .thenReturn(List.of(handCard));
-        when(gameStatsRepository.findByGameAndPlayedByGreaterThan(game, 0))
-                .thenReturn(playedCards);
-        when(gameRepository.findFirstByMatchAndPhaseNotIn(match, List.of(GamePhase.FINISHED, GamePhase.ABORTED)))
-                .thenReturn(game);
-        when(gameStatsService.getLastCompletedTrick(game)).thenReturn(playedCards);
+        when(gameStatsRepository.findByGameAndTrickNumber(game, 1))
+                .thenReturn(List.of(gs1, gs2, gs3, gs4));
 
         // === Act ===
         PlayerMatchInformationDTO result = gameService.getPlayerMatchInformation("1234", 1L);
 
         // === Assert ===
+        assertNotNull(result);
         assertEquals(1L, result.getMatchId());
         assertEquals(4, result.getHostId());
         assertEquals(100, result.getMatchGoal());
@@ -242,17 +251,21 @@ public class GameServiceTest {
         assertEquals(MatchPhase.READY, result.getMatchPhase());
         assertEquals(List.of("testuser", "bot2", "bot3", "bot4"), result.getMatchPlayers());
 
-        // Player hand
+        // Hand
         assertEquals(1, result.getPlayerCards().size());
         assertEquals("2C", result.getPlayerCards().get(0).getCard().getCode());
 
-        // Current trick
-        assertNotNull(result.getCurrentTrick());
-        assertEquals(4, result.getCurrentTrick().size());
-        assertEquals("2", result.getCurrentTrick().get(0).getRank());
-        assertEquals("C", result.getCurrentTrick().get(0).getSuit());
+        // Current Trick
+        assertNotNull(result.getCurrentTrick()); // likely empty in this mock
+        assertEquals(0, result.getCurrentTrick().size());
 
-        // Trick info
+        // Last Trick
+        assertNotNull(result.getLastTrick());
+        assertEquals(4, result.getLastTrick().size());
+        assertEquals("2", result.getLastTrick().get(0).getRank());
+        assertEquals("C", result.getLastTrick().get(0).getSuit());
+
+        // Trick Info
         assertEquals(4, result.getLastTrickWinnerSlot());
         assertEquals(0, result.getLastTrickPoints());
         assertEquals(1, result.getCurrentTrickLeaderSlot());
