@@ -82,14 +82,15 @@ public interface DTOMapper {
   @Mapping(source = "isGuest", target = "isGuest")
   UserAuthDTO convertEntityToUserAuthDTO(User user);
 
-  @Mapping(source = "id", target = "id")
-  @Mapping(source = "username", target = "username")
-  @Mapping(source = "avatar", target = "avatar")
-  @Mapping(source = "status", target = "status")
-  @Mapping(source = "birthday", target = "birthday")
-  @Mapping(source = "userSettings", target = "userSettings")
-  @Mapping(source = "isGuest", target = "isGuest")
+  @Mapping(target = "participantOfActiveMatchId", ignore = true) // Ignore this field during normal mapping
   UserPrivateDTO convertEntityToUserPrivateDTO(User user);
+
+  // Add a custom method to set participantOfActiveMatchId
+  default UserPrivateDTO mapToUserPrivateDTOWithActiveMatch(User user, Long activeMatchId) {
+    UserPrivateDTO dto = convertEntityToUserPrivateDTO(user); // Convert User to DTO
+    dto.setParticipantOfActiveMatchId(activeMatchId); // Set the custom field
+    return dto;
+  }
 
   @Mapping(source = "id", target = "id")
   @Mapping(source = "username", target = "username")

@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.controller;
 
+import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserAuthDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserCreateDTO;
@@ -9,6 +10,7 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPutDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserLoginDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteGetDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -32,9 +34,11 @@ import java.util.stream.Collectors;
 @RestController
 public class UserController {
   private final UserService userService;
+  private final MatchRepository matchRepository;
 
-  UserController(UserService userService) {
+  UserController(UserService userService, MatchRepository matchRepository) {
     this.userService = userService;
+    this.matchRepository = matchRepository;
   }
 
   public String hashPassword(String plainPassword) {
@@ -126,11 +130,11 @@ public class UserController {
    * Gets private data of the authenticated user.
    */
   @GetMapping("/users/me")
-  @ResponseStatus(HttpStatus.OK)
-  public UserPrivateDTO getOwnUser(@RequestHeader("Authorization") String authHeader) {
+  public UserPrivateDTO getUserInformation(@RequestHeader("Authorization") String authHeader) {
     String token = extractToken(authHeader);
-    User user = userService.getUserByToken(token);
-    return DTOMapper.INSTANCE.convertEntityToUserPrivateDTO(user);
+    Long userId = userService.getUserIdFromToken(token);
+
+    return userService.getUserInformation(userId);
   }
 
   /**
