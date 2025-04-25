@@ -426,28 +426,24 @@ public class GameService {
             gameStatsService.initializeGameStats(savedMatch, savedGame);
 
             distributeCards(savedMatch, savedGame, seed);
-
-            // Trigger AI turns after the match starts (if applicable)
-            triggerAiTurns(savedMatch, savedGame);
         });
     }
 
     private void triggerAiTurns(Match match, Game game) {
         System.out.println("Triggering AI turns...");
 
-        // Find AI players in the match
-        List<User> aiPlayers = match.getMatchPlayers().stream()
-                .filter(mp -> mp.getUser().getIsAiPlayer() != null && mp.getUser().getIsAiPlayer())
-                .map(MatchPlayer::getUser)
-                .collect(Collectors.toList());
+        int currentSlot = game.getCurrentSlot();
 
-        // Start the AI turns automatically (assuming each AI player will play one turn)
-        aiPlayers.forEach(aiPlayer -> {
-            if (game.getPhase() == GamePhase.PRESTART) {
-                // Automatically trigger AI to play their starting card (e.g., 2 of Clubs)
-                playAiTurns(game.getMatch().getMatchId());
-            }
-        });
+        // Find the MatchPlayer for the current slot
+        MatchPlayer currentPlayer = match.getMatchPlayers().stream()
+                .filter(mp -> mp.getSlot() == currentSlot)
+                .findFirst()
+                .orElse(null);
+
+        // If current player is an AI, trigger their turn(s)
+        if (currentPlayer != null && Boolean.TRUE.equals(currentPlayer.getUser().getIsAiPlayer())) {
+            playAiTurns(match.getMatchId());
+        }
     }
 
     /**
@@ -1051,6 +1047,7 @@ public class GameService {
         User user = currentMatchPlayer.getUser();
 
         if (user.getIsAiPlayer()) {
+            System.err.println("triggerAiTurns was called in collectPassedCards");
             triggerAiTurns(match, managedGame);
         }
     }
@@ -1173,31 +1170,32 @@ public class GameService {
     @Transactional
     public void playAiTurns(Long matchId) {
         Game currentGame = getActiveGameByMatchId(matchId);
-        int aiTurnLimit = 4; // max 4 AI turns (e.g. full round)
 
-        while (aiTurnLimit-- > 0 && !isGameFinished(currentGame)) {
-            Match match = currentGame.getMatch();
-            int currentSlot = currentGame.getCurrentSlot();
-            User aiPlayer = match.getUserBySlot(currentSlot);
-
-            if (aiPlayer == null || !Boolean.TRUE.equals(aiPlayer.getIsAiPlayer())) {
-                break;
-            }
-
-            List<Card> playableCards = getPlayableCardsForPlayer(match, currentGame, aiPlayer, currentSlot);
-            if (playableCards.isEmpty()) {
-                break;
-            }
-
-            PlayedCardDTO dto = new PlayedCardDTO();
-            dto.setCard(playableCards.get(0).getCode());
-            dto.setPlayerSlot(currentSlot);
-
-            playCard(aiPlayer.getToken(), matchId, dto);
-
-            // Re-fetch the game to update state
-            currentGame = getActiveGameByMatchId(matchId);
+        if (isGameFinished(currentGame)) {
+            return;
         }
+
+        Match match = currentGame.getMatch();
+        int currentSlot = currentGame.getCurrentSlot();
+        User aiPlayer = match.getUserBySlot(currentSlot);
+
+        // Stop if it's a human's turn or no AI player
+        if (aiPlayer == null || !Boolean.TRUE.equals(aiPlayer.getIsAiPlayer())) {
+            return;
+        }
+
+        List<Card> playableCards = getPlayableCardsForPlayer(match, currentGame, aiPlayer, currentSlot);
+        if (playableCards.isEmpty()) {
+            return; // Something went wrong — no cards to play
+        }
+
+        Collections.shuffle(playableCards);
+        String cardCode = playableCards.get(0).getCode();
+
+        playCardAsAi(matchId, currentSlot, cardCode);
+
+        // Recurse into the next turn (updated game state is handled in playCard)
+        playAiTurns(matchId);
     }
 
     public Game getActiveGameByMatchId(Long matchId) {

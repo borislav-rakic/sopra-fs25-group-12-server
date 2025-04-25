@@ -6,7 +6,6 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
 import ch.uzh.ifi.hase.soprafs24.service.GameService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
 
 /**
  * Game Controller
