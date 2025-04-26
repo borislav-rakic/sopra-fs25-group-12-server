@@ -30,7 +30,7 @@ public class Game {
     private String deckId;
 
     @Column(nullable = false)
-    private boolean heartsBroken = false;
+    private boolean isHeartsBroken = false;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
@@ -48,6 +48,11 @@ public class Game {
     @CollectionTable(name = "last_trick", joinColumns = @JoinColumn(name = "game_id"))
     @Column(name = "card_code")
     private Set<String> lastTrick = new LinkedHashSet<>();
+
+    @ElementCollection(fetch = FetchType.EAGER)
+    @CollectionTable(name = "current_trick_slots", joinColumns = @JoinColumn(name = "game_id"))
+    @Column(name = "slot_number")
+    private Set<Integer> currentTrickSlots = new LinkedHashSet<>();
 
     @Column(nullable = false)
     private int currentTrickNumber = 0;
@@ -101,11 +106,11 @@ public class Game {
     }
 
     public Boolean getHeartsBroken() {
-        return heartsBroken;
+        return isHeartsBroken;
     }
 
-    public void setHeartsBroken(Boolean heartsBroken) {
-        this.heartsBroken = heartsBroken;
+    public void setHeartsBroken(Boolean isHeartsBroken) {
+        this.isHeartsBroken = isHeartsBroken;
     }
 
     public GamePhase getPhase() {
@@ -130,6 +135,14 @@ public class Game {
 
     public void setLastTrick(List<String> lastTrick) {
         this.lastTrick = new LinkedHashSet<>(lastTrick);
+    }
+
+    public List<Integer> getCurrentTrickSlots() {
+        return new ArrayList<>(currentTrickSlots);
+    }
+
+    public void setCurrentTrickSlots(List<Integer> currentTrickSlots) {
+        this.currentTrickSlots = new LinkedHashSet<>(currentTrickSlots);
     }
 
     public Integer getTrickLeaderSlot() {
@@ -188,5 +201,4 @@ public class Game {
     public void clearCurrentTrick() {
         currentTrick.clear();
     }
-
 }

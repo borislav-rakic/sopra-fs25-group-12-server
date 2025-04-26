@@ -186,7 +186,7 @@ public class GameService {
         //// Points per player
         Map<Integer, Integer> pointsOfPlayers = new HashMap<>();
         for (MatchPlayer mp : match.getMatchPlayers()) {
-            pointsOfPlayers.put(mp.getSlot(), mp.getScore());
+            pointsOfPlayers.put(mp.getSlot(), mp.getMatchScore());
         }
 
         List<String> matchPlayers = new ArrayList<>();
@@ -419,7 +419,7 @@ public class GameService {
         List<MatchPlayer> matchPlayers = givenMatch.getMatchPlayers();
 
         for (MatchPlayer matchPlayer : matchPlayers) {
-            matchPlayer.setScore(0);
+            matchPlayer.setMatchScore(0);
             matchPlayer.setPerfectGames(0);
             matchPlayer.setShotTheMoonCount(0);
         }
@@ -818,7 +818,7 @@ public class GameService {
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("Winner slot not found in match players"));
 
-        winner.setScore(winner.getScore() + trickPoints);
+        winner.setGameScore(winner.getGameScore() + trickPoints);
         matchPlayerRepository.save(winner); // Save score update
     }
 
@@ -1352,9 +1352,9 @@ public class GameService {
             // Moon shooter: all others get +26, shooter gets 0
             for (MatchPlayer player : matchPlayers) {
                 if (player.getSlot() == shooterSlot) {
-                    player.setScore(player.getScore());
+                    player.setGameScore(player.getGameScore());
                 } else {
-                    player.setScore(player.getScore() + 26);
+                    player.setGameScore(player.getGameScore() + 26);
                 }
                 matchPlayerRepository.save(player);
             }
@@ -1362,7 +1362,7 @@ public class GameService {
             // Normal score adding
             for (MatchPlayer player : matchPlayers) {
                 int points = pointsPerSlot.getOrDefault(player.getSlot(), 0);
-                player.setScore(player.getScore() + points);
+                player.setGameScore(player.getGameScore() + points);
                 matchPlayerRepository.save(player);
             }
         }
@@ -1396,7 +1396,7 @@ public class GameService {
         for (MatchPlayer player : matchPlayers) {
             GameResultDTO.PlayerScore score = new GameResultDTO.PlayerScore();
             score.setUsername(player.getUser().getUsername());
-            score.setTotalScore(player.getScore());
+            score.setTotalScore(player.getMatchScore());
 
             // Calculate points this game
             int pointsThisGame = gameStatsRepository.sumPointsWorthByGameAndPlayedBy(game, player.getSlot());

@@ -30,6 +30,9 @@ public class Match implements Serializable {
     @Column(name = "matchGoal")
     private int matchGoal;
 
+    @Column(nullable = false)
+    private boolean ready = false;
+
     @Column
     private boolean started;
 
@@ -199,6 +202,8 @@ public class Match implements Serializable {
         this.player4 = player4;
     }
 
+    // ======== SOME HELPERS =========== //
+
     public int getSlotByPlayerId(Long playerId) {
         if (player1 != null && player1.getId().equals(playerId))
             return 1;
@@ -226,6 +231,14 @@ public class Match implements Serializable {
         this.phase = phase;
     }
 
+    public Boolean getReady() {
+        return ready;
+    }
+
+    public void setReady(Boolean ready) {
+        this.ready = ready;
+    }
+
     // ==== UTIL FUNCTIONS
 
     public User getUserBySlot(int slot) {
@@ -237,19 +250,6 @@ public class Match implements Serializable {
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No player in slot " + slot));
     }
-
-    // public User getUserBySlot(int slot) {
-    // System.out.println("Looking for slot: " + slot);
-    // matchPlayers.forEach(mp -> System.out.println("MatchPlayer slot: " +
-    // mp.getSlot()));
-
-    // return matchPlayers.stream()
-    // .filter(mp -> mp.getSlot() == slot)
-    // .map(MatchPlayer::getUser)
-    // .findFirst()
-    // .orElseThrow(() -> new IllegalArgumentException("No player in slot " +
-    // slot));
-    // }
 
     public Long getUserIdBySlot(int slot) {
         return matchPlayers.stream()
@@ -273,4 +273,31 @@ public class Match implements Serializable {
                 .orElse(null);
     }
 
+    public MatchPlayer getMatchPlayerBySlot(int slot) {
+        return matchPlayers.stream()
+                .filter(mp -> mp.getSlot() == slot)
+                .findFirst()
+                .orElse(null);
+    }
+
+    public MatchPlayer findPlayerBySlot(int slot) {
+        return this.getMatchPlayers().stream()
+                .filter(mp -> mp.getSlot() == slot)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No player found for slot: " + slot));
+    }
+
+    public List<MatchPlayer> findPlayersExceptSlot(int excludedSlot) {
+        return this.getMatchPlayers().stream()
+                .filter(mp -> mp.getSlot() != excludedSlot)
+                .toList();
+    }
+
+    public Map<Integer, Integer> collectCurrentGameScores() {
+        Map<Integer, Integer> pointsOfPlayers = new HashMap<>();
+        for (MatchPlayer mp : this.getMatchPlayers()) {
+            pointsOfPlayers.put(mp.getSlot(), mp.getGameScore());
+        }
+        return pointsOfPlayers;
+    }
 }

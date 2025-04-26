@@ -44,4 +44,6 @@ public interface GameStatsRepository extends JpaRepository<GameStats, Long> {
     @Query("SELECT COALESCE(SUM(gs.pointsWorth), 0) FROM GameStats gs WHERE gs.game = :game AND gs.playedBy = :slot")
     int sumPointsWorthByGameAndPlayedBy(@Param("game") Game game, @Param("slot") int slot);
 
+    List<GameStats> findByGame(Game game);
+
 }

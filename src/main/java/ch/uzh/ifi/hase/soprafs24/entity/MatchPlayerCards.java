@@ -41,4 +41,11 @@ public class MatchPlayerCards {
     public MatchPlayer getMatchPlayer() {
         return matchPlayer;
     }
+
+    public static MatchPlayerCards of(String cardCode, MatchPlayer matchPlayer) {
+        MatchPlayerCards mpc = new MatchPlayerCards();
+        mpc.setCard(cardCode);
+        mpc.setMatchPlayer(matchPlayer);
+        return mpc;
+    }
 }

@@ -1,6 +1,8 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayerCards;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.constant.Rank;
@@ -149,6 +151,40 @@ public class GameStatsService {
 
     public List<GameStats> getPlayedCards(Game game) {
         return gameStatsRepository.findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
+    }
+
+    @Transactional
+    public void recordCardPlay(Game game, Match match, MatchPlayer matchPlayer, String cardCode) {
+        GameStats gameStats = new GameStats();
+        gameStats.setCardFromString(cardCode);
+        gameStats.setGame(game);
+        gameStats.setMatch(match);
+        // gameStats.setPlayOrder(calculatePlayOrder(game));
+        gameStats.setPlayedBy(matchPlayer.getSlot());
+        gameStats.setCardHolder(matchPlayer.getSlot());
+        // gameStats.setTrickNumber(calculateTrickNumber(game));
+        gameStatsRepository.saveAndFlush(gameStats);
+    }
+
+    @Transactional
+    public void updateGameStatsFromPlayers(Game game, Match match) {
+        List<GameStats> statsList = new ArrayList<>();
+
+        for (MatchPlayer player : match.getMatchPlayers()) {
+            List<MatchPlayerCards> hand = player.getCardsInHand();
+            if (hand != null) {
+                for (MatchPlayerCards card : hand) {
+                    GameStats stats = new GameStats();
+                    stats.setGame(game);
+                    stats.setCardHolder(player.getSlot());
+                    stats.setPlayedBy(0);
+                    stats.setCardFromString(card.getCard());
+                    statsList.add(stats);
+                }
+            }
+        }
+
+        gameStatsRepository.saveAll(statsList);
     }
 
 }

@@ -194,10 +194,10 @@ public class GameServiceTest {
         mp4.setUser(p4);
         mp4.setSlot(4);
 
-        matchPlayer.setScore(0);
-        mp2.setScore(0);
-        mp3.setScore(0);
-        mp4.setScore(0);
+        matchPlayer.setGameScore(0);
+        mp2.setGameScore(0);
+        mp3.setGameScore(0);
+        mp4.setGameScore(0);
 
         match.setMatchPlayers(List.of(matchPlayer, mp2, mp3, mp4));
 

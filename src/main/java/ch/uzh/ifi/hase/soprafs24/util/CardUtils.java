@@ -89,5 +89,20 @@ public class CardUtils {
         String code = rankSymbol + suitSymbol;
 
         return fromCode(code);
+
+    }
+
+    public static List<Card> fromCodes(List<String> codes) {
+        if (codes == null) {
+            return List.of();
+        }
+        return codes.stream()
+                .map(CardUtils::fromCode)
+                .collect(Collectors.toList());
+    }
+
+    // (Optional bonus) Card → String
+    public static String toCode(Card card) {
+        return card.getRank() + card.getSuit();
     }
 }
