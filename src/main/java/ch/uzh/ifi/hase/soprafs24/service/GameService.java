@@ -529,10 +529,12 @@ public class GameService {
     }
 
     private void dealToPlayers(List<CardResponse> responseCards, Match match, Game game) {
+        // iterate through match players
         for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
+            // collect cards
             List<MatchPlayerCards> cards = new ArrayList<>();
             int counter = 0;
-
+            // take 13 cards each
             while (counter < 13 && !responseCards.isEmpty()) {
                 String code = responseCards.get(0).getCode();
 
@@ -548,13 +550,6 @@ public class GameService {
                 MatchPlayerCards matchPlayerCards = new MatchPlayerCards();
                 matchPlayerCards.setCard(code);
                 matchPlayerCards.setMatchPlayer(matchPlayer);
-
-                GameStats gameStats = gameStatsRepository.findByRankAndSuitAndGame(rank, suit, game);
-                if (gameStats != null) {
-                    gameStats.setCardHolder(matchPlayer.getSlot());
-                    gameStatsRepository.save(gameStats);
-                }
-
                 cards.add(matchPlayerCards);
                 counter++;
                 responseCards.remove(0);
@@ -565,11 +560,14 @@ public class GameService {
         }
 
         matchPlayerRepository.flush();
-        gameStatsRepository.flush();
         match.setPhase(MatchPhase.IN_PROGRESS);
         matchRepository.save(match);
         game.setPhase(GamePhase.PASSING);
         gameRepository.save(game);
+
+        // Fill GameStats
+        gameStatsService.updateGameStatsFromPlayers(game, match);
+        gameStatsRepository.flush();
     }
 
     private List<CardResponse> generateDeterministicDeck(long seed) {
