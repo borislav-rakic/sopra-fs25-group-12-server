@@ -180,4 +180,10 @@ public class MatchPlayer {
         }
         this.cardsInHand.add(MatchPlayerCards.of(cardCode, this));
     }
+
+    public void resetMatchStats() {
+        this.setMatchScore(0);
+        this.setPerfectGames(0);
+        this.setShotTheMoonCount(0);
+    }
 }

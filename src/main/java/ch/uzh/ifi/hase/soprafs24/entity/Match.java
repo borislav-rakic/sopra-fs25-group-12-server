@@ -52,9 +52,6 @@ public class Match implements Serializable {
     @Column(name = "user_id")
     private Map<Long, String> joinRequests = new HashMap<>();
 
-    @Column(name = "deck_id")
-    private String deckId;
-
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private MatchPhase phase = MatchPhase.SETUP;
@@ -160,14 +157,6 @@ public class Match implements Serializable {
 
     public String getJoinRequestStatus(Long userId) {
         return joinRequests.getOrDefault(userId, "not found");
-    }
-
-    public void setDeckId(String deckId) {
-        this.deckId = deckId;
-    }
-
-    public String getDeckId() {
-        return deckId;
     }
 
     public User getPlayer1() {

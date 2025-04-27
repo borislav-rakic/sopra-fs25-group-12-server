@@ -336,40 +336,83 @@ public class GameService {
      * @param matchId The match's id
      * @param token   The token of the player sending the request
      */
+    @Transactional
     public void startMatch(Long matchId, String token, Long seed) {
-        User givenUser = userRepository.findUserByToken(token);
-        Match givenMatch = matchRepository.findMatchByMatchId(matchId);
-
-        if (givenUser == null) {
+        User user = userRepository.findUserByToken(token);
+        if (user == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
         }
 
-        if (givenMatch == null) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
 
-        if (givenMatch.getPhase() == MatchPhase.IN_PROGRESS
-                || givenMatch.getPhase() == MatchPhase.BETWEEN_GAMES) {
+        isMatchStartable(match, user);
+
+        // Determine next game number.
+        int nextGameNumber = determineNextGameNumber(match);
+
+        // Create new game
+        Game game = createNewGameInMatch(match);
+        Long savedGameId = game.getGameId();
+
+        // Reset match stats for all MatchPlayers
+        match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
+
+        Mono<NewDeckResponse> newDeckResponseMono = externalApiClientService.createNewDeck();
+
+        newDeckResponseMono.subscribe(response -> {
+            // Manually draw fresh game object from DB.
+            Game savedGame = gameRepository.findById(savedGameId)
+                    .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + savedGameId));
+
+            savedGame.setDeckId(response.getDeck_id());
+
+            // Manually draw fresh match object from DB:
+            Match savedMatch = matchRepository.findMatchByMatchId(match.getMatchId());
+
+            matchRepository.save(savedMatch);
+            matchRepository.flush();
+
+            gameRepository.save(savedGame);
+            gameRepository.flush();
+
+            gameStatsService.initializeGameStats(savedMatch, savedGame);
+
+            distributeCards(savedMatch, savedGame, seed);
+        });
+    }
+
+    /**
+     * Throws unless the given match can be started.
+     * 
+     * @param match The match to be started.
+     * @param user  The owner of the match.
+     */
+    private void isMatchStartable(Match match, User user) {
+        if (match.getPhase() == MatchPhase.IN_PROGRESS
+                || match.getPhase() == MatchPhase.BETWEEN_GAMES) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "This match has already been started.");
-        } else if (givenMatch.getPhase() == MatchPhase.ABORTED) {
+        } else if (match.getPhase() == MatchPhase.ABORTED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "This match has been cancelled by the match owner.");
-        } else if (givenMatch.getPhase() == MatchPhase.FINISHED) {
+        } else if (match.getPhase() == MatchPhase.FINISHED) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "This match has already been finished.");
         }
 
-        if (!givenUser.getId().equals(givenMatch.getHostId())) {
+        if (!user.getId().equals(match.getHostId())) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can start the match");
         }
 
-        Map<Integer, Long> invites = givenMatch.getInvites();
+        Map<Integer, Long> invites = match.getInvites();
         if (invites == null) {
             invites = new HashMap<>();
         }
 
-        Map<Long, String> joinRequests = givenMatch.getJoinRequests();
+        Map<Long, String> joinRequests = match.getJoinRequests();
         if (joinRequests == null) {
             joinRequests = new HashMap<>();
         }
@@ -382,71 +425,56 @@ public class GameService {
             }
         }
 
-        if (givenMatch.getPlayer1() == null || givenMatch.getPlayer2() == null ||
-                givenMatch.getPlayer3() == null || givenMatch.getPlayer4() == null) {
+        if (match.getPlayer1() == null || match.getPlayer2() == null ||
+                match.getPlayer3() == null || match.getPlayer4() == null) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "Cannot start match: not all player slots are filled");
         }
 
         // Prevent creating a new game if an active one already exists
-        if (givenMatch.getActiveGame() != null) {
+        if (match.getActiveGame() != null) {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "An active game already exists for this match.");
         }
+    }
 
-        // Determine next game number (increment from existing games)
-        int nextGameNumber = givenMatch.getGames().stream()
+    /**
+     * Returns the next id of a game about to be started.
+     * 
+     * @param match The match to be started.
+     * @return game The new Game instance.
+     */
+    private int determineNextGameNumber(Match match) {
+        return match.getGames().stream()
                 .mapToInt(Game::getGameNumber)
                 .max()
                 .orElse(0) + 1;
+    }
 
-        // Create new game
+    /**
+     * Creates and persists a new Game for the given Match,
+     * assigning the next available game number and updating Match status
+     * accordingly.
+     *
+     * @param match The Match entity to which the new Game will belong.
+     * @return The newly created and saved Game entity.
+     */
+    private Game createNewGameInMatch(Match match) {
+        int nextGameNumber = determineNextGameNumber(match);
+
         Game game = new Game();
-        game.setMatch(givenMatch);
+        game.setMatch(match);
         game.setGameNumber(nextGameNumber);
         game.setPhase(GamePhase.PRESTART);
 
         gameRepository.save(game);
-        gameRepository.flush();
+        gameRepository.flush(); // Let us make sure we get an immediate ID.
 
-        Long savedGameId = game.getGameId();
+        match.getGames().add(game);
+        match.setPhase(MatchPhase.READY);
+        match.setStarted(true);
+        matchRepository.save(match);
 
-        givenMatch.getGames().add(game);
-        givenMatch.setPhase(MatchPhase.READY);
-        givenMatch.setStarted(true);
-        matchRepository.save(givenMatch);
-        matchRepository.flush();
-
-        List<MatchPlayer> matchPlayers = givenMatch.getMatchPlayers();
-
-        for (MatchPlayer matchPlayer : matchPlayers) {
-            matchPlayer.setMatchScore(0);
-            matchPlayer.setPerfectGames(0);
-            matchPlayer.setShotTheMoonCount(0);
-        }
-
-        Mono<NewDeckResponse> newDeckResponseMono = externalApiClientService.createNewDeck();
-
-        newDeckResponseMono.subscribe(response -> {
-            // System.out.println("Deck id: " + response.getDeck_id());
-
-            Game savedGame = gameRepository.findById(savedGameId)
-                    .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + savedGameId));
-
-            savedGame.setDeckId(response.getDeck_id());
-
-            Match savedMatch = matchRepository.findMatchByMatchId(givenMatch.getMatchId());
-            savedMatch.setDeckId(response.getDeck_id());
-
-            matchRepository.save(savedMatch);
-            matchRepository.flush();
-
-            gameRepository.save(savedGame);
-            gameRepository.flush();
-
-            gameStatsService.initializeGameStats(savedMatch, savedGame);
-
-            distributeCards(savedMatch, savedGame, seed);
-        });
+        return game;
     }
 
     private void triggerAiTurns(Match match, Game game) {
@@ -471,7 +499,7 @@ public class GameService {
      * Distributes 13 cards to each player
      */
     public void distributeCards(Match match, Game game, Long seed) {
-        Mono<DrawCardResponse> drawCardResponseMono = externalApiClientService.drawCard(match.getDeckId(), 52);
+        Mono<DrawCardResponse> drawCardResponseMono = externalApiClientService.drawCard(game.getDeckId(), 52);
 
         drawCardResponseMono.subscribe(response -> {
             List<CardResponse> responseCards = response.getCards();
@@ -621,6 +649,20 @@ public class GameService {
             }
         }
         gameStatsRepository.flush();
+    }
+
+    private void assignCardsToPlayers(List<CardResponse> deck, Match match) {
+        List<MatchPlayer> players = match.getMatchPlayers();
+        int cardIndex = 0;
+        int cardsPerPlayer = 13;
+
+        for (MatchPlayer player : players) {
+            for (int i = 0; i < cardsPerPlayer; i++) {
+                String cardCode = deck.get(cardIndex).getCode();
+                // Assign cardCode to player somehow (depends on your model)
+                cardIndex++;
+            }
+        }
     }
 
     private boolean isGameFinished(Game game) {
