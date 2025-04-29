@@ -75,6 +75,9 @@ public class Match implements Serializable {
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<Game> games = new ArrayList<>();
 
+    @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<PassedCard> passedCards = new ArrayList<>();
+
     public List<Game> getGames() {
         return games;
     }
@@ -191,6 +194,14 @@ public class Match implements Serializable {
         this.player4 = player4;
     }
 
+    public List<PassedCard> getPassedCards() {
+        return passedCards;
+    }
+
+    public void setPassedCards(List<PassedCard> passedCards) {
+        this.passedCards = passedCards;
+    }
+
     // ======== SOME HELPERS =========== //
 
     public int getSlotByPlayerId(Long playerId) {
@@ -257,7 +268,6 @@ public class Match implements Serializable {
     public User getUserBySlot(int slot) {
         return matchPlayers.stream()
                 .filter(mp -> mp.getSlot() == slot)
-                .peek(mp -> System.out.println("Checking MatchPlayer slot: " + mp.getSlot()))
                 .map(MatchPlayer::getUser)
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No player in slot " + slot));
@@ -320,4 +330,16 @@ public class Match implements Serializable {
         this.games.add(game);
         game.setMatch(this); // ensure both sides consistent
     }
+
+    public MatchPlayer requireMatchPlayerByToken(String token) {
+        if (token == null || token.isBlank()) {
+            throw new IllegalArgumentException("Token must not be null or blank.");
+        }
+
+        return this.matchPlayers.stream()
+                .filter(mp -> mp.getUser() != null && token.equals(mp.getUser().getToken()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("No MatchPlayer found with token: " + token));
+    }
+
 }

@@ -7,7 +7,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 
-public class PlayerMatchInformationDTO {
+public class PollingDTO {
     // Info about the Match context
     private Long matchId; // [1]
     private int matchGoal; // [2]
@@ -22,9 +22,9 @@ public class PlayerMatchInformationDTO {
     private List<Card> currentTrick; // [14]
     private int currentTrickLeaderSlot; // [15]
 
-    private List<Card> lastTrick; // [16]
-    private int lastTrickWinnerSlot; // [17]
-    private int lastTrickPoints; // [18]
+    private List<Card> previousTrick; // [16]
+    private int previousTrickWinnerSlot; // [17]
+    private int previousTrickPoints; // [18]
 
     // Info about the other players
     private List<String> matchPlayers; // [21]
@@ -126,12 +126,12 @@ public class PlayerMatchInformationDTO {
         this.matchPhase = matchPhase;
     }
 
-    public List<Card> getLastTrick() {
-        return lastTrick;
+    public List<Card> getPreviousTrick() {
+        return previousTrick;
     }
 
-    public void setLastTrick(List<Card> lastTrick) {
-        this.lastTrick = lastTrick;
+    public void setPreviousTrick(List<Card> previousTrick) {
+        this.previousTrick = previousTrick;
     }
 
     public List<Card> getCurrentTrick() {
@@ -150,20 +150,20 @@ public class PlayerMatchInformationDTO {
         this.currentTrickLeaderSlot = currentTrickLeaderSlot;
     }
 
-    public int getLastTrickWinnerSlot() {
-        return lastTrickWinnerSlot;
+    public int getPreviousTrickWinnerSlot() {
+        return previousTrickWinnerSlot;
     }
 
-    public void setLastTrickWinnerSlot(int lastTrickWinnerSlot) {
-        this.lastTrickWinnerSlot = lastTrickWinnerSlot;
+    public void setPreviousTrickWinnerSlot(int previousTrickWinnerSlot) {
+        this.previousTrickWinnerSlot = previousTrickWinnerSlot;
     }
 
-    public int getLastTrickPoints() {
-        return lastTrickPoints;
+    public int getPreviousTrickPoints() {
+        return previousTrickPoints;
     }
 
-    public void setLastTrickPoints(int lastTrickPoints) {
-        this.lastTrickPoints = lastTrickPoints;
+    public void setPreviousTrickPoints(int previousTrickPoints) {
+        this.previousTrickPoints = previousTrickPoints;
     }
 
     public boolean isHeartsBroken() {

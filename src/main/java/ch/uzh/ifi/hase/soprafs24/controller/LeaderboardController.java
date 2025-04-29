@@ -12,11 +12,15 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @RestController
 @RequestMapping("/leaderboard")
 @CrossOrigin(origins = "*")
 public class LeaderboardController {
 
+    private final Logger log = LoggerFactory.getLogger(LeaderboardController.class);
     private final UserService userService;
 
     @Autowired
@@ -45,8 +49,10 @@ public class LeaderboardController {
 
     @PostMapping("/populate")
     public ResponseEntity<Void> populateLeaderboardIfEmpty() {
-        if (userService.getUserCount() <= 3) {
+        if (userService.getUserCount() <= 9) {// there are nine ai players.
             userService.populateUsersFromSQL();
+        } else {
+            log.error("Could not populate db, sorry.");
         }
         return ResponseEntity.noContent().build();
     }

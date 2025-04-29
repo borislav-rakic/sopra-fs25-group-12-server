@@ -113,7 +113,7 @@ public class MatchControllerTest {
         }
 
         @Test
-        public void testGetMatchInformation() throws Exception {
+        public void testGetPolling() throws Exception {
                 Match match = new Match();
 
                 List<MatchPlayer> matchPlayers = new ArrayList<>();
@@ -129,7 +129,7 @@ public class MatchControllerTest {
                 List<Long> matchPlayerIds = new ArrayList<>();
                 matchPlayerIds.add(match.getMatchPlayers().get(0).getMatchPlayerId());
 
-                given(matchService.getMatchInformation(Mockito.any())).willReturn(match);
+                given(matchService.getPolling(Mockito.any())).willReturn(match);
 
                 MockHttpServletRequestBuilder getRequest = get("/matches/1");
 
@@ -308,37 +308,37 @@ public class MatchControllerTest {
         }
 
         @Test
-        public void testGetPlayerMatchInformation() throws Exception {
-                PlayerMatchInformationDTO playerMatchInformationDTO = new PlayerMatchInformationDTO();
-                playerMatchInformationDTO.setMatchId(1L);
+        public void testGetPlayerPolling() throws Exception {
+                PollingDTO playerPollingDTO = new PollingDTO();
+                playerPollingDTO.setMatchId(1L);
 
                 Map<Integer, Integer> aiPlayers = new HashMap<>();
                 aiPlayers.put(1, 1); // Player 1 - Easy
                 aiPlayers.put(2, 2); // Player 2 - Medium
                 aiPlayers.put(3, 3); // Player 3 - Hard
-                playerMatchInformationDTO.setAiPlayers(aiPlayers);
+                playerPollingDTO.setAiPlayers(aiPlayers);
 
                 List<String> matchPlayers = new ArrayList<>();
                 matchPlayers.add("User");
 
-                playerMatchInformationDTO.setMatchPlayers(matchPlayers);
-                playerMatchInformationDTO.setHostId(4L);
-                playerMatchInformationDTO.setMatchGoal(100);
+                playerPollingDTO.setMatchPlayers(matchPlayers);
+                playerPollingDTO.setHostId(4L);
+                playerPollingDTO.setMatchGoal(100);
 
-                given(matchService.getPlayerMatchInformation(Mockito.any(), Mockito.any()))
-                                .willReturn(playerMatchInformationDTO);
+                given(matchService.getPlayerPolling(Mockito.any(), Mockito.any()))
+                                .willReturn(playerPollingDTO);
 
                 MockHttpServletRequestBuilder postRequest = post("/matches/1/logic")
                                 .header("Authorization", "Bearer 1234");
 
                 mockMvc.perform(postRequest)
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.matchId", is(playerMatchInformationDTO.getMatchId().intValue())))
-                                .andExpect(jsonPath("$.matchPlayers", is(playerMatchInformationDTO.getMatchPlayers())))
+                                .andExpect(jsonPath("$.matchId", is(playerPollingDTO.getMatchId().intValue())))
+                                .andExpect(jsonPath("$.matchPlayers", is(playerPollingDTO.getMatchPlayers())))
                                 .andExpect(jsonPath("$.aiPlayers.1", is(1)))
                                 .andExpect(jsonPath("$.aiPlayers.2", is(2)))
                                 .andExpect(jsonPath("$.aiPlayers.3", is(3)))
-                                .andExpect(jsonPath("$.matchGoal", is(playerMatchInformationDTO.getMatchGoal())))
-                                .andExpect(jsonPath("$.hostId", is(playerMatchInformationDTO.getHostId().intValue())));
+                                .andExpect(jsonPath("$.matchGoal", is(playerPollingDTO.getMatchGoal())))
+                                .andExpect(jsonPath("$.hostId", is(playerPollingDTO.getHostId().intValue())));
         }
 }

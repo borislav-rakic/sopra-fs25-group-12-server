@@ -1,6 +1,8 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import org.springframework.stereotype.Service;
+
+import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 
 @Service
@@ -12,8 +14,8 @@ public class AiPlayingService {
         this.cardRulesService = cardRulesService;
     }
 
-    public String selectCardToPlay(MatchPlayer matchPlayer) {
-        String playableCardsString = cardRulesService.getPlayableCardsForMatchPlayer(matchPlayer);
+    public String selectCardToPlay(Game game, MatchPlayer matchPlayer) {
+        String playableCardsString = cardRulesService.getPlayableCardsForMatchPlayer(game, matchPlayer);
 
         System.out.println("I am MatchPlayer with hand: " + matchPlayer.getHand());
         System.out.println("I am MatchPlayer with playable hand: " + playableCardsString);

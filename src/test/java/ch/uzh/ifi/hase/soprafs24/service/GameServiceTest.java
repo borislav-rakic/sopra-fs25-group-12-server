@@ -6,7 +6,7 @@ import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
 import ch.uzh.ifi.hase.soprafs24.repository.*;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -150,7 +150,7 @@ public class GameServiceTest {
     }
 
     @Test
-    public void testGetPlayerMatchInformationSuccess() {
+    public void testGetPlayerPollingSuccess() {
         // === Setup Users ===
         User user = new User();
         user.setId(4L);
@@ -213,46 +213,13 @@ public class GameServiceTest {
         game.setPhase(GamePhase.FIRSTTRICK);
         game.setMatch(match);
         game.setCurrentTrickNumber(2);
-        game.setLastTrickWinnerSlot(4);
-        game.setLastTrickPoints(0);
+        game.setPreviousTrickWinnerSlot(4);
+        game.setPreviousTrickPoints(0);
         game.setTrickLeaderSlot(1);
         game.setHeartsBroken(false);
         game.setCurrentSlot(1);
 
-        // === Setup Played Trick (trickNumber = 1) ===
-        GameStats gs1 = new GameStats();
-        gs1.setRank(Rank._2);
-        gs1.setSuit(Suit.C);
-        gs1.setPlayedBy(1);
-        gs1.setPlayOrder(1);
-        GameStats gs2 = new GameStats();
-        gs2.setRank(Rank._3);
-        gs2.setSuit(Suit.C);
-        gs2.setPlayedBy(2);
-        gs2.setPlayOrder(2);
-        GameStats gs3 = new GameStats();
-        gs3.setRank(Rank._4);
-        gs3.setSuit(Suit.C);
-        gs3.setPlayedBy(3);
-        gs3.setPlayOrder(3);
-        GameStats gs4 = new GameStats();
-        gs4.setRank(Rank._5);
-        gs4.setSuit(Suit.C);
-        gs4.setPlayedBy(4);
-        gs4.setPlayOrder(4);
-
-        for (GameStats gs : List.of(gs1, gs2, gs3, gs4)) {
-            gs.setGame(game);
-            gs.setMatch(match);
-            gs.setTrickNumber(1);
-        }
-
-        // === Setup Player Hand ===
-        GameStats handCard = new GameStats();
-        handCard.setCardFromString("2C");
-        handCard.setGame(game);
-        handCard.setCardHolder(1);
-        handCard.setPlayedBy(0);
+        matchPlayer.setHand("2C");
 
         // === Tie Game to Match ===
         match.setGames(List.of(game));
@@ -262,21 +229,11 @@ public class GameServiceTest {
         when(matchRepository.findMatchByMatchId(1L)).thenReturn(match);
         when(matchPlayerRepository.findByUserAndMatch(user, match)).thenReturn(matchPlayer);
         when(gameRepository.findFirstByMatchAndPhaseNotIn(eq(match), anyList())).thenReturn(game);
-        when(gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, 1, 0))
-                .thenReturn(List.of(handCard));
-        when(gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, 2, 0))
-                .thenReturn(List.of());
-        when(gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, 3, 0))
-                .thenReturn(List.of());
-        when(gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, 4, 0))
-                .thenReturn(List.of());
-        when(gameStatsRepository.findByGameAndTrickNumber(game, 1))
-                .thenReturn(List.of(gs1, gs2, gs3, gs4));
         when(matchPlayerRepository.findByUserAndMatchAndSlot(user, match, 1)).thenReturn(matchPlayer);
 
         // === Act ===
         System.out.println("Players in match: " + match.getMatchPlayers().size());
-        PlayerMatchInformationDTO result = gameService.getPlayerMatchInformation("1234", 1L);
+        PollingDTO result = gameService.getPlayerPolling(user, match);
 
         // === Assert ===
         assertNotNull(result);
@@ -295,15 +252,15 @@ public class GameServiceTest {
         assertNotNull(result.getCurrentTrick()); // likely empty in this mock
         assertEquals(0, result.getCurrentTrick().size());
 
-        // Last Trick
-        assertNotNull(result.getLastTrick());
-        // assertEquals(4, result.getLastTrick().size());
-        // assertEquals("2", result.getLastTrick().get(0).getRank());
-        // assertEquals("C", result.getLastTrick().get(0).getSuit());
+        // Previous Trick
+        assertNotNull(result.getPreviousTrick());
+        // assertEquals(4, result.getPreviousTrick().size());
+        // assertEquals("2", result.getPreviousTrick().get(0).getRank());
+        // assertEquals("C", result.getPreviousTrick().get(0).getSuit());
 
         // Trick Info
-        assertEquals(4, result.getLastTrickWinnerSlot());
-        assertEquals(0, result.getLastTrickPoints());
+        assertEquals(4, result.getPreviousTrickWinnerSlot());
+        assertEquals(0, result.getPreviousTrickPoints());
         assertEquals(1, result.getCurrentTrickLeaderSlot());
     }
 

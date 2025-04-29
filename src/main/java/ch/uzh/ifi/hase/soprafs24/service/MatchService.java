@@ -1,11 +1,13 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
@@ -17,12 +19,19 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import java.util.Map.Entry;
 
 import java.util.*;
 import java.util.stream.Collectors;
 
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
+import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Match Service
@@ -34,8 +43,9 @@ import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 @Service
 @Transactional
 public class MatchService {
-    // private final Logger log = LoggerFactory.getLogger(MatchService.class);
+    private final Logger log = LoggerFactory.getLogger(MatchService.class);
 
+    private final GameRepository gameRepository;
     private final GameService gameService;
     private final MatchPlayerRepository matchPlayerRepository;
     private final UserRepository userRepository;
@@ -44,11 +54,13 @@ public class MatchService {
 
     @Autowired
     public MatchService(
+            @Qualifier("gameRepository") GameRepository gameRepository,
             @Qualifier("gameService") GameService gameService,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
             @Qualifier("matchRepository") MatchRepository matchRepository,
             @Qualifier("userRepository") UserRepository userRepository,
             @Qualifier("userService") UserService userService) {
+        this.gameRepository = gameRepository;
         this.gameService = gameService;
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchRepository = matchRepository;
@@ -56,6 +68,9 @@ public class MatchService {
         this.userService = userService;
 
     }
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     /**
      * Creates a new {@link Match} entity for the user associated with the provided
@@ -135,7 +150,7 @@ public class MatchService {
         return matchRepository.findAll();
     }
 
-    public Match getMatchInformation(Long matchId) {
+    public Match getPolling(Long matchId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
 
         if (match == null) {
@@ -349,15 +364,16 @@ public class MatchService {
         int difficulty = Math.max(1, Math.min(dto.getDifficulty(), 3)); // Difficulty must be within [1,3]
         int slot = dto.getSlot(); // Slot must be: 2 = player2, 3 = player3, 4 = player4
 
-        if (slot < 2 || slot > 4) {
+        if (slot < 1 || slot > 3) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "AI slot must be between 2 and 4.");
+                    "AI slot must be between 1 and 3.");
         }
 
-        int playerSlot = slot; // slots 2, 3 or 4.
+        int playerSlotClient = slot; // slots 1, 2 or 3.
+        int playerSlotServer = playerSlotClient + 1; // slots 2, 3 or 4.
 
         // Check if that slot is already taken
-        switch (playerSlot) {
+        switch (playerSlotServer) {
             case 2:
                 if (match.getPlayer2() != null)
                     throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Slot 2 is already taken.");
@@ -373,7 +389,14 @@ public class MatchService {
         }
 
         // Get the corresponding AI "user"
-        User aiPlayer = userRepository.findUserById((long) difficulty);
+        Long aiPlayersId = (long) (difficulty - 1) * 3 + (playerSlotServer - 1);
+        if (aiPlayersId < 1 || aiPlayersId > 9) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "AI user for combination of slot " + playerSlotServer + "  and difficulty " + difficulty
+                            + " not found (" + aiPlayersId + ")or is not an AI.");
+        }
+
+        User aiPlayer = userRepository.findUserById(aiPlayersId);
         if (aiPlayer == null || !aiPlayer.getIsAiPlayer()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "AI user for difficulty " + difficulty + " not found or is not an AI.");
@@ -383,15 +406,15 @@ public class MatchService {
         MatchPlayer newMatchPlayer = new MatchPlayer();
         newMatchPlayer.setMatch(match);
         newMatchPlayer.setUser(aiPlayer);
-        newMatchPlayer.setSlot(playerSlot);
+        newMatchPlayer.setSlot(playerSlotServer);
         newMatchPlayer.setIsAiPlayer(true);
 
         match.getMatchPlayers().add(newMatchPlayer);
 
         // Assign to slot in Match
-        if (playerSlot == 2) {
+        if (playerSlotServer == 2) {
             match.setPlayer2(aiPlayer);
-        } else if (playerSlot == 3) {
+        } else if (playerSlotServer == 3) {
             match.setPlayer3(aiPlayer);
         } else {
             match.setPlayer4(aiPlayer);
@@ -402,7 +425,7 @@ public class MatchService {
         if (aiPlayers == null) {
             aiPlayers = new HashMap<>();
         }
-        aiPlayers.put(playerSlot, difficulty);
+        aiPlayers.put(playerSlotServer, difficulty);
         match.setAiPlayers(aiPlayers);
 
         matchRepository.save(match);
@@ -597,7 +620,7 @@ public class MatchService {
     public List<UserGetDTO> getEligibleUsers(Long matchId, String token) {
         User currentUser = userService.getUserByToken(token); // Get the current user
 
-        Match match = getMatchInformation(matchId); // Assuming this method exists
+        Match match = getPolling(matchId); // Assuming this method exists
 
         Set<Long> excludedUserIds = new HashSet<>();
 
@@ -700,16 +723,44 @@ public class MatchService {
     };
 
     public void playCardAsHuman(String token, Long matchId, PlayedCardDTO dto) {
-        gameService.playCardAsHuman(token, matchId, dto);
+        User user = userService.requireUserByToken(token);
+        Match match = requireMatchByMatchId(matchId);
+        Game game = requireActiveGameByMatch(match);
+        String cardCode = CardUtils.requireValidCardFormat(dto.getCard());
+        MatchPlayer matchPlayer = match.requireMatchPlayerByToken(token);
+        int playerSlotServer = dto.getPlayerSlot() + 1; // 1 to account for 0-based frontend counting
+        if (matchPlayer.getSlot() != playerSlotServer) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "Mismatch between token and slot");
+        }
+        try {
+            log.info("PlayedCardDTO: {}", objectMapper.writeValueAsString(dto));
+            log.info(user.getUsername() + " / " + match.getMatchId() + "/" + playerSlotServer);
+        } catch (JsonProcessingException e) {
+            log.warn("Failed to serialize PlayedCardDTO", e);
+        }
+        log.info(String.format(
+                "The matchPlayerId=%s (userId=%s, slot=%s), is trying to play the card %s, his hand being %s.",
+                matchPlayer.getMatchPlayerId(), matchPlayer.getUser().getId(), playerSlotServer, cardCode,
+                matchPlayer.getHand()));
+        gameService.playCardAsHuman(game, matchPlayer, cardCode);
     }
 
     public void startMatch(Long matchId, String token, Long seed) {
         gameService.startMatch(matchId, token, seed);
     }
 
-    public PlayerMatchInformationDTO getPlayerMatchInformation(String token, Long matchId) {
-        PlayerMatchInformationDTO playerMatchInformation = gameService.getPlayerMatchInformation(token, matchId);
-        return playerMatchInformation;
+    public PollingDTO getPlayerPolling(String token, Long matchId) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+        User user = userRepository.findUserByToken(token);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+        }
+        PollingDTO playerPolling = gameService.getPlayerPolling(user, match);
+        return playerPolling;
     }
 
     public Game requireActiveGameByMatch(Match match) {
@@ -718,6 +769,31 @@ public class MatchService {
             throw new IllegalStateException("No active game found for this match.");
         }
         return activeGame;
+    }
+
+    public GameResultDTO checkGameAndStartNextIfNeeded(Match match) {
+        Game activeGame = match.getActiveGame();
+        GameResultDTO result = gameService.concludeGame(activeGame);
+
+        boolean matchOver = match.getMatchPlayers().stream()
+                .anyMatch(mp -> mp.getMatchScore() >= match.getMatchGoal());
+
+        if (!matchOver) {
+            Game nextGame = new Game();
+            nextGame.setMatch(match);
+            nextGame.setGameNumber(match.getGames().size() + 1);
+            nextGame.setPhase(GamePhase.PASSING);
+            nextGame.setCurrentSlot(1);
+            gameRepository.save(nextGame);
+
+            match.getGames().add(nextGame);
+            matchRepository.save(match);
+        } else {
+            match.setPhase(MatchPhase.FINISHED);
+            matchRepository.save(match);
+        }
+
+        return result;
     }
 
 }

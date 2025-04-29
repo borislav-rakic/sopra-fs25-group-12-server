@@ -12,6 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Match Controller
  * This class is responsible for handling all REST request that are related to
@@ -22,7 +25,7 @@ import java.util.Map;
 @RestController
 public class MatchController {
     private final MatchService matchService;
-    // private final Logger log = LoggerFactory.getLogger(MatchController.class);
+    private final Logger log = LoggerFactory.getLogger(MatchController.class);
 
     MatchController(MatchService matchService) {
         this.matchService = matchService;
@@ -74,8 +77,8 @@ public class MatchController {
      */
     @GetMapping("/matches/{matchId}")
     @ResponseStatus(HttpStatus.OK)
-    public MatchDTO getMatchInformation(@PathVariable Long matchId) {
-        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.getMatchInformation(matchId));
+    public MatchDTO getPolling(@PathVariable Long matchId) {
+        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.getPolling(matchId));
     }
 
     /**
@@ -234,7 +237,6 @@ public class MatchController {
             @RequestHeader("Authorization") String authHeader) {
         // Optionally extract Bearer token, if needed
         String token = authHeader.replace("Bearer ", "");
-        System.out.println("MatchController.passCards reached.");
         // Delegate the work to the service
         matchService.passingAcceptCards(matchId, passingDTO, token);
     }
@@ -247,10 +249,10 @@ public class MatchController {
      */
     @PostMapping("/matches/{matchId}/logic")
     @ResponseStatus(HttpStatus.OK)
-    public PlayerMatchInformationDTO getPlayerMatchInformation(@PathVariable Long matchId,
+    public PollingDTO getPlayerPolling(@PathVariable Long matchId,
             @RequestHeader("Authorization") String authHeader) {
         String token = authHeader.replace("Bearer ", "");
-        return matchService.getPlayerMatchInformation(token, matchId);
+        return matchService.getPlayerPolling(token, matchId);
     }
 
     /**
@@ -296,7 +298,8 @@ public class MatchController {
             @RequestHeader("Authorization") String authHeader,
             @RequestBody PlayedCardDTO playedCardDTO) {
         String token = authHeader.replace("Bearer ", "");
-        System.out.println("contr." + playedCardDTO.getCard());
+        log.info(String.format("Reached endpoint /play for match {}, clientSlot {}.", matchId,
+                playedCardDTO.getPlayerSlot()));
         matchService.playCardAsHuman(token, matchId, playedCardDTO);
     }
 }

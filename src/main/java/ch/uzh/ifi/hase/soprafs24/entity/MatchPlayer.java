@@ -312,4 +312,8 @@ public class MatchPlayer {
         return hand.split(",");
     }
 
+    public String getInfo() {
+        return this.getMatch().getMatchId() + "/" + this.getSlot();
+    }
+
 }

@@ -17,12 +17,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import ch.uzh.ifi.hase.soprafs24.entity.Game;
-import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
-import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
+
+import ch.uzh.ifi.hase.soprafs24.entity.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Component
 public final class DebuggingService {
@@ -48,6 +49,8 @@ public final class DebuggingService {
     }
 
     private static final String DUMP_FOLDER = "debug_dumps";
+
+    private static final Logger log = LoggerFactory.getLogger(DebuggingService.class);
 
     private DebuggingService() {
         // Private constructor to prevent instantiation
@@ -353,4 +356,87 @@ public final class DebuggingService {
         return html.toString();
     }
 
+    /**
+     * Logs rich contextual information about the game state.
+     *
+     * @param user        the user (can be null)
+     * @param match       the match (can be null)
+     * @param game        the game (can be null)
+     * @param matchPlayer the player (can be null)
+     * @param cardCode    the card played (can be null)
+     * @param contextMsg  optional message to include
+     */
+    public static void richLog(User user, Match match, Game game, MatchPlayer matchPlayer, String cardCode,
+            String contextMsg) {
+        StringBuilder sb = new StringBuilder();
+
+        // Caller context
+        StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+        StackTraceElement caller = (stackTrace.length > 2) ? stackTrace[2] : null;
+
+        sb.append("\n🎮 === RICH LOG START ===\n");
+
+        if (contextMsg != null && !contextMsg.isBlank()) {
+            sb.append("📝 Context     : ").append(contextMsg).append("\n");
+        }
+
+        if (caller != null) {
+            sb.append("📍 Called From : ")
+                    .append(caller.getClassName()).append(".")
+                    .append(caller.getMethodName()).append("() : line ")
+                    .append(caller.getLineNumber()).append("\n");
+        }
+
+        // User
+        if (user != null) {
+            sb.append("👤 User        : ").append(user.getUsername())
+                    .append(" (ID: ").append(user.getId()).append(")\n");
+        } else {
+            sb.append("👤 User        : null\n");
+        }
+
+        // Card
+        sb.append("🃏 Card Played : ").append(cardCode != null ? cardCode : "null").append("\n");
+
+        // Match
+        if (match != null) {
+            sb.append("🎯 Match       : ID=").append(match.getMatchId())
+                    .append(", Phase=").append(match.getPhase())
+                    .append(", Started=").append(match.getStarted()).append("\n");
+        } else {
+            sb.append("🎯 Match       : null\n");
+        }
+
+        // Game
+        if (game != null) {
+            sb.append("🎲 Game        : ID=").append(game.getGameId())
+                    .append(", Number=").append(game.getGameNumber())
+                    .append(", Phase=").append(game.getPhase())
+                    .append(", Current Slot=").append(game.getCurrentSlot())
+                    .append(", Trick Size=").append(game.getCurrentTrickSize()).append("\n");
+            sb.append("📈 Trick       : ").append(game.getCurrentTrick()).append("\n");
+        } else {
+            sb.append("🎲 Game        : null\n");
+        }
+
+        // Player
+        if (matchPlayer != null) {
+            sb.append("🎮 MatchPlayer : Slot=").append(matchPlayer.getSlot())
+                    .append(", Score=").append(matchPlayer.getGameScore())
+                    .append(", Hand=").append(matchPlayer.getHand()).append("\n");
+        } else {
+            sb.append("🎮 MatchPlayer : null\n");
+        }
+
+        sb.append("🎮 === RICH LOG END ===\n");
+
+        log.info(sb.toString());
+    }
+
+    /**
+     * Overloaded version with no context message.
+     */
+    public static void richLog(User user, Match match, Game game, MatchPlayer matchPlayer, String cardCode) {
+        richLog(user, match, game, matchPlayer, cardCode, null);
+    }
 }

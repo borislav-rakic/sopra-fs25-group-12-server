@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.controller.MatchController;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
@@ -22,6 +23,9 @@ import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Service
 public class CardPassingService {
@@ -48,6 +52,8 @@ public class CardPassingService {
         this.matchPlayerRepository = matchPlayerRepository;
         this.passedCardRepository = passedCardRepository;
     }
+
+    private final Logger log = LoggerFactory.getLogger(CardPassingService.class);
 
     /**
      * """
@@ -204,7 +210,9 @@ public class CardPassingService {
                 .collect(Collectors.toList());
         passedCardRepository.saveAll(passedCards);
         passedCardRepository.flush();
-
+        log.info("MatchPlayer {} is passing cards {} from his hand {}. {}", matchPlayer.getInfo(),
+                passingDTO.getCardsAsString(), matchPlayer.getHand(),
+                cardRulesService.describePassingDirection(game.getGameNumber(), matchPlayer.getSlot()));
         // Count how many cards have been passed in total
         long passedCount = passedCardRepository.countByGame(game);
 
@@ -227,6 +235,7 @@ public class CardPassingService {
             collectPassedCards(game);
             // Transition phase to FIRSTTRICK!
             game.setPhase(GamePhase.FIRSTTRICK);
+            game.setCurrentTrickNumber(1);
             gameRepository.save(game);
 
         }

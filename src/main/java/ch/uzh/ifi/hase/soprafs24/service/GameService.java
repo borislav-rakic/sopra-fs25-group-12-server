@@ -39,7 +39,7 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GameResultDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerMatchInformationDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 import reactor.core.publisher.Mono;
 
@@ -65,7 +65,6 @@ public class GameService {
     private final GameStatsService gameStatsService;
     private final MatchPlayerRepository matchPlayerRepository;
     private final UserRepository userRepository;
-    private final UserService userService;
     private final MatchRepository matchRepository;
 
     // or via constructor injection
@@ -94,7 +93,6 @@ public class GameService {
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchRepository = matchRepository;
         this.userRepository = userRepository;
-        this.userService = userService;
 
     }
 
@@ -107,21 +105,10 @@ public class GameService {
      * @param matchId The id of the match the user is in
      * @return Information specific to a player (e.g. their current cards)
      */
-    public PlayerMatchInformationDTO getPlayerMatchInformation(String token, Long matchId) {
+    public PollingDTO getPlayerPolling(User user, Match match) {
         // MATCH [1], [2], [3], [4]
-        Match match = matchRepository.findMatchByMatchId(matchId);
-        if (match == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
-        }
-
-        // USER
-        User user = userRepository.findUserByToken(token);
-        if (user == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
-        }
-
         // GAME [11], [12]
-        Game game = getActiveGameByMatchId(matchId);
+        Game game = match.getActiveGame();
         if (game == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "There is no active  game in this match.");
         }
@@ -134,8 +121,8 @@ public class GameService {
                 .map(CardUtils::fromCode)
                 .collect(Collectors.toList());
 
-        // Last trick as List<Card> [14]
-        List<Card> lastTrickAsCards = game.getLastTrick().stream()
+        // Previous trick as List<Card> [14]
+        List<Card> previousTrickAsCards = game.getPreviousTrick().stream()
                 .map(CardUtils::fromCode)
                 .collect(Collectors.toList());
 
@@ -178,10 +165,9 @@ public class GameService {
 
         /// Number of cards in hand
         Map<Integer, Integer> handCounts = new HashMap<>();
+
         for (MatchPlayer mp : match.getMatchPlayers()) {
-            int count = gameStatsRepository
-                    .findByGameAndCardHolderAndPlayedBy(game, mp.getSlot(), 0)
-                    .size();
+            int count = mp.getHandCardsArray().length;
             handCounts.put(mp.getSlot(), count);
         }
         //// Points per player
@@ -207,11 +193,9 @@ public class GameService {
 
         List<PlayerCardDTO> playerCardDTOList = new ArrayList<>();
 
-        List<GameStats> hand = gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, matchPlayer.getSlot(),
-                0);
-        for (GameStats gs : hand) {
+        for (String cardCode : matchPlayer.getHandCardsArray()) {
             PlayerCardDTO dtoCard = new PlayerCardDTO();
-            dtoCard.setCard(gs.getRankSuit());
+            dtoCard.setCard(cardCode);
             dtoCard.setGameId(game.getGameId());
             dtoCard.setGameNumber(game.getGameNumber());
             dtoCard.setPlayerId(user.getId());
@@ -223,7 +207,7 @@ public class GameService {
 
         // Only show playable cards if it is this player's turn
         if (matchPlayer.getSlot() == game.getCurrentSlot()) {
-            String playableCards = cardRulesService.getPlayableCardsForMatchPlayer(matchPlayer);
+            String playableCards = cardRulesService.getPlayableCardsForMatchPlayer(game, matchPlayer);
 
             if (playableCards != null && !playableCards.isBlank()) {
                 playableCardDTOList = java.util.Arrays.stream(playableCards.split(","))
@@ -239,9 +223,9 @@ public class GameService {
             }
         }
 
-        // START AGGREGATING INFO ON PlayerMatchInformation
+        // START AGGREGATING INFO ON PlayerPolling
 
-        PlayerMatchInformationDTO dto = new PlayerMatchInformationDTO();
+        PollingDTO dto = new PollingDTO();
 
         dto.setMatchId(match.getMatchId()); // [1]
         dto.setMatchGoal(match.getMatchGoal()); // [2]
@@ -254,9 +238,9 @@ public class GameService {
         dto.setCurrentTrick(currentTrickAsCards); // [14]
 
         dto.setCurrentTrickLeaderSlot(game.getTrickLeaderSlot()); // [15]
-        dto.setLastTrick(lastTrickAsCards); // [16]
-        dto.setLastTrickWinnerSlot(game.getLastTrickWinnerSlot()); // [17]
-        dto.setLastTrickPoints(game.getLastTrickPoints()); // [18]
+        dto.setPreviousTrick(previousTrickAsCards); // [16]
+        dto.setPreviousTrickWinnerSlot(game.getPreviousTrickWinnerSlot()); // [17]
+        dto.setPreviousTrickPoints(game.getPreviousTrickPoints()); // [18]
 
         // Info about the other players
         dto.setMatchPlayers(matchPlayers); // [21]
@@ -266,7 +250,9 @@ public class GameService {
         dto.setAiPlayers(match.getAiPlayers()); // [25]
 
         // Info about myself
-        dto.setSlot(matchPlayer.getSlot()); // [31]
+        int slotServer = matchPlayer.getSlot();
+        int slotClient = slotServer - 1;
+        dto.setSlot(slotClient); // [31]
         dto.setMyTurn(matchPlayer.getSlot() == game.getCurrentSlot()); // [32]
         dto.setPlayerCards(playerCardDTOList); // [33]
         dto.setPlayableCards(playableCardDTOList); // [34]
@@ -288,18 +274,6 @@ public class GameService {
         }
         /// END: AI PLAYER
         return dto;
-    }
-
-    public int calculateTrickPoints(List<GameStats> trick) {
-        return trick.stream()
-                .mapToInt(gs -> {
-                    if (gs.getSuit() == Suit.H)
-                        return 1; // each heart = 1
-                    if (gs.getRank().toString().equals("Q") && gs.getSuit() == Suit.S)
-                        return 13; // QS = 13
-                    return 0;
-                })
-                .sum();
     }
 
     /**
@@ -406,9 +380,9 @@ public class GameService {
         return game;
     }
 
-    private void triggerAiTurns(Match match, Game game) {
+    private void triggerAiTurns(Game game) {
         System.out.println("Location triggerAiTurns. Triggering a first AI turn.");
-
+        Match match = game.getMatch();
         int currentSlot = game.getCurrentSlot();
 
         // Find the MatchPlayer for the current slot
@@ -416,7 +390,7 @@ public class GameService {
                 .filter(mp -> mp.getSlot() == currentSlot)
                 .findFirst()
                 .orElse(null);
-
+        // s###
         // If current player is an AI, trigger their turn(s)
         if (currentPlayer != null && Boolean.TRUE.equals(currentPlayer.getUser().getIsAiPlayer())) {
             System.out.println("Location: triggerAiTurns. Repeated Call.");
@@ -493,58 +467,44 @@ public class GameService {
         gameStatsService.updateGameStatsFromPlayers(match, game);
     }
 
-    public void playCardAsHuman(String token, Long matchId, PlayedCardDTO dto) {
-        User user = userService.getUserByToken(token);
-        if (user == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "No user found with your credential.");
+    public void playCardAsHuman(Game game, MatchPlayer matchPlayer, String cardCode) {
+        log.info("======================= PLAY CARD AS HUMAN {}=======================", game.getCurrentTrickNumber());
+        game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
+        // Defensive checks
+        if (game.getPhase().isNotActive()) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Game is not active.");
         }
-        System.out.println("this is user " + user.getId() + " calling playCardAsHuman");
-        Match match = matchRepository.findMatchByMatchId(matchId);
-        Game game = match.getActiveGame();
-        if (game == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "No active game found for match matchId=" + matchId + ".");
-        }
-        System.out.println("human " + dto.getCard());
-
-        MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(user, match);
-        if (matchPlayer == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not in match.");
-        }
-
         if (matchPlayer.getSlot() != game.getCurrentSlot()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "It is not your turn. You are slot " + matchPlayer.getSlot() + ", but current slot is "
+                    "You are slot " + matchPlayer.getSlot() + ", but current slot is "
                             + game.getCurrentSlot());
         }
-        executeCardPlay(matchPlayer, dto.getCard());
+        log.info("=== HUMAN at slot {} attempting to play card {}. ===", matchPlayer.getInfo(),
+                cardCode);
+        log.info(
+                "Cards in hand are: {}. TrickLeader is: {}. Cards played in this trick: {}. PlayOrder: {}. TrickNumber: {}",
+                matchPlayer.getHand(),
+                game.getTrickLeaderSlot(), game.getCurrentTrick(), game.getCurrentPlayOrder(),
+                game.getCurrentTrickNumber());
+        cardRulesService.validateMatchPlayerCardCode(game, matchPlayer, cardCode);
+        log.info(
+                "About to executValidatedCardPlay");
+        executeValidatedCardPlay(game, matchPlayer, cardCode);
     }
 
-    public void playCardAsAi(MatchPlayer aiPlayer, String cardCode) {
-        Match match = aiPlayer.getMatch();
-        if (match == null) {
-            throw new IllegalStateException("MatchPlayer " + aiPlayer.getMatchPlayerId() + " is not part of a match.");
-        }
-
+    public void playCardAsAi(Game game, MatchPlayer aiPlayer, String cardCode) {
         CardUtils.requireValidCardFormat(cardCode);
 
         String hand = aiPlayer.getHand();
         if (hand == null || hand.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "The AiPlayer of match " + match.getMatchId() + " in slot " + aiPlayer.getSlot()
-                            + " has no cards in hand.");
+                    String.format("The AiPlayer {} has no cards in hand.", aiPlayer.getInfo()));
         }
 
         if (!aiPlayer.hasCardCodeInHand(cardCode)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "The AiPlayer in slot " + aiPlayer.getSlot() + " does not have the card " + cardCode + " in hand.");
-        }
-
-        Game game = match.getActiveGameOrThrow();
-        if (game == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Game not found for match " + match.getMatchId());
         }
 
         int slot = aiPlayer.getSlot();
@@ -561,42 +521,43 @@ public class GameService {
             throw new IllegalStateException("AI tried to play out of turn (slot " + slot + ").");
         }
 
-        cardRulesService.validatePlayedCard(aiPlayer, cardCode);
-        executeCardPlay(aiPlayer, cardCode);
+        cardRulesService.validateMatchPlayerCardCode(game, aiPlayer, cardCode);
+        executeValidatedCardPlay(game, aiPlayer, cardCode);
     }
 
-    public void executeCardPlay(MatchPlayer matchPlayer, String cardCode) {
-        if (matchPlayer == null) {
-            throw new IllegalStateException("No MatchPlayer passed.");
-        }
-        CardUtils.requireValidCardFormat(cardCode);
+    public void executeValidatedCardPlay(Game game, MatchPlayer matchPlayer, String cardCode) {
+        log.info("\n=== executeValidateCardPlay ===");
 
-        Match match = matchPlayer.getMatch();
-        if (match == null) {
-            throw new IllegalStateException("Could not find a match for matchPlayer.");
-        }
-
-        Game activeGame = match.getActiveGameOrThrow();
-
-        // Validate move
-        cardRulesService.validatePlayedCard(matchPlayer, cardCode);
-
-        // **Delete card properly from database**
+        log.info("MatchPlayer {} holds in hand: {}.", matchPlayer.getInfo(), matchPlayer.getHand());
+        // Delete card properly from database
+        log.info("About to delete card {} from hand: {}.", cardCode, matchPlayer.getHand());
         matchPlayer.removeCardCodeFromHand(cardCode);
+        log.info("Card {} was removed from hand: {}.", cardCode, matchPlayer.getHand());
+        log.info("After removing {}, MatchPlayer {} holds in hand: {}.", cardCode, matchPlayer.getInfo(),
+                matchPlayer.getHand());
+        log.info("Trying to add {} to current trick {}.", cardCode, game.getCurrentTrick());
+
+        addCardToCurrentTrick(game, matchPlayer, cardCode);
+        log.info("SUCCESS:Card {} was added to trick: {}.", cardCode, game.getCurrentTrick());
 
         // Record card play
-        gameStatsService.recordCardPlay(matchPlayer, cardCode);
-
-        System.out.println("I add cardCode " + cardCode + " to current trick");
-        addCardToCurrentTrick(matchPlayer, cardCode);
-
+        gameStatsService.recordCardPlay(game, matchPlayer, cardCode);
+        log.info("SUCCESS: GameStats were updated.");
+        log.info("About to change currentSlot {}.", game.getCurrentSlot());
+        // Advance to next player if trick not finished yet
+        if (game.getCurrentTrickSize() < 4) {
+            int nextSlot = (game.getCurrentSlot() % 4) + 1;
+            game.setCurrentSlot(nextSlot);
+            log.info("Turn advanced to slot {}", game.getCurrentSlot());
+        }
+        log.info("Succeeded in updating currentSlot {}.", game.getCurrentSlot());
         // Check if trick completed
-        handlePotentialTrickCompletion(activeGame);
+        handlePotentialTrickCompletion(game);
 
         // Check if game completed
-        if (cardRulesService.isGameReadyForResults(activeGame)) {
-            activeGame.setPhase(GamePhase.RESULT);
-            gameRepository.save(activeGame);
+        if (cardRulesService.isGameReadyForResults(game)) {
+            game.setPhase(GamePhase.RESULT);
+            gameRepository.save(game);
         }
     }
 
@@ -625,22 +586,8 @@ public class GameService {
     }
 
     // Method to add a card to the current trick
-    private void addCardToCurrentTrick(MatchPlayer matchPlayer, String cardCode) {
-        // validate matchPlayer
-        requireNonNullMatchPlayer(matchPlayer);
-        CardUtils.requireValidCardFormat(cardCode);
-
-        // Get match safely from matchPlayer
-        Match match = requireMatchByMatchPlayer(matchPlayer);
-        // Get active game safely from matchPlayer
-        Game activeGame = requireActiveGameByMatch(match);
-        if (activeGame.getCurrentTrickSize() == 4) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Previous trick was not handled properly, there are already four cards in the trick, sorry.");
-        } else {
-            System.out.println("BANANE" + cardCode);
-            activeGame.addCardToCurrentTrick(cardCode);
-        }
+    private void addCardToCurrentTrick(Game game, MatchPlayer matchPlayer, String cardCode) {
+        game.addCardToCurrentTrick(cardCode);
     }
 
     private void handlePotentialTrickCompletion(Game game) {
@@ -651,14 +598,14 @@ public class GameService {
             int winnerSlot = cardRulesService.determineTrickWinner(game);
             int points = cardRulesService.calculateTrickPoints(game.getCurrentTrick());
 
-            game.setLastTrickWinnerSlot(winnerSlot);
-            game.setLastTrickPoints(points);
+            game.setPreviousTrickWinnerSlot(winnerSlot);
+            game.setPreviousTrickPoints(points);
 
             // Update currentTrickNumber +1
             game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
 
-            // Move current trick to last trick
-            game.setLastTrick(game.getCurrentTrick());
+            // Move current trick to previous trick
+            game.setPreviousTrick(game.getCurrentTrick());
             game.emptyCurrentTrick();
             game.getCurrentTrickSlots().clear();
 
@@ -673,6 +620,9 @@ public class GameService {
     @Transactional
     public void passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO) {
         cardPassingService.passingAcceptCards(game, matchPlayer, passingDTO);
+        log.info("gamePhase before flushing: {}", game.getPhase());
+        gameRepository.saveAndFlush(game);
+        log.info("gamePhase after flushing: {}", game.getPhase());
     }
 
     @Transactional
@@ -692,7 +642,7 @@ public class GameService {
             return;
         }
 
-        String cardCode = aiPlayingService.selectCardToPlay(aiPlayer);
+        String cardCode = aiPlayingService.selectCardToPlay(game, aiPlayer);
         try {
             // Thread.sleep(300 + new Random().nextInt(400)); // fancy version
             Thread.sleep(50); // short and simple
@@ -700,7 +650,7 @@ public class GameService {
             Thread.currentThread().interrupt();
         }
 
-        playCardAsAi(aiPlayer, cardCode);
+        // playCardAsAi(game, aiPlayer, cardCode);
     }
 
     public Game getActiveGameByMatchId(Long matchId) {
@@ -720,73 +670,7 @@ public class GameService {
         return game;
     }
 
-    @Transactional
-    public void concludeGameIfFinished(Game game) {
-        long cardsPlayed = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0);
-        if (cardsPlayed < 52) {
-            return; // not finished
-        }
-
-        Match match = game.getMatch();
-        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
-
-        // Sum points per player
-        Map<Integer, Integer> pointsPerSlot = new HashMap<>();
-        for (MatchPlayer player : matchPlayers) {
-            int slot = player.getSlot();
-            int points = gameStatsRepository.sumPointsWorthByGameAndPlayedBy(game, slot);
-            pointsPerSlot.put(slot, points);
-        }
-
-        // Check if anyone shot the moon
-        Integer shooterSlot = null;
-        for (Map.Entry<Integer, Integer> entry : pointsPerSlot.entrySet()) {
-            if (entry.getValue() == 26) {
-                shooterSlot = entry.getKey();
-                break;
-            }
-        }
-
-        if (shooterSlot != null) {
-            // Moon shooter: all others get +26, shooter gets 0
-            for (MatchPlayer player : matchPlayers) {
-                if (player.getSlot() == shooterSlot) {
-                    player.setGameScore(player.getGameScore());
-                } else {
-                    player.setGameScore(player.getGameScore() + 26);
-                }
-                matchPlayerRepository.save(player);
-            }
-        } else {
-            // Normal score adding
-            for (MatchPlayer player : matchPlayers) {
-                int points = pointsPerSlot.getOrDefault(player.getSlot(), 0);
-                player.setGameScore(player.getGameScore() + points);
-                matchPlayerRepository.save(player);
-            }
-        }
-
-        game.setPhase(GamePhase.FINISHED);
-        gameRepository.save(game);
-
-        // Start new game
-        Game newGame = new Game();
-        newGame.setMatch(match);
-        newGame.setGameNumber(match.getGames().size() + 1);
-        newGame.setPhase(GamePhase.PASSING);
-        newGame.setCurrentSlot(1);
-        newGame = gameRepository.save(newGame);
-
-        // gameStatsService.initializeGameStats(match, newGame);
-
-        match.getGames().add(newGame);
-        matchRepository.save(match);
-
-        GameResultDTO gameResult = buildGameResult(game);
-        // We will have to figure out later how to deal with this...
-    }
-
-    private GameResultDTO buildGameResult(Game game) {
+    public GameResultDTO buildGameResult(Game game) {
         Match match = game.getMatch();
         List<MatchPlayer> matchPlayers = match.getMatchPlayers();
 
@@ -796,10 +680,7 @@ public class GameService {
             GameResultDTO.PlayerScore score = new GameResultDTO.PlayerScore();
             score.setUsername(player.getUser().getUsername());
             score.setTotalScore(player.getMatchScore());
-
-            // Calculate points this game
-            int pointsThisGame = gameStatsRepository.sumPointsWorthByGameAndPlayedBy(game, player.getSlot());
-            score.setPointsThisGame(pointsThisGame);
+            score.setPointsThisGame(player.getGameScore()); // this game's score
 
             scores.add(score);
         }
@@ -811,4 +692,34 @@ public class GameService {
 
         return resultDTO;
     }
+
+    public GameResultDTO concludeGame(Game game) {
+        if (game.getCurrentPlayOrder() < 52) {
+            throw new IllegalStateException("Game not finished.");
+        }
+
+        List<MatchPlayer> players = game.getMatch().getMatchPlayers();
+        Integer shooter = players.stream()
+                .filter(p -> p.getGameScore() == 26)
+                .map(MatchPlayer::getSlot)
+                .findFirst()
+                .orElse(null);
+
+        for (MatchPlayer player : players) {
+            if (shooter != null && player.getSlot() != shooter) {
+                player.setGameScore(26);
+            } else if (shooter != null) {
+                player.setGameScore(0);
+            }
+
+            player.setMatchScore(player.getMatchScore() + player.getGameScore());
+            matchPlayerRepository.save(player);
+        }
+
+        game.setPhase(GamePhase.FINISHED);
+        gameRepository.save(game);
+
+        return buildGameResult(game);
+    }
+
 }

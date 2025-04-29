@@ -4,6 +4,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
@@ -24,11 +25,16 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 
 public class MatchServiceTest {
+    @Mock
+    private GameRepository gameRepository = Mockito.mock(GameRepository.class);
+
     @Mock
     private MatchRepository matchRepository = Mockito.mock(MatchRepository.class);
 
@@ -45,6 +51,7 @@ public class MatchServiceTest {
 
     @InjectMocks
     private MatchService matchService = new MatchService(
+            gameRepository,
             gameService,
             matchPlayerRepository,
             matchRepository,
@@ -128,20 +135,20 @@ public class MatchServiceTest {
     }
 
     @Test
-    public void testGetMatchInformationError() {
+    public void testGetPollingError() {
         given(matchRepository.findMatchByMatchId(1L)).willReturn(null);
 
         assertThrows(
                 ResponseStatusException.class,
-                () -> matchService.getMatchInformation(1L),
-                "Expected getMatchInformation to throw an exception");
+                () -> matchService.getPolling(1L),
+                "Expected getPolling to throw an exception");
     }
 
     @Test
-    public void testGetMatchInformationSuccess() {
+    public void testGetPollingSuccess() {
         given(matchRepository.findMatchByMatchId(1L)).willReturn(match);
 
-        Match result = matchService.getMatchInformation(1L);
+        Match result = matchService.getPolling(1L);
 
         assertEquals(match, result);
     }
@@ -285,16 +292,20 @@ public class MatchServiceTest {
 
     @Test
     public void testUpdateMatchGoalSuccess() {
-        given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
+        Match match = new Match();
+        match.setMatchId(1L);
+
+        given(matchRepository.findMatchByMatchId(eq(1L))).willReturn(match);
+        given(matchRepository.save(any())).willReturn(match);
 
         Map<String, Integer> body = new HashMap<>();
         body.put("matchGoal", 100);
 
-        given(matchRepository.save(Mockito.any())).willReturn(match);
-
         matchService.updateMatchGoal(1L, body);
 
-        verify(matchRepository).save(Mockito.any());
+        verify(matchRepository).save(match); // You can also verify exact object
+
+        assertEquals(100, match.getMatchGoal());
     }
 
     @Test
@@ -302,7 +313,7 @@ public class MatchServiceTest {
         AIPlayerDTO aiPlayerDTO = new AIPlayerDTO();
 
         aiPlayerDTO.setDifficulty(1);
-        aiPlayerDTO.setSlot(1); // there is no slot "1" for an AI player (only 2, 3 or 4)
+        aiPlayerDTO.setSlot(0); // there is no slot "0" for an AI player (only 1, 2 or 3, client-side)
 
         given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(null);
 
@@ -316,7 +327,7 @@ public class MatchServiceTest {
     public void testAddAiPlayerSuccess() {
         AIPlayerDTO aiPlayerDTO = new AIPlayerDTO();
         aiPlayerDTO.setDifficulty(1);
-        aiPlayerDTO.setSlot(2); // slot 2 => backend slot 3
+        aiPlayerDTO.setSlot(1); // slot 1 frontend => backend slot 2
 
         Match match = new Match();
         match.setMatchId(1L);

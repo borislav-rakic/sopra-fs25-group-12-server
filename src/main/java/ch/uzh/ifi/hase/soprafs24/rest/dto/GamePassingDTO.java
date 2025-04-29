@@ -21,4 +21,8 @@ public class GamePassingDTO {
     public void setCards(List<String> cards) {
         this.cards = cards;
     }
+
+    public String getCardsAsString() {
+        return cards != null ? "[" + String.join(",", cards) + "]" : "[]";
+    }
 }

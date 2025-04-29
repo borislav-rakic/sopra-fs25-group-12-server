@@ -85,25 +85,6 @@ public class GameStatsService {
         log.info("Deleted game stats for Match ID: {}", match.getMatchId());
     }
 
-    public List<GameStats> getLastCompletedTrick(Game game) {
-        List<GameStats> playedCards = gameStatsRepository
-                .findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
-
-        if (playedCards.size() < 4) {
-            return new ArrayList<>();
-        }
-
-        // Group cards into tricks (chunks of 4)
-        List<List<GameStats>> tricks = new ArrayList<>();
-        for (int i = 0; i <= playedCards.size() - 4; i += 4) {
-            List<GameStats> trick = playedCards.subList(i, i + 4);
-            // Ensure all 4 cards belong to the same trick
-            tricks.add(trick);
-        }
-
-        return tricks.isEmpty() ? new ArrayList<>() : tricks.get(tricks.size() - 1);
-    }
-
     public List<GameStats> getTrickByIndex(Game game, int trickIndex) {
         List<GameStats> allPlays = gameStatsRepository
                 .findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
@@ -123,7 +104,7 @@ public class GameStatsService {
     }
 
     @Transactional
-    public void recordCardPlay(MatchPlayer matchPlayer, String cardCode) {
+    public void recordCardPlay(Game game, MatchPlayer matchPlayer, String cardCode) {
         // Validate matchPlayer
         if (matchPlayer == null) {
             throw new IllegalStateException("Match Player is null.");
@@ -137,7 +118,7 @@ public class GameStatsService {
         Game activeGame = match.getActiveGameOrThrow();
 
         // Validate the card can be played
-        cardRulesService.validatePlayedCard(matchPlayer, cardCode);
+        cardRulesService.validateMatchPlayerCardCode(game, matchPlayer, cardCode);
 
         // Record stats
         GameStats gameStats = gameStatsRepository.findByGameAndRankSuit(activeGame, cardCode);

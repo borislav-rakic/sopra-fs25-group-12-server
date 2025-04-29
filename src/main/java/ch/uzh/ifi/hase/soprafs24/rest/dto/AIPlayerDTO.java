@@ -3,7 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.rest.dto;
 public class AIPlayerDTO {
 
     private int difficulty; // 0 = Easy, 1 = Medium, 2 = Difficult
-    private int slot;
+    private int slot; // available slots are 1, 2 and 3.
 
     public AIPlayerDTO() {
     }

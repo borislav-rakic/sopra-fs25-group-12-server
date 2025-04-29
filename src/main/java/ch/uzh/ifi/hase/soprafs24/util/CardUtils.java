@@ -114,11 +114,13 @@ public class CardUtils {
         return cardCode != null && cardCode.matches("^[02-9JQKA][HDCS]$");
     }
 
-    public static void requireValidCardFormat(String cardCode) {
+    public static String requireValidCardFormat(String cardCode) {
         if (cardCode == null || !cardCode.matches("^[02-9JQKA][HDCS]$")) {
             IllegalArgumentException ex = new IllegalArgumentException("Received invalid cardCode: " + cardCode);
             log.error("Invalid card format `" + cardCode + "´", ex);
             throw ex;
+        } else {
+            return cardCode;
         }
     }
 

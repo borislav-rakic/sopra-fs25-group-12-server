@@ -45,9 +45,9 @@ public class Game {
     private Set<String> currentTrick = new LinkedHashSet<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "last_trick", joinColumns = @JoinColumn(name = "game_id"))
+    @CollectionTable(name = "previous_trick", joinColumns = @JoinColumn(name = "game_id"))
     @Column(name = "card_code")
-    private Set<String> lastTrick = new LinkedHashSet<>();
+    private Set<String> previousTrick = new LinkedHashSet<>();
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "current_trick_slots", joinColumns = @JoinColumn(name = "game_id"))
@@ -60,11 +60,13 @@ public class Game {
     @Column(nullable = false)
     private int currentPlayOrder = 0;
 
-    @Column(name = "last_trick_winner_slot")
-    private int lastTrickWinnerSlot;
+    @Column(name = "previous_trick_winner_slot")
+    private int previousTrickWinnerSlot;
 
-    @Column(name = "last_trick_points")
-    private int lastTrickPoints;
+    @Column(name = "previous_trick_points")
+    private int previousTrickPoints;
+    @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<GameStats> gameStats = new ArrayList<>();
 
     // === Getters and Setters ===
 
@@ -132,12 +134,12 @@ public class Game {
         this.currentTrick = new LinkedHashSet<>(currentTrick); // preserve order & remove duplicates
     }
 
-    public List<String> getLastTrick() {
-        return new ArrayList<>(lastTrick);
+    public List<String> getPreviousTrick() {
+        return new ArrayList<>(previousTrick);
     }
 
-    public void setLastTrick(List<String> lastTrick) {
-        this.lastTrick = new LinkedHashSet<>(lastTrick);
+    public void setPreviousTrick(List<String> previousTrick) {
+        this.previousTrick = new LinkedHashSet<>(previousTrick);
     }
 
     public List<Integer> getCurrentTrickSlots() {
@@ -172,22 +174,29 @@ public class Game {
         this.currentPlayOrder = currentPlayOrder;
     }
 
-    public int getLastTrickWinnerSlot() {
-        return lastTrickWinnerSlot;
+    public int getPreviousTrickWinnerSlot() {
+        return previousTrickWinnerSlot;
     }
 
-    public void setLastTrickWinnerSlot(int lastTrickWinnerSlot) {
-        this.lastTrickWinnerSlot = lastTrickWinnerSlot;
+    public void setPreviousTrickWinnerSlot(int previousTrickWinnerSlot) {
+        this.previousTrickWinnerSlot = previousTrickWinnerSlot;
     }
 
-    public int getLastTrickPoints() {
-        return lastTrickPoints;
+    public int getPreviousTrickPoints() {
+        return previousTrickPoints;
     }
 
-    public void setLastTrickPoints(int lastTrickPoints) {
-        this.lastTrickPoints = lastTrickPoints;
+    public void setPreviousTrickPoints(int previousTrickPoints) {
+        this.previousTrickPoints = previousTrickPoints;
     }
 
+    public List<GameStats> getGameStats() {
+        return gameStats;
+    }
+
+    public void setGameStats(List<GameStats> gameStats) {
+        this.gameStats = gameStats;
+    }
     // === Game logic convenience methods ===
 
     public void addCardToCurrentTrick(String cardCode) {
