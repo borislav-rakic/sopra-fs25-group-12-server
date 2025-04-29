@@ -57,6 +57,9 @@ public class Game {
     @Column(nullable = false)
     private int currentTrickNumber = 0;
 
+    @Column(nullable = false)
+    private int currentPlayOrder = 0;
+
     @Column(name = "last_trick_winner_slot")
     private int lastTrickWinnerSlot;
 
@@ -161,6 +164,14 @@ public class Game {
         this.currentTrickNumber = currentTrickNumber;
     }
 
+    public int getCurrentPlayOrder() {
+        return currentPlayOrder;
+    }
+
+    public void setCurrentPlayOrder(int currentPlayOrder) {
+        this.currentPlayOrder = currentPlayOrder;
+    }
+
     public int getLastTrickWinnerSlot() {
         return lastTrickWinnerSlot;
     }
@@ -198,7 +209,9 @@ public class Game {
         return trickAsList.get(index);
     }
 
-    public void clearCurrentTrick() {
-        currentTrick.clear();
+    public void emptyCurrentTrick() {
+        if (this.currentTrick != null) {
+            this.currentTrick.clear();
+        }
     }
 }

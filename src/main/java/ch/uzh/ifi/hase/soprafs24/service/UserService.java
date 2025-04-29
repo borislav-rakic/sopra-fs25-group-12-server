@@ -95,6 +95,14 @@ public class UserService {
     return user.getId();
   }
 
+  public User requireUserByToken(String token) {
+    User user = userRepository.findUserByToken(token);
+    if (user == null) {
+      throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid or expired token");
+    }
+    return user;
+  }
+
   public User authenticateUserAtLogin(String username, String password) {
     User user = userRepository.findUserByUsername(username);
     if (user == null || !BCrypt.checkpw(password, user.getPassword())) {

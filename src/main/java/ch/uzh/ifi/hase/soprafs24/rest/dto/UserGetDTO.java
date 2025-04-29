@@ -73,7 +73,7 @@ public class UserGetDTO {
     this.status = status;
   }
 
-  public boolean getIsGuest() {
+  public boolean isGuest() {
     return isGuest;
   }
 
@@ -81,7 +81,7 @@ public class UserGetDTO {
     this.isGuest = isGuest;
   }
 
-  public boolean getIsAiPlayer() {
+  public boolean isAiPlayer() {
     return isAiPlayer;
   }
 

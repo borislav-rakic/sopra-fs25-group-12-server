@@ -2,12 +2,12 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
-import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayerCards;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.constant.Rank;
 import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
+import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,13 +29,16 @@ public class GameStatsService {
 
     private final GameStatsRepository gameStatsRepository;
     private final MatchRepository matchRepository;
+    private final CardRulesService cardRulesService;
 
     @Autowired
     public GameStatsService(
             @Qualifier("gameStatsRepository") GameStatsRepository gameStatsRepository,
-            @Qualifier("matchRepository") MatchRepository matchRepository) {
+            @Qualifier("matchRepository") MatchRepository matchRepository,
+            @Qualifier("cardRulesService") CardRulesService cardRulesService) {
         this.gameStatsRepository = gameStatsRepository;
         this.matchRepository = matchRepository;
+        this.cardRulesService = cardRulesService;
     }
 
     public void initializeGameStats(Match match, Game game) {
@@ -53,6 +56,7 @@ public class GameStatsService {
                 gameStats.setPossibleHolders(0b1111);
                 gameStats.setPointsBilledTo(0);
                 gameStats.setCardHolder(0); // to be filled right after
+                gameStats.setCardOrder(CardUtils.calculateCardOrder(rank.getSymbol() + suit.getSymbol()));
                 gameStatsRepository.save(gameStats);
             }
         }
@@ -81,40 +85,6 @@ public class GameStatsService {
         log.info("Deleted game stats for Match ID: {}", match.getMatchId());
     }
 
-    public void setPossibleHolder(GameStats stats, int slotNumber) {
-        validateSlotNumber(slotNumber);
-        int mask = 1 << (slotNumber - 1);
-        stats.setPossibleHolders(stats.getPossibleHolders() | mask);
-    }
-
-    public void clearPossibleHolder(GameStats stats, int slotNumber) {
-        validateSlotNumber(slotNumber);
-        int mask = ~(1 << (slotNumber - 1));
-        stats.setPossibleHolders(stats.getPossibleHolders() & mask);
-    }
-
-    public boolean isPossibleHolder(GameStats stats, int slotNumber) {
-        validateSlotNumber(slotNumber);
-        int mask = 1 << (slotNumber - 1);
-        return (stats.getPossibleHolders() & mask) != 0;
-    }
-
-    public List<Integer> getPossibleHolderList(GameStats stats) {
-        List<Integer> holders = new ArrayList<>();
-        for (int i = 1; i <= 4; i++) {
-            if (isPossibleHolder(stats, i)) {
-                holders.add(i);
-            }
-        }
-        return holders;
-    }
-
-    private void validateSlotNumber(int slotNumber) {
-        if (slotNumber < 1 || slotNumber > 4) {
-            throw new IllegalArgumentException("Slot number must be between 1 and 4");
-        }
-    }
-
     public List<GameStats> getLastCompletedTrick(Game game) {
         List<GameStats> playedCards = gameStatsRepository
                 .findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
@@ -127,8 +97,7 @@ public class GameStatsService {
         List<List<GameStats>> tricks = new ArrayList<>();
         for (int i = 0; i <= playedCards.size() - 4; i += 4) {
             List<GameStats> trick = playedCards.subList(i, i + 4);
-            // Ensure all 4 cards belong to the same round (e.g. same game number or round
-            // identifier if you have one)
+            // Ensure all 4 cards belong to the same trick
             tricks.add(trick);
         }
 
@@ -154,37 +123,68 @@ public class GameStatsService {
     }
 
     @Transactional
-    public void recordCardPlay(Game game, Match match, MatchPlayer matchPlayer, String cardCode) {
-        GameStats gameStats = new GameStats();
-        gameStats.setCardFromString(cardCode);
-        gameStats.setGame(game);
-        gameStats.setMatch(match);
-        // gameStats.setPlayOrder(calculatePlayOrder(game));
-        gameStats.setPlayedBy(matchPlayer.getSlot());
-        gameStats.setCardHolder(matchPlayer.getSlot());
-        // gameStats.setTrickNumber(calculateTrickNumber(game));
-        gameStatsRepository.saveAndFlush(gameStats);
+    public void recordCardPlay(MatchPlayer matchPlayer, String cardCode) {
+        // Validate matchPlayer
+        if (matchPlayer == null) {
+            throw new IllegalStateException("Match Player is null.");
+        }
+        // Get match safely
+        Match match = matchPlayer.getMatch();
+        if (match == null) {
+            throw new IllegalStateException("Match Player does not belong to any match.");
+        }
+        // Get active game safely
+        Game activeGame = match.getActiveGameOrThrow();
+
+        // Validate the card can be played
+        cardRulesService.validatePlayedCard(matchPlayer, cardCode);
+
+        // Record stats
+        GameStats gameStats = gameStatsRepository.findByGameAndRankSuit(activeGame, cardCode);
+        // who dealt it?
+        gameStats.setPlayedBy(matchPlayer.getSlot()); // or getUser().getId(), depending on your entity
+        // the how-many-eth card was it in this game?
+        gameStats.setPlayOrder(activeGame.getCurrentPlayOrder()); // explained below
+        //
+        gameStats.setOnlyPossibleHolder(matchPlayer.getSlot()); // now we know exactly who had the card
+
+        gameStats.setTrickNumber(activeGame.getCurrentTrickNumber());
+
+        gameStats.setTrickLeadBySlot(activeGame.getTrickLeaderSlot());
+
     }
 
     @Transactional
-    public void updateGameStatsFromPlayers(Game game, Match match) {
-        List<GameStats> statsList = new ArrayList<>();
+    public void updateGameStatsFromPlayers(Match match, Game game) {
+        List<GameStats> statsToUpdate = new ArrayList<>();
 
         for (MatchPlayer player : match.getMatchPlayers()) {
-            List<MatchPlayerCards> hand = player.getCardsInHand();
-            if (hand != null) {
-                for (MatchPlayerCards card : hand) {
-                    GameStats stats = new GameStats();
-                    stats.setGame(game);
-                    stats.setCardHolder(player.getSlot());
-                    stats.setPlayedBy(0);
-                    stats.setCardFromString(card.getCard());
-                    statsList.add(stats);
+            String hand = player.getHand(); // or getCardsAsString()
+            if (hand != null && !hand.isBlank()) {
+                String[] cards = hand.split(",");
+                for (String code : cards) {
+                    // Extract rank and suit from card string
+                    Rank rank = Rank.fromSymbol(code.substring(0, code.length() - 1));
+                    Suit suit = Suit.fromSymbol(code.substring(code.length() - 1));
+
+                    // Fetch existing GameStats
+                    GameStats existingStats = gameStatsRepository.findByRankAndSuitAndGame(rank, suit, game);
+
+                    if (existingStats == null) {
+                        throw new IllegalStateException("GameStats not found for card: " + code);
+                    }
+
+                    // Update the card holder
+                    existingStats.setCardHolder(player.getSlot());
+
+                    statsToUpdate.add(existingStats);
                 }
             }
         }
 
-        gameStatsRepository.saveAll(statsList);
+        // Save all updated GameStats
+        gameStatsRepository.saveAll(statsToUpdate);
+        gameStatsRepository.flush(); // good habit to flush when doing batch updates
     }
 
 }

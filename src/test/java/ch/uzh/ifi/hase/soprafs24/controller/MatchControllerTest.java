@@ -306,4 +306,39 @@ public class MatchControllerTest {
                                         String.format("The request body could not be created.%s", e));
                 }
         }
+
+        @Test
+        public void testGetPlayerMatchInformation() throws Exception {
+                PlayerMatchInformationDTO playerMatchInformationDTO = new PlayerMatchInformationDTO();
+                playerMatchInformationDTO.setMatchId(1L);
+
+                Map<Integer, Integer> aiPlayers = new HashMap<>();
+                aiPlayers.put(1, 1); // Player 1 - Easy
+                aiPlayers.put(2, 2); // Player 2 - Medium
+                aiPlayers.put(3, 3); // Player 3 - Hard
+                playerMatchInformationDTO.setAiPlayers(aiPlayers);
+
+                List<String> matchPlayers = new ArrayList<>();
+                matchPlayers.add("User");
+
+                playerMatchInformationDTO.setMatchPlayers(matchPlayers);
+                playerMatchInformationDTO.setHostId(4L);
+                playerMatchInformationDTO.setMatchGoal(100);
+
+                given(matchService.getPlayerMatchInformation(Mockito.any(), Mockito.any()))
+                                .willReturn(playerMatchInformationDTO);
+
+                MockHttpServletRequestBuilder postRequest = post("/matches/1/logic")
+                                .header("Authorization", "Bearer 1234");
+
+                mockMvc.perform(postRequest)
+                                .andExpect(status().isOk())
+                                .andExpect(jsonPath("$.matchId", is(playerMatchInformationDTO.getMatchId().intValue())))
+                                .andExpect(jsonPath("$.matchPlayers", is(playerMatchInformationDTO.getMatchPlayers())))
+                                .andExpect(jsonPath("$.aiPlayers.1", is(1)))
+                                .andExpect(jsonPath("$.aiPlayers.2", is(2)))
+                                .andExpect(jsonPath("$.aiPlayers.3", is(3)))
+                                .andExpect(jsonPath("$.matchGoal", is(playerMatchInformationDTO.getMatchGoal())))
+                                .andExpect(jsonPath("$.hostId", is(playerMatchInformationDTO.getHostId().intValue())));
+        }
 }

@@ -56,7 +56,7 @@ public final class DebuggingService {
     // DebuggingService.makeFatDump(String dumpTitle, String info, Long userId,
     // Long matchId, Long gameId);
 
-    public static void makeFatDump(String dumpTitle, String info, Long userId, Long matchId, Long gameId) {
+    public static String makeFatDump(String dumpTitle, String info, Long userId, Long matchId, Long gameId) {
         try {
             File folder = new File(DUMP_FOLDER);
             if (!folder.exists()) {
@@ -74,10 +74,12 @@ public final class DebuggingService {
             System.out.println("Fat dump created: " + dumpFile.getAbsolutePath());
 
             cleanupOldDumps(folder);
+            return filename;
 
         } catch (Exception e) {
             e.printStackTrace();
         }
+        return "ERROR";
     }
 
     private static void cleanupOldDumps(File folder) {

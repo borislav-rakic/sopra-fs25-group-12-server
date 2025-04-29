@@ -31,7 +31,7 @@ public class LeaderboardDTO {
         this.username = username;
     }
 
-    public boolean getIsGuest() {
+    public boolean isGuest() {
         return isGuest;
     }
 
@@ -39,7 +39,7 @@ public class LeaderboardDTO {
         this.isGuest = isGuest;
     }
 
-    public boolean getIsAiPlayer() {
+    public boolean isAiPlayer() {
         return isAiPlayer;
     }
 

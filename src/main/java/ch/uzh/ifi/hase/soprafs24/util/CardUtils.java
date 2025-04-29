@@ -7,7 +7,11 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 public class CardUtils {
+    private static final Logger log = LoggerFactory.getLogger(CardUtils.class);
 
     /**
      * Creates a full Card object from its code (e.g. "QS", "0H", "10D").
@@ -105,4 +109,17 @@ public class CardUtils {
     public static String toCode(Card card) {
         return card.getRank() + card.getSuit();
     }
+
+    public static boolean isValidCardFormat(String cardCode) {
+        return cardCode != null && cardCode.matches("^[02-9JQKA][HDCS]$");
+    }
+
+    public static void requireValidCardFormat(String cardCode) {
+        if (cardCode == null || !cardCode.matches("^[02-9JQKA][HDCS]$")) {
+            IllegalArgumentException ex = new IllegalArgumentException("Received invalid cardCode: " + cardCode);
+            log.error("Invalid card format `" + cardCode + "´", ex);
+            throw ex;
+        }
+    }
+
 }

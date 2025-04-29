@@ -40,10 +40,18 @@ public class MatchServiceTest {
 
     @Mock
     private MatchPlayerRepository matchPlayerRepository = Mockito.mock(MatchPlayerRepository.class);
+    @Mock
+    private GameService gameService = Mockito.mock(GameService.class);
 
     @InjectMocks
-    private MatchService matchService = new MatchService(matchRepository, userService, userRepository,
-            matchPlayerRepository);
+    private MatchService matchService = new MatchService(
+            gameService,
+            matchPlayerRepository,
+            matchRepository,
+            userRepository,
+            userService
+    // alphabetical order
+    );
 
     private Match match;
     private User user;

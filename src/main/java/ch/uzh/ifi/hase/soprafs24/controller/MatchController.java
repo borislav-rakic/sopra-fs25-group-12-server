@@ -226,4 +226,77 @@ public class MatchController {
         return matchService.getEligibleUsers(matchId, token);
     }
 
+    @PostMapping("/matches/{matchId}/passing")
+    @ResponseStatus(HttpStatus.OK)
+    public void passCards(
+            @PathVariable Long matchId,
+            @RequestBody GamePassingDTO passingDTO,
+            @RequestHeader("Authorization") String authHeader) {
+        // Optionally extract Bearer token, if needed
+        String token = authHeader.replace("Bearer ", "");
+        System.out.println("MatchController.passCards reached.");
+        // Delegate the work to the service
+        matchService.passingAcceptCards(matchId, passingDTO, token);
+    }
+
+    /**
+     * Gets only the information necessary for the player requesting the
+     * information.
+     * 
+     * @return The information of the match
+     */
+    @PostMapping("/matches/{matchId}/logic")
+    @ResponseStatus(HttpStatus.OK)
+    public PlayerMatchInformationDTO getPlayerMatchInformation(@PathVariable Long matchId,
+            @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        return matchService.getPlayerMatchInformation(token, matchId);
+    }
+
+    /**
+     * When the host starts the match, this function initializes the necessary
+     * relations in the database and opens
+     * communication with the deck of cards API
+     */
+    @PostMapping("/matches/{matchId}/start")
+    @ResponseStatus(HttpStatus.OK)
+    public void startMatch(@PathVariable Long matchId, @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        matchService.startMatch(matchId, token, null);
+    }
+
+    @PostMapping("/matches/{matchId}/start/{seed}")
+    @ResponseStatus(HttpStatus.OK)
+    public void startSeededMatch(
+            @PathVariable Long matchId,
+            @PathVariable String seed,
+            @RequestHeader("Authorization") String authHeader) {
+
+        String token = authHeader.replace("Bearer ", "");
+
+        Long parsedSeed = null;
+        try {
+            parsedSeed = Long.parseLong(seed);
+        } catch (NumberFormatException e) {
+            matchService.startMatch(matchId, token, null);
+            return;
+        }
+
+        if (parsedSeed % 10000 != 9247) {
+            matchService.startMatch(matchId, token, null);
+            return;
+        }
+
+        matchService.startMatch(matchId, token, parsedSeed);
+    }
+
+    @PostMapping("/matches/{matchId}/play")
+    @ResponseStatus(HttpStatus.OK)
+    public void playCardAsHuman(@PathVariable Long matchId,
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody PlayedCardDTO playedCardDTO) {
+        String token = authHeader.replace("Bearer ", "");
+        System.out.println("contr." + playedCardDTO.getCard());
+        matchService.playCardAsHuman(token, matchId, playedCardDTO);
+    }
 }

@@ -1,12 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
-import java.util.List;
-
 import org.springframework.stereotype.Service;
-
-import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
-import ch.uzh.ifi.hase.soprafs24.model.Card;
 
 @Service
 public class AiPlayingService {
@@ -17,14 +12,25 @@ public class AiPlayingService {
         this.cardRulesService = cardRulesService;
     }
 
-    public Card selectCardToPlay(Game game, MatchPlayer matchPlayer) {
-        List<Card> legalCards = cardRulesService.getLegalCardsAsCards(game, matchPlayer);
+    public String selectCardToPlay(MatchPlayer matchPlayer) {
+        String playableCardsString = cardRulesService.getPlayableCardsForMatchPlayer(matchPlayer);
 
-        if (legalCards.isEmpty()) {
-            throw new IllegalStateException("AI player has no legal cards to play.");
+        System.out.println("I am MatchPlayer with hand: " + matchPlayer.getHand());
+        System.out.println("I am MatchPlayer with playable hand: " + playableCardsString);
+
+        if (playableCardsString == null || playableCardsString.isBlank()) {
+            throw new IllegalStateException(
+                    "AI player has no legal cards to play: " + matchPlayer.getHand());
         }
 
-        // Pick the first legal card (simple AI)
-        return legalCards.get(0);
+        String[] legalCards = playableCardsString.split(",");
+
+        System.out.println("Hi, I am an AI player, making a decision.");
+        System.out.println("My legal cards are: " + String.join(", ", legalCards));
+
+        String cardCode = legalCards[0]; // pick the first one
+        System.out.println("I choose: " + cardCode);
+        return cardCode;
     }
+
 }

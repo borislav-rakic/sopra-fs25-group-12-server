@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
+import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
@@ -35,21 +36,25 @@ import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 public class MatchService {
     // private final Logger log = LoggerFactory.getLogger(MatchService.class);
 
-    private final MatchRepository matchRepository;
-    private final UserService userService;
-    private final UserRepository userRepository;
+    private final GameService gameService;
     private final MatchPlayerRepository matchPlayerRepository;
+    private final UserRepository userRepository;
+    private final UserService userService;
+    private final MatchRepository matchRepository;
 
     @Autowired
     public MatchService(
+            @Qualifier("gameService") GameService gameService,
+            @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
             @Qualifier("matchRepository") MatchRepository matchRepository,
-            UserService userService,
             @Qualifier("userRepository") UserRepository userRepository,
-            @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository) {
-        this.matchRepository = matchRepository;
-        this.userService = userService;
-        this.userRepository = userRepository;
+            @Qualifier("userService") UserService userService) {
+        this.gameService = gameService;
         this.matchPlayerRepository = matchPlayerRepository;
+        this.matchRepository = matchRepository;
+        this.userRepository = userRepository;
+        this.userService = userService;
+
     }
 
     /**
@@ -91,7 +96,6 @@ public class MatchService {
      */
     public Match createNewMatch(String playerToken) {
         User user = userService.getUserByToken(playerToken);
-
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
@@ -380,6 +384,7 @@ public class MatchService {
         newMatchPlayer.setMatch(match);
         newMatchPlayer.setUser(aiPlayer);
         newMatchPlayer.setSlot(playerSlot);
+        newMatchPlayer.setIsAiPlayer(true);
 
         match.getMatchPlayers().add(newMatchPlayer);
 
@@ -534,6 +539,12 @@ public class MatchService {
         matchRepository.save(match);
     }
 
+    public Match requireMatchByMatchId(Long matchId) {
+        return matchRepository.findById(matchId)
+                .orElseThrow(() -> new ResponseStatusException(
+                        HttpStatus.NOT_FOUND, "Match not found with id: " + matchId));
+    }
+
     public List<JoinRequestDTO> getJoinRequests(Long matchId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         List<JoinRequestDTO> joinRequestDTOs = new ArrayList<>();
@@ -618,6 +629,95 @@ public class MatchService {
                 .filter(user -> !excludedUserIds.contains(user.getId()))
                 .map(DTOMapper.INSTANCE::convertEntityToUserGetDTO)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Throws unless the given match can be started.
+     * 
+     * @param match The match to be started.
+     * @param user  The owner of the match.
+     */
+    private void isMatchStartable(Match match, User user) {
+        // Is the match in a startable MathPhase?
+        if (match.getPhase() == MatchPhase.IN_PROGRESS
+                || match.getPhase() == MatchPhase.BETWEEN_GAMES) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This match has already been started.");
+        } else if (match.getPhase() == MatchPhase.ABORTED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This match has been cancelled by the match owner.");
+        } else if (match.getPhase() == MatchPhase.FINISHED) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "This match has already been finished.");
+        }
+
+        // Is the Match Owner behind this request?
+        if (!user.getId().equals(match.getHostId())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can start the match");
+        }
+
+        // Collect invites.
+        Map<Integer, Long> invites = match.getInvites();
+        if (invites == null) {
+            invites = new HashMap<>();
+        }
+
+        // Collect join requests.
+        Map<Long, String> joinRequests = match.getJoinRequests();
+        if (joinRequests == null) {
+            joinRequests = new HashMap<>();
+        }
+
+        // Check if any one of the invites has not yet been accepted.
+        for (Long invitedUserId : invites.values()) {
+            String status = joinRequests.get(invitedUserId);
+            if (!"accepted".equalsIgnoreCase(status)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                        "Cannot start match: not all invited users have accepted the invitation.");
+            }
+        }
+
+        // Make sure that all slots are occupied.
+        if (match.getPlayer1() == null || match.getPlayer2() == null ||
+                match.getPlayer3() == null || match.getPlayer4() == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Cannot start match: not all player slots are filled");
+        }
+
+        // Prevent creating a new game if an active one already exists.
+        if (match.getActiveGame() != null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "An active game already exists for this match.");
+        }
+    }
+
+    public void passingAcceptCards(Long matchId, GamePassingDTO passingDTO, String token) {
+        Match match = requireMatchByMatchId(matchId);
+        User user = userService.requireUserByToken(token);
+        Game game = requireActiveGameByMatch(match);
+        MatchPlayer matchPlayer = match.requireMatchPlayerByUser(user);
+        System.out.println("matchService.passingAcceptCards reached");
+        gameService.passingAcceptCards(game, matchPlayer, passingDTO);
+    };
+
+    public void playCardAsHuman(String token, Long matchId, PlayedCardDTO dto) {
+        gameService.playCardAsHuman(token, matchId, dto);
+    }
+
+    public void startMatch(Long matchId, String token, Long seed) {
+        gameService.startMatch(matchId, token, seed);
+    }
+
+    public PlayerMatchInformationDTO getPlayerMatchInformation(String token, Long matchId) {
+        PlayerMatchInformationDTO playerMatchInformation = gameService.getPlayerMatchInformation(token, matchId);
+        return playerMatchInformation;
+    }
+
+    public Game requireActiveGameByMatch(Match match) {
+        Game activeGame = match.getActiveGame();
+        if (activeGame == null) {
+            throw new IllegalStateException("No active game found for this match.");
+        }
+        return activeGame;
     }
 
 }

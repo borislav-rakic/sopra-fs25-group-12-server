@@ -1,15 +1,15 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Random;
 import java.util.stream.Collectors;
 
 import javax.persistence.EntityNotFoundException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -19,14 +19,11 @@ import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
-import ch.uzh.ifi.hase.soprafs24.constant.Rank;
 import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
-import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayerCards;
-import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
@@ -34,7 +31,6 @@ import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerCardsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
@@ -60,44 +56,49 @@ import reactor.core.publisher.Mono;
 @Service
 @Transactional
 public class GameService {
-    private final MatchRepository matchRepository;
-    private final GameRepository gameRepository;
-    private final UserRepository userRepository;
-    private final MatchPlayerRepository matchPlayerRepository;
-    private final GameStatsRepository gameStatsRepository;
+    private final AiPlayingService aiPlayingService;
+    private final CardPassingService cardPassingService;
+    private final CardRulesService cardRulesService;
     private final ExternalApiClientService externalApiClientService;
-    private final UserService userService;
-    private final PassedCardRepository passedCardRepository;
-    private final MatchPlayerCardsRepository matchPlayerCardsRepository;
+    private final GameRepository gameRepository;
+    private final GameStatsRepository gameStatsRepository;
     private final GameStatsService gameStatsService;
+    private final MatchPlayerRepository matchPlayerRepository;
+    private final UserRepository userRepository;
+    private final UserService userService;
+    private final MatchRepository matchRepository;
 
     // or via constructor injection
 
     @Autowired
     public GameService(
-            @Qualifier("matchRepository") MatchRepository matchRepository,
-            @Qualifier("userRepository") UserRepository userRepository,
-            @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
-            @Qualifier("gameStatsRepository") GameStatsRepository gameStatsRepository,
+            @Qualifier("aiPlayingService") AiPlayingService aiPlayingService,
+            @Qualifier("cardPassingService") CardPassingService cardPassingService,
+            @Qualifier("cardRulesService") CardRulesService cardRulesService,
+            @Qualifier("externalApiClientService") ExternalApiClientService externalApiClientService,
             @Qualifier("gameRepository") GameRepository gameRepository,
-            @Qualifier("matchPlayerCardsRepository") MatchPlayerCardsRepository matchPlayerCardsRepository,
-            PassedCardRepository passedCardRepository,
-            ExternalApiClientService externalApiClientService,
-            UserService userService,
-            GameStatsService gameStatsService) {
+            @Qualifier("gameStatsRepository") GameStatsRepository gameStatsRepository,
+            @Qualifier("gameStatsService") GameStatsService gameStatsService,
+            @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
+            @Qualifier("matchRepository") MatchRepository matchRepository,
+            @Qualifier("passedCardRepository") PassedCardRepository passedCardRepository,
+            @Qualifier("userRepository") UserRepository userRepository,
+            @Qualifier("userService") UserService userService) {
+        this.aiPlayingService = aiPlayingService;
+        this.cardPassingService = cardPassingService;
+        this.cardRulesService = cardRulesService;
+        this.externalApiClientService = externalApiClientService;
+        this.gameRepository = gameRepository;
+        this.gameStatsRepository = gameStatsRepository;
+        this.gameStatsService = gameStatsService;
+        this.matchPlayerRepository = matchPlayerRepository;
         this.matchRepository = matchRepository;
         this.userRepository = userRepository;
-        this.matchPlayerRepository = matchPlayerRepository;
-        this.gameStatsRepository = gameStatsRepository;
-        this.externalApiClientService = externalApiClientService;
         this.userService = userService;
-        this.gameRepository = gameRepository;
-        this.passedCardRepository = passedCardRepository;
-        this.matchPlayerCardsRepository = matchPlayerCardsRepository;
-        this.gameStatsService = gameStatsService;
+
     }
 
-    private static final int EXPECTED_CARD_COUNT = 52;
+    private static final Logger log = LoggerFactory.getLogger(GameService.class);
 
     /**
      * Gets the necessary information for a player.
@@ -222,16 +223,20 @@ public class GameService {
 
         // Only show playable cards if it is this player's turn
         if (matchPlayer.getSlot() == game.getCurrentSlot()) {
-            List<Card> playableCards = getPlayableCardsForPlayer(match, game, user, matchPlayer.getSlot());
+            String playableCards = cardRulesService.getPlayableCardsForMatchPlayer(matchPlayer);
 
-            playableCardDTOList = playableCards.stream().map(card -> {
-                PlayerCardDTO dtoCard = new PlayerCardDTO();
-                dtoCard.setCard(card.getCode());
-                dtoCard.setGameId(game.getGameId());
-                dtoCard.setGameNumber(game.getGameNumber());
-                dtoCard.setPlayerId(user.getId());
-                return dtoCard;
-            }).toList();
+            if (playableCards != null && !playableCards.isBlank()) {
+                playableCardDTOList = java.util.Arrays.stream(playableCards.split(","))
+                        .map(cardCode -> {
+                            PlayerCardDTO dtoCard = new PlayerCardDTO();
+                            dtoCard.setCard(cardCode);
+                            dtoCard.setGameId(game.getGameId());
+                            dtoCard.setGameNumber(game.getGameNumber());
+                            dtoCard.setPlayerId(user.getId());
+                            return dtoCard;
+                        })
+                        .toList();
+            }
         }
 
         // START AGGREGATING INFO ON PlayerMatchInformation
@@ -266,56 +271,23 @@ public class GameService {
         dto.setPlayerCards(playerCardDTOList); // [33]
         dto.setPlayableCards(playableCardDTOList); // [34]
 
-        /// AI PLAYER
+        /// See if an AI PLAYER is up for their turn.
         int currentSlot = game.getCurrentSlot();
-        System.out.println("\nNext Player is " + currentSlot);
         User currentSlotUser = match.getUserBySlot(currentSlot);
-        System.out.println(
-                "Location: Polling. Slot: " + currentSlot + ". getId = " + currentSlotUser.getId() + " IsAiPlayer = "
-                        + currentSlotUser.getIsAiPlayer() + ". game.getPhase() = " + game.getPhase() + ".");
-
-        if (currentSlotUser != null
+        if (
+        // ... user 1, i.e. the match owner, happens to poll ...
+        requestingMatchPlayer.getSlot() == 1
+                // ... there is a user in current slot ...
+                && currentSlotUser != null
+                // ... this user happens to be an ai player ...
                 && Boolean.TRUE.equals(currentSlotUser.getIsAiPlayer())
-                && (game.getPhase() == GamePhase.FIRSTROUND || game.getPhase() == GamePhase.NORMALROUND
-                        || game.getPhase() == GamePhase.FINALROUND)
-                && requestingMatchPlayer.getSlot() == 1) { // <-- check that user polling is in slot 1
-            System.out.println("Location: Polling. It is an AI player's turn: Slot " + currentSlot);
-            playAiTurns(matchId);
-        } else if (currentSlotUser != null
-                && (game.getPhase() == GamePhase.FIRSTROUND || game.getPhase() == GamePhase.NORMALROUND
-                        || game.getPhase() == GamePhase.FINALROUND)) {
-            System.out.println("Location: Polling. Waiting for humanPlayer to play a card: "
-                    + currentSlotUser.getUsername() + "(id="
-                    + currentSlotUser.getId() + ", slot=" + currentSlot + ")");
+                // ... we are in the middle of playing an actual trick
+                && (game.getPhase() == GamePhase.FIRSTTRICK || game.getPhase() == GamePhase.NORMALTRICK
+                        || game.getPhase() == GamePhase.FINALTRICK)) {
+            playAiTurns(game);
         }
-
         /// END: AI PLAYER
         return dto;
-    }
-
-    /**
-     * Determines the winner of the current trick.
-     * 
-     * @param trick List of 4 GameStats representing a complete trick.
-     * @return int slot number (1–4) of the player who won the trick.
-     */
-    public int determineTrickWinner(List<GameStats> trick) {
-        if (trick == null || trick.size() != 4) {
-            throw new IllegalArgumentException("Trick must contain exactly 4 cards.");
-        }
-
-        Suit leadSuit = trick.get(0).getSuit(); // suit of the first card
-        GameStats winningCard = trick.get(0); // start with first card as highest
-
-        for (int i = 1; i < 4; i++) {
-            GameStats currentCard = trick.get(i);
-            if (currentCard.getSuit() == leadSuit &&
-                    currentCard.getRank().ordinal() > winningCard.getRank().ordinal()) {
-                winningCard = currentCard;
-            }
-        }
-
-        return winningCard.getPlayedBy(); // returns slot number (1–4)
     }
 
     public int calculateTrickPoints(List<GameStats> trick) {
@@ -348,93 +320,47 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
 
-        isMatchStartable(match, user);
-
-        // Determine next game number.
-        int nextGameNumber = determineNextGameNumber(match);
-
-        // Create new game
         Game game = createNewGameInMatch(match);
+        if (game == null) {
+            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Game could not be created.");
+        }
         Long savedGameId = game.getGameId();
 
-        // Reset match stats for all MatchPlayers
         match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
 
+        if (seed != null && seed != 0) {
+            game.setDeckId(ExternalApiClientService.buildSeedString(seed));
+            gameRepository.save(game);
+            distributeCards(match, game, seed);
+        } else {
+            fetchDeckAndDistributeCardsAsync(savedGameId, matchId);
+        }
+    }
+
+    // fetchDeckAndDistributeCardsAsync()
+    // is taking place outside the transactional method!
+
+    public void fetchDeckAndDistributeCardsAsync(Long savedGameId, Long matchId) {
         Mono<NewDeckResponse> newDeckResponseMono = externalApiClientService.createNewDeck();
 
         newDeckResponseMono.subscribe(response -> {
-            // Manually draw fresh game object from DB.
+            // Fresh DB fetch inside async
             Game savedGame = gameRepository.findById(savedGameId)
-                    .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + savedGameId));
+                    .orElseThrow(() -> new EntityNotFoundException("Game not found"));
+
+            Match savedMatch = matchRepository.findMatchByMatchId(matchId);
+            if (savedMatch == null) {
+                throw new EntityNotFoundException("Match not found");
+            }
 
             savedGame.setDeckId(response.getDeck_id());
-
-            // Manually draw fresh match object from DB:
-            Match savedMatch = matchRepository.findMatchByMatchId(match.getMatchId());
-
-            matchRepository.save(savedMatch);
-            matchRepository.flush();
-
             gameRepository.save(savedGame);
-            gameRepository.flush();
 
-            gameStatsService.initializeGameStats(savedMatch, savedGame);
-
-            distributeCards(savedMatch, savedGame, seed);
+            distributeCards(savedMatch, savedGame, null);
+        }, error -> {
+            // Good practice: catch errors inside subscribe!
+            log.error("Failed to fetch deck from external API", error);
         });
-    }
-
-    /**
-     * Throws unless the given match can be started.
-     * 
-     * @param match The match to be started.
-     * @param user  The owner of the match.
-     */
-    private void isMatchStartable(Match match, User user) {
-        if (match.getPhase() == MatchPhase.IN_PROGRESS
-                || match.getPhase() == MatchPhase.BETWEEN_GAMES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "This match has already been started.");
-        } else if (match.getPhase() == MatchPhase.ABORTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "This match has been cancelled by the match owner.");
-        } else if (match.getPhase() == MatchPhase.FINISHED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "This match has already been finished.");
-        }
-
-        if (!user.getId().equals(match.getHostId())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can start the match");
-        }
-
-        Map<Integer, Long> invites = match.getInvites();
-        if (invites == null) {
-            invites = new HashMap<>();
-        }
-
-        Map<Long, String> joinRequests = match.getJoinRequests();
-        if (joinRequests == null) {
-            joinRequests = new HashMap<>();
-        }
-
-        for (Long invitedUserId : invites.values()) {
-            String status = joinRequests.get(invitedUserId);
-            if (!"accepted".equalsIgnoreCase(status)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Cannot start match: not all invited users have accepted the invitation.");
-            }
-        }
-
-        if (match.getPlayer1() == null || match.getPlayer2() == null ||
-                match.getPlayer3() == null || match.getPlayer4() == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Cannot start match: not all player slots are filled");
-        }
-
-        // Prevent creating a new game if an active one already exists
-        if (match.getActiveGame() != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT, "An active game already exists for this match.");
-        }
     }
 
     /**
@@ -443,7 +369,7 @@ public class GameService {
      * @param match The match to be started.
      * @return game The new Game instance.
      */
-    private int determineNextGameNumber(Match match) {
+    public int determineNextGameNumber(Match match) {
         return match.getGames().stream()
                 .mapToInt(Game::getGameNumber)
                 .max()
@@ -462,17 +388,20 @@ public class GameService {
         int nextGameNumber = determineNextGameNumber(match);
 
         Game game = new Game();
-        game.setMatch(match);
         game.setGameNumber(nextGameNumber);
         game.setPhase(GamePhase.PRESTART);
+        game.setCurrentPlayOrder(1);
+
+        match.addGame(game);
 
         gameRepository.save(game);
-        gameRepository.flush(); // Let us make sure we get an immediate ID.
+        gameRepository.flush();
 
-        match.getGames().add(game);
         match.setPhase(MatchPhase.READY);
         match.setStarted(true);
         matchRepository.save(match);
+        gameStatsService.initializeGameStats(match, game);
+        gameStatsRepository.flush();
 
         return game;
     }
@@ -491,7 +420,7 @@ public class GameService {
         // If current player is an AI, trigger their turn(s)
         if (currentPlayer != null && Boolean.TRUE.equals(currentPlayer.getUser().getIsAiPlayer())) {
             System.out.println("Location: triggerAiTurns. Repeated Call.");
-            playAiTurns(match.getMatchId());
+            playAiTurns(game);
         }
     }
 
@@ -499,186 +428,87 @@ public class GameService {
      * Distributes 13 cards to each player
      */
     public void distributeCards(Match match, Game game, Long seed) {
+        if (seed != null && seed % 10000 == 9247) {
+            List<CardResponse> deterministicDeck = ExternalApiClientService.generateDeterministicDeck(52, seed);
+            distributeFullDeckToPlayers(match, game, deterministicDeck);
+            return;
+        }
+        Long gameId = game.getGameId();
+        Long matchId = match.getMatchId();
         Mono<DrawCardResponse> drawCardResponseMono = externalApiClientService.drawCard(game.getDeckId(), 52);
-
         drawCardResponseMono.subscribe(response -> {
+            // Manually draw fresh game object from DB.
+            Game refreshedGame = gameRepository.findById(gameId)
+                    .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + gameId));
+            // Manually draw fresh match object from DB:
+            Match refreshedMatch = matchRepository.findById(matchId)
+                    .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + matchId));
             List<CardResponse> responseCards = response.getCards();
-
-            for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
-                List<MatchPlayerCards> cards = new ArrayList<>();
-                int counter = 0;
-
-                while (counter < 13 && !responseCards.isEmpty()) {
-                    String code = responseCards.get(0).getCode();
-
-                    Rank rank = Rank.fromSymbol(code.substring(0, code.length() - 1));
-                    Suit suit = Suit.fromSymbol(code.substring(code.length() - 1));
-
-                    if (code.equals("2C")) {
-                        int slot = matchPlayer.getSlot();
-                        if (slot < 1 || slot > 4) {
-                            throw new IllegalStateException("Invalid slot [6372]: " + slot);
-                        }
-                        game.setCurrentSlot(slot);
-                        gameRepository.save(game);
-                        gameRepository.flush();
-                    }
-
-                    MatchPlayerCards matchPlayerCards = new MatchPlayerCards();
-                    matchPlayerCards.setCard(code);
-                    matchPlayerCards.setMatchPlayer(matchPlayer);
-
-                    GameStats gameStats = gameStatsRepository.findByRankAndSuitAndGame(rank, suit, game);
-                    if (gameStats != null) {
-                        gameStats.setCardHolder(matchPlayer.getSlot());
-                        gameStatsRepository.save(gameStats);
-                    }
-
-                    cards.add(matchPlayerCards);
-                    counter++;
-                    responseCards.remove(0);
-                }
-
-                matchPlayer.setCardsInHand(cards);
-                matchPlayerRepository.save(matchPlayer);
-            }
-            matchPlayerRepository.flush();
-            gameStatsRepository.flush();
-            match.setPhase(MatchPhase.IN_PROGRESS);
-            matchRepository.save(match);
-            game.setPhase(GamePhase.PASSING);
-            gameRepository.save(game);
-            if (seed != null && seed % 10000 == 9247) {
-                List<CardResponse> deterministicDeck = generateDeterministicDeck(seed);
-                overwriteGameStatsWithSeed(deterministicDeck, match, game);
-                dealToPlayers(deterministicDeck, match, game);
-            }
+            distributeFullDeckToPlayers(refreshedMatch, refreshedGame, responseCards);
         });
     }
 
-    private void dealToPlayers(List<CardResponse> responseCards, Match match, Game game) {
-        // iterate through match players
-        for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
-            // collect cards
-            List<MatchPlayerCards> cards = new ArrayList<>();
-            int counter = 0;
-            // take 13 cards each
-            while (counter < 13 && !responseCards.isEmpty()) {
-                String code = responseCards.get(0).getCode();
+    private void distributeFullDeckToPlayers(Match match, Game game, List<CardResponse> responseCards) {
+        if (responseCards == null || responseCards.size() != 52) {
+            throw new IllegalArgumentException("Expected 52 cards to distribute.");
+        }
 
-                Rank rank = Rank.fromSymbol(code.substring(0, code.length() - 1));
-                Suit suit = Suit.fromSymbol(code.substring(code.length() - 1));
+        List<MatchPlayer> players = match.getMatchPlayers();
+        if (players.size() != 4) {
+            throw new IllegalStateException("Expected exactly 4 players to distribute cards.");
+        }
+
+        int cardIndex = 0;
+        for (MatchPlayer matchPlayer : players) {
+            StringBuilder handBuilder = new StringBuilder();
+
+            for (int i = 0; i < 13; i++) {
+                String code = responseCards.get(cardIndex).getCode();
 
                 if (code.equals("2C")) {
                     int slot = matchPlayer.getSlot();
-                    game.setCurrentSlot(slot);
-                    gameRepository.save(game);
+                    if (slot < 1 || slot > 4) {
+                        throw new IllegalStateException("Invalid slot [6372]: " + slot);
+                    }
+                    game.setCurrentSlot(slot); // Set starting player
                 }
 
-                MatchPlayerCards matchPlayerCards = new MatchPlayerCards();
-                matchPlayerCards.setCard(code);
-                matchPlayerCards.setMatchPlayer(matchPlayer);
-                cards.add(matchPlayerCards);
-                counter++;
-                responseCards.remove(0);
+                if (handBuilder.length() > 0) {
+                    handBuilder.append(",");
+                }
+                handBuilder.append(code);
+
+                cardIndex++;
             }
 
-            matchPlayer.setCardsInHand(cards);
-            matchPlayerRepository.save(matchPlayer);
+            matchPlayer.setHand(handBuilder.toString());
         }
 
-        matchPlayerRepository.flush();
         match.setPhase(MatchPhase.IN_PROGRESS);
-        matchRepository.save(match);
         game.setPhase(GamePhase.PASSING);
+
+        // Save updated game + match
         gameRepository.save(game);
-
-        // Fill GameStats
-        gameStatsService.updateGameStatsFromPlayers(game, match);
-        gameStatsRepository.flush();
+        matchRepository.save(match);
+        gameStatsService.updateGameStatsFromPlayers(match, game);
     }
 
-    private List<CardResponse> generateDeterministicDeck(long seed) {
-        List<CardResponse> deck = new ArrayList<>();
-        String[] suits = { "C", "D", "H", "S" };
-        String[] ranks = { "2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "A" };
-
-        for (String suit : suits) {
-            for (String rank : ranks) {
-                CardResponse card = new CardResponse();
-                card.setCode(rank + suit); // e.g., "2C"
-                deck.add(card);
-            }
-        }
-
-        Random rng = new Random(seed);
-        for (int i = deck.size() - 1; i > 0; i--) {
-            int j = rng.nextInt(i + 1);
-            CardResponse temp = deck.get(i);
-            deck.set(i, deck.get(j));
-            deck.set(j, temp);
-        }
-
-        return deck;
-    }
-
-    private void overwriteGameStatsWithSeed(List<CardResponse> deck, Match match, Game game) {
-        List<MatchPlayer> players = match.getMatchPlayers();
-        int cardsPerPlayer = 13;
-        int cardIndex = 0;
-
-        for (MatchPlayer player : players) {
-            for (int i = 0; i < cardsPerPlayer; i++) {
-                String code = deck.get(cardIndex).getCode();
-                Card card = CardUtils.fromCode(code); // your Card class
-                Rank rank = Rank.fromSymbol(card.getRank());
-                Suit suit = Suit.fromSymbol(card.getSuit());
-                GameStats stats = gameStatsRepository.findByRankAndSuitAndGame(rank, suit, game);
-
-                if (stats != null) {
-                    stats.setCardHolder(player.getSlot());
-                    gameStatsRepository.save(stats);
-                }
-
-                if (code.equals("2C")) {
-                    game.setCurrentSlot(player.getSlot());
-                    gameRepository.save(game);
-                }
-
-                cardIndex++;
-            }
-        }
-        gameStatsRepository.flush();
-    }
-
-    private void assignCardsToPlayers(List<CardResponse> deck, Match match) {
-        List<MatchPlayer> players = match.getMatchPlayers();
-        int cardIndex = 0;
-        int cardsPerPlayer = 13;
-
-        for (MatchPlayer player : players) {
-            for (int i = 0; i < cardsPerPlayer; i++) {
-                String cardCode = deck.get(cardIndex).getCode();
-                // Assign cardCode to player somehow (depends on your model)
-                cardIndex++;
-            }
-        }
-    }
-
-    private boolean isGameFinished(Game game) {
-        long playedCount = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0);
-        return playedCount >= EXPECTED_CARD_COUNT;
-    }
-
-    public void playCard(String token, Long matchId, PlayedCardDTO dto) {
+    public void playCardAsHuman(String token, Long matchId, PlayedCardDTO dto) {
         User user = userService.getUserByToken(token);
-        Game game = getActiveGameByMatchId(matchId);
-        Match match = game.getMatch();
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No user found with your credential.");
+        }
+        System.out.println("this is user " + user.getId() + " calling playCardAsHuman");
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        Game game = match.getActiveGame();
+        if (game == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "No active game found for match matchId=" + matchId + ".");
+        }
+        System.out.println("human " + dto.getCard());
 
-        MatchPlayer matchPlayer = (dto.getPlayerSlot() == 0)
-                ? matchPlayerRepository.findByUserAndMatch(user, match)
-                : matchPlayerRepository.findByUserAndMatchAndSlot(user, match, dto.getPlayerSlot());
-
+        MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(user, match);
         if (matchPlayer == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not in match.");
         }
@@ -688,637 +518,181 @@ public class GameService {
                     "It is not your turn. You are slot " + matchPlayer.getSlot() + ", but current slot is "
                             + game.getCurrentSlot());
         }
-        System.out.println(
-                "\nHUMAN\nLocation: playCard. I received " + dto.getCard() + " from username " + user.getUsername());
-        executeCardPlay(matchPlayer, match, game, dto.getCard());
+        executeCardPlay(matchPlayer, dto.getCard());
     }
 
-    public void playCardAsAi(Long matchId, int slot, String cardCode) {
-        Game game = getActiveGameByMatchId(matchId);
-        Match match = game.getMatch();
+    public void playCardAsAi(MatchPlayer aiPlayer, String cardCode) {
+        Match match = aiPlayer.getMatch();
+        if (match == null) {
+            throw new IllegalStateException("MatchPlayer " + aiPlayer.getMatchPlayerId() + " is not part of a match.");
+        }
 
-        MatchPlayer matchPlayer = matchPlayerRepository.findByMatchAndSlot(match, slot);
+        CardUtils.requireValidCardFormat(cardCode);
 
-        if (matchPlayer == null || !Boolean.TRUE.equals(matchPlayer.getUser().getIsAiPlayer())) {
-            throw new IllegalStateException("Slot " + slot + " is not controlled by an AI.");
+        String hand = aiPlayer.getHand();
+        if (hand == null || hand.isBlank()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "The AiPlayer of match " + match.getMatchId() + " in slot " + aiPlayer.getSlot()
+                            + " has no cards in hand.");
+        }
+
+        if (!aiPlayer.hasCardCodeInHand(cardCode)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "The AiPlayer in slot " + aiPlayer.getSlot() + " does not have the card " + cardCode + " in hand.");
+        }
+
+        Game game = match.getActiveGameOrThrow();
+        if (game == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    "Game not found for match " + match.getMatchId());
+        }
+
+        int slot = aiPlayer.getSlot();
+        if (slot < 1 || slot > 4) {
+            throw new IllegalStateException(
+                    "The AI player " + aiPlayer.getMatchPlayerId() + " is in an invalid slot (" + slot + ").");
+        }
+
+        if (!Boolean.TRUE.equals(aiPlayer.getUser().getIsAiPlayer())) {
+            throw new IllegalStateException("Slot " + slot + " is not controlled by an AI player.");
         }
 
         if (slot != game.getCurrentSlot()) {
             throw new IllegalStateException("AI tried to play out of turn (slot " + slot + ").");
         }
-        System.out.println(
-                "Location: playCardAsAi. I received " + cardCode + " from userId " + matchPlayer.getUser().getId()
-                        + " in slot " + slot);
 
-        executeCardPlay(matchPlayer, match, game, cardCode);
+        cardRulesService.validatePlayedCard(aiPlayer, cardCode);
+        executeCardPlay(aiPlayer, cardCode);
     }
 
-    private void executeCardPlay(MatchPlayer matchPlayer, Match match, Game game, String cardCode) {
-        // Ensure card is in hand
-        boolean hasCard = matchPlayer.getCardsInHand().stream()
-                .anyMatch(card -> card.getCard().equals(cardCode));
+    public void executeCardPlay(MatchPlayer matchPlayer, String cardCode) {
+        if (matchPlayer == null) {
+            throw new IllegalStateException("No MatchPlayer passed.");
+        }
+        CardUtils.requireValidCardFormat(cardCode);
 
-        if (!hasCard) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Card " + cardCode + " not in hand.");
+        Match match = matchPlayer.getMatch();
+        if (match == null) {
+            throw new IllegalStateException("Could not find a match for matchPlayer.");
         }
 
-        System.out.println(
-                "Location: executeCardPlay. I received " + cardCode + " from userId " + matchPlayer.getUser().getId()
-                        + " in slot " + matchPlayer.getSlot());
+        Game activeGame = match.getActiveGameOrThrow();
 
-        boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
-        boolean isFirstTrick = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) < 4;
+        // Validate move
+        cardRulesService.validatePlayedCard(matchPlayer, cardCode);
 
-        if (isFirstCardOfGame && !cardCode.equals("2C")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "First card of the game must be the 2♣, you played " + "cardCode" + ".");
+        // **Delete card properly from database**
+        matchPlayer.removeCardCodeFromHand(cardCode);
+
+        // Record card play
+        gameStatsService.recordCardPlay(matchPlayer, cardCode);
+
+        System.out.println("I add cardCode " + cardCode + " to current trick");
+        addCardToCurrentTrick(matchPlayer, cardCode);
+
+        // Check if trick completed
+        handlePotentialTrickCompletion(activeGame);
+
+        // Check if game completed
+        if (cardRulesService.isGameReadyForResults(activeGame)) {
+            activeGame.setPhase(GamePhase.RESULT);
+            gameRepository.save(activeGame);
         }
-
-        if (isFirstTrick) {
-            Card card = new Card();
-            card.setCode(cardCode);
-
-            if (card.getSuit().equals("H") || cardCode.equals("QS")) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Cannot play Hearts or Queen of Spades during the first trick.");
-            }
-        }
-
-        // Validate play according to rules
-        validateCardPlay(matchPlayer, game, cardCode);
-
-        // Remove from hand
-        matchPlayer.getCardsInHand().removeIf(card -> card.getCard().equals(cardCode));
-        matchPlayerRepository.save(matchPlayer);
-
-        // Create or update GameStats entry
-        GameStats gameStats = gameStatsRepository.findByGameAndRankSuit(game, cardCode);
-        if (gameStats == null) {
-            gameStats = new GameStats();
-            gameStats.setCardFromString(cardCode);
-            gameStats.setGame(game);
-            gameStats.setMatch(match);
-        }
-
-        long playedCount = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0);
-        int slot = matchPlayer.getSlot();
-
-        gameStats.setPlayOrder((int) playedCount + 1);
-        gameStats.setPlayedBy(slot);
-        gameStats.setCardHolder(slot);
-        gameStats.setTrickNumber((int) playedCount % 4 + 1);
-        gameStatsRepository.saveAndFlush(gameStats);
-
-        handleCardPlayAndTrickCompletion(cardCode, slot, game, match);
-
-        if (isGameFinished(game)) {
-            game.setPhase(GamePhase.FINISHED);
-        }
-
-        gameRepository.save(game);
     }
 
-    // Method to handle card play and trick completion
-    public void handleCardPlayAndTrickCompletion(String playedCardCode, int playerSlot, Game game, Match match) {
-        // Add the card to the current trick and update the next player slot
-        addCardToCurrentTrick(playedCardCode, game, playerSlot);
-
-        // Now check if the trick is complete
-        if (game.getCurrentTrickSize() == 4) {
-            // A trick just ended, process the end of the trick
-            handleTrickCompletion(game, match);
+    private void requireNonNullMatchPlayer(MatchPlayer matchPlayer) {
+        if (matchPlayer == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Encountered empty MatchPlayer.");
         }
+    }
+
+    private Match requireMatchByMatchPlayer(MatchPlayer matchPlayer) {
+        Match match = matchPlayer.getMatch();
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Could not find match for match player.");
+        }
+        return match;
+    }
+
+    private Game requireActiveGameByMatch(Match match) {
+        Game activeGame = match.getActiveGame();
+        if (activeGame == null) {
+            throw new IllegalStateException("No active game found for this match.");
+        }
+        return activeGame;
     }
 
     // Method to add a card to the current trick
-    private void addCardToCurrentTrick(String playedCardCode, Game game, int playerSlot) {
-        game.addCardToCurrentTrick(playedCardCode);
-        int nextSlot = (playerSlot % 4) + 1;
-        game.setCurrentSlot(nextSlot);
+    private void addCardToCurrentTrick(MatchPlayer matchPlayer, String cardCode) {
+        // validate matchPlayer
+        requireNonNullMatchPlayer(matchPlayer);
+        CardUtils.requireValidCardFormat(cardCode);
+
+        // Get match safely from matchPlayer
+        Match match = requireMatchByMatchPlayer(matchPlayer);
+        // Get active game safely from matchPlayer
+        Game activeGame = requireActiveGameByMatch(match);
+        if (activeGame.getCurrentTrickSize() == 4) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "Previous trick was not handled properly, there are already four cards in the trick, sorry.");
+        } else {
+            System.out.println("BANANE" + cardCode);
+            activeGame.addCardToCurrentTrick(cardCode);
+        }
     }
 
-    private void handleTrickCompletion(Game game, Match match) {
-        System.out.println("Location: handleTrickCompletion.");
+    private void handlePotentialTrickCompletion(Game game) {
+        if (game.getCurrentTrickSize() == 4) {
+            // Trick complete
 
-        List<GameStats> allPlays = gameStatsRepository.findByGameAndPlayedByGreaterThan(game, 0);
-        int numberOfPlayedCards = allPlays.size();
+            // Determine winner, calculate points, etc.
+            int winnerSlot = cardRulesService.determineTrickWinner(game);
+            int points = cardRulesService.calculateTrickPoints(game.getCurrentTrick());
 
-        int trickSize = numberOfPlayedCards % 4;
-
-        if (trickSize == 0 && numberOfPlayedCards > 0) {
-            List<GameStats> lastTrickGameStats = allPlays.subList(numberOfPlayedCards - 4, numberOfPlayedCards);
-
-            // Determine the winner
-            int winnerSlot = determineTrickWinner(lastTrickGameStats);
-            System.out.println("Location: handleTrickCompletion, determining winnerSlot as " + winnerSlot + ".");
-
-            // Assign points
-            assignPointsToWinner(game, lastTrickGameStats, winnerSlot);
-
-            // Update score
-            updateWinnerScore(match, winnerSlot, calculateTrickPoints(lastTrickGameStats));
-
-            // Handle game phase transitions
-            updateGamePhase(game, numberOfPlayedCards);
-
-            // Set new trick leader
-            game.setCurrentSlot(winnerSlot); // ###
-
-            // Move currentTrick into lastTrick
-            List<String> finishedTrick = game.getCurrentTrick();
-            game.setLastTrick(finishedTrick);
             game.setLastTrickWinnerSlot(winnerSlot);
-            game.setLastTrickPoints(calculateTrickPoints(lastTrickGameStats));
+            game.setLastTrickPoints(points);
 
-            // Clear current trick
-            game.clearCurrentTrick();
-
-            // Update trick number if needed
+            // Update currentTrickNumber +1
             game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
+
+            // Move current trick to last trick
+            game.setLastTrick(game.getCurrentTrick());
+            game.emptyCurrentTrick();
+            game.getCurrentTrickSlots().clear();
+
+            // Set the new trick leader
+            game.setCurrentSlot(winnerSlot);
+
+            // Save changes
             gameRepository.save(game);
         }
     }
 
-    // Method to assign points to the winner of the trick
-    // Updated method
-    private void assignPointsToWinner(Game game, List<GameStats> lastTrick, int winnerSlot) {
-        for (GameStats card : lastTrick) {
-            card.setPointsBilledTo(winnerSlot);
-        }
-        gameStatsRepository.saveAll(lastTrick);
-
-        // Now safe to call
-        concludeGameIfFinished(game);
-    }
-
-    // Method to update the winner's score
-    private void updateWinnerScore(Match match, int winnerSlot, int trickPoints) {
-        MatchPlayer winner = match.getMatchPlayers().stream()
-                .filter(mp -> mp.getSlot() == winnerSlot)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("Winner slot not found in match players"));
-
-        winner.setGameScore(winner.getGameScore() + trickPoints);
-        matchPlayerRepository.save(winner); // Save score update
-    }
-
-    // Method to update the game phase based on the number of played cards
-    private void updateGamePhase(Game game, int numberOfPlayedCards) {
-        if (game.getPhase() == GamePhase.FIRSTROUND) {
-            game.setPhase(GamePhase.NORMALROUND);
-        }
-        if (numberOfPlayedCards == 48) { // After all cards are played, transition to final round
-            game.setPhase(GamePhase.FINALROUND);
-        }
-    }
-
-    private void validateCardPlay(MatchPlayer player, Game game, String playedCardCode) {
-        List<String> currentTrickCodes = game.getCurrentTrick();
-        List<Card> currentTrickAsCards = currentTrickCodes.stream()
-                .map(CardUtils::fromCode)
-                .collect(Collectors.toList());
-
-        boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
-        boolean isFirstTrick = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) < 4;
-
-        System.out.println("isFirstCardOfGame: " + (isFirstCardOfGame ? "yes" : "no") + ", isFirstTrick: "
-                + (isFirstTrick ? "yes" : "no"));
-        Card attemptedCard = CardUtils.fromCode(playedCardCode);
-        List<Card> hand = player.getCardsInHand().stream()
-                .map(c -> CardUtils.fromCode(c.getCard()))
-                .toList();
-
-        boolean isLeadingTrick = currentTrickAsCards.isEmpty();
-
-        System.out.println("isLeadingTrick: " + (isLeadingTrick ? "yes" : "no"));
-
-        if (isFirstCardOfGame && !playedCardCode.equals("2C")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "First card must be 2♣, you played " + playedCardCode + ".");
-        }
-
-        final String leadSuit = currentTrickAsCards.isEmpty() ? null : currentTrickAsCards.get(0).getSuit();
-        boolean hasLeadSuit = (leadSuit != null) && hand.stream().anyMatch(c -> c.getSuit().equals(leadSuit));
-
-        System.out.println("leadSuit: " + leadSuit + ", hasLeadSuit: " + hasLeadSuit);
-        System.out.println("attemptedSuit: " + attemptedCard.getSuit());
-
-        if (hasLeadSuit && !attemptedCard.getSuit().equals(leadSuit)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "You must follow suit, expected " + leadSuit + ", received " + playedCardCode + ".");
-        }
-        boolean isHeart = attemptedCard.getSuit().equals("H");
-        boolean isQueenOfSpades = attemptedCard.getCode().equals("QS");
-
-        if (isFirstTrick && (isHeart || isQueenOfSpades)) {
-            if (hasLeadSuit) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Cannot play Hearts or Queen of Spades during the first trick unless you have no cards in the lead suit. Lead suit "
-                                + leadSuit + ", you played " + playedCardCode + ".");
-            }
-        }
-
-        if (isLeadingTrick && isHeart && !game.getHeartsBroken()) {
-            boolean onlyHeartsLeft = hand.stream().allMatch(c -> c.getSuit().equals("H"));
-            if (!onlyHeartsLeft) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "You cannot lead with Hearts (" + playedCardCode
-                                + ") until they are broken, unless you only have Hearts.");
-            }
-        }
-
-        checkAndBreakHearts(game, attemptedCard);
-
-    }
-
-    public List<GameStats> getCurrentTrick(Game game) {
-        // Fetch all plays with a playOrder greater than 0, sorted by playOrder in
-        // ascending order
-        List<GameStats> allPlays = gameStatsRepository.findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(game, 0);
-
-        // Reverse the order to get the highest playOrder values first (descending
-        // order)
-        Collections.reverse(allPlays);
-
-        // Calculate the trick size based on the number of cards played so far
-        int trickSize = allPlays.size() % 4;
-
-        // If trickSize is 0, it means it's the last trick and should contain 4 cards
-        if (trickSize == 0 && allPlays.size() > 0) {
-            trickSize = 4;
-        }
-
-        // Get the last 'trickSize' cards from allPlays (after reversing to ensure
-        // highest playOrder values)
-        return allPlays.subList(0, trickSize);
+    @Transactional
+    public void passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO) {
+        cardPassingService.passingAcceptCards(game, matchPlayer, passingDTO);
     }
 
     @Transactional
-    public void makePassingHappen(Long matchId, GamePassingDTO passingDTO, String token) {
-        User user = userService.getUserByToken(token);
-
-        Long playerId = user.getId();
-        List<String> cardsToPass = passingDTO.getCards();
-
-        if (cardsToPass == null || cardsToPass.size() != 3) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exactly 3 cards must be passed.");
-        }
-
-        Game game = getActiveGameByMatchId(matchId);
-
-        Match match = game.getMatch();
-
-        if (!match.containsPlayer(playerId)) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Player is not part of this match.");
-        }
-
-        int slot = match.getSlotByPlayerId(playerId);
-
-        for (String cardCode : cardsToPass) {
-            if (!isValidCardFormat(cardCode)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid card format: " + cardCode);
-            }
-
-            GameStats card = gameStatsRepository.findByRankSuitAndGameAndCardHolder(cardCode, game, slot);
-            if (card == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Card " + cardCode + " is not owned by player in slot " + slot);
-            }
-
-            if (passedCardRepository.existsByGameAndFromSlotAndRankSuit(game, slot, cardCode)) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "Card " + cardCode + " has already been passed by slot " + slot);
-            }
-
-            if (passedCardRepository.existsByGameAndRankSuit(game, cardCode)) {
-                throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "Card " + cardCode + " has already been passed by another player.");
-            }
-        }
-
-        // Save all passed cards in a batch
-        List<PassedCard> passedCards = cardsToPass.stream()
-                .map(cardCode -> new PassedCard(game, cardCode, slot, game.getGameNumber()))
-                .collect(Collectors.toList());
-        passedCardRepository.saveAll(passedCards);
-
-        // Count how many cards have been passed in total
-        long passedCount = passedCardRepository.countByGame(game);
-
-        // If not all 12 passed yet, check if AI players need to pass
-        if (passedCount < 12) {
-            int expectedHumanPasses = (int) match.getMatchPlayers().stream()
-                    .filter(mp -> !Boolean.TRUE.equals(mp.getUser().getIsAiPlayer()))
-                    .count() * 3;
-
-            if (passedCount == expectedHumanPasses) {
-                passForAllAiPlayers(game);
-                passedCount = passedCardRepository.countByGame(game);
-            }
-        }
-
-        // If all 12 cards passed, proceed to collect
-        if (passedCount == 12) {
-            collectPassedCards(matchId);
-        }
-
-    }
-
-    private List<String> pickThreeCardsForAI(List<GameStats> hand) {
-        // No shuffling for testing
-        // Collections.shuffle(hand);
-        return hand.stream()
-                .limit(3)
-                .map(GameStats::getRankSuit)
-                .collect(Collectors.toList());
-    }
-
-    private void passForAllAiPlayers(Game game) {
-        Match match = game.getMatch();
-
-        for (int slot = 1; slot <= 4; slot++) {
-            User player = match.getUserBySlot(slot);
-            if (Boolean.TRUE.equals(player.getIsAiPlayer())) {
-                List<GameStats> hand = gameStatsRepository.findByGameAndCardHolder(game, slot);
-                List<String> cardsToPass = pickThreeCardsForAI(hand);
-
-                for (String cardCode : cardsToPass) {
-                    if (!passedCardRepository.existsByGameAndRankSuit(game, cardCode)) {
-                        PassedCard passedCard = new PassedCard(game, cardCode, slot, game.getGameNumber());
-                        passedCardRepository.save(passedCard);
-                    }
-                }
-            }
-        }
-    }
-
-    private boolean isValidCardFormat(String cardCode) {
-        return cardCode != null && cardCode.matches("^[02-9JQKA][HDCS]$");
-    }
-
-    public void collectPassedCards(Long matchId) {
-        Game game = getActiveGameByMatchId(matchId);
-        List<PassedCard> passedCards = passedCardRepository.findByGame(game);
-        if (passedCards.size() != 12) {
-            throw new IllegalStateException("Cannot collect cards: not all cards have been passed yet.");
-        }
-
-        // Build a map from slot to cards passed
-        Map<Integer, List<PassedCard>> cardsBySlot = new HashMap<>();
-        for (PassedCard passed : passedCards) {
-            int fromSlot = passed.getFromSlot();
-            cardsBySlot.computeIfAbsent(fromSlot, k -> new ArrayList<>()).add(passed);
-        }
-
-        // Determine passing direction
-        Map<Integer, Integer> passTo = determinePassingDirection(game.getGameNumber());
-
-        // Reassign card ownership
-        for (Map.Entry<Integer, List<PassedCard>> entry : cardsBySlot.entrySet()) {
-            int fromSlot = entry.getKey();
-            int toSlot = passTo.get(fromSlot);
-
-            for (PassedCard card : entry.getValue()) {
-                // Update ownership in GameStats
-                GameStats gameStat = gameStatsRepository.findByRankSuitAndGameAndCardHolder(
-                        card.getRankSuit(), game, fromSlot);
-
-                if (gameStat != null) {
-                    System.out.printf("Passing %s: %d → %d%n", card.getRankSuit(), fromSlot, toSlot);
-                    gameStat.setCardHolder(toSlot);
-                    gameStatsRepository.save(gameStat);
-                    // Also update MatchPlayer.cardsInHand to include received cards
-                    MatchPlayer receiver = game.getMatch().getMatchPlayers().stream()
-                            .filter(mp -> mp.getSlot() == toSlot)
-                            .findFirst()
-                            .orElseThrow(() -> new IllegalStateException("No MatchPlayer found for slot " + toSlot));
-
-                    MatchPlayerCards newCard = new MatchPlayerCards();
-                    newCard.setCard(card.getRankSuit());
-                    newCard.setMatchPlayer(receiver);
-
-                    if (receiver.getCardsInHand() == null) {
-                        receiver.setCardsInHand(new ArrayList<>());
-                    }
-                    receiver.getCardsInHand().add(newCard);
-                } else {
-                    System.out.printf("WARN: Could not find GameStat for %s from slot %d%n", card.getRankSuit(),
-                            fromSlot);
-                }
-            }
-        }
-
-        // Cleanup
-        passedCardRepository.deleteAll(passedCards);
-
-        // Ensure we're working with a managed Game entity
-        Game managedGame = gameRepository.findById(game.getGameId())
-                .orElseThrow(() -> new EntityNotFoundException("Game not found"));
-
-        GameStats twoOfClubs = gameStatsRepository.findByRankAndSuitAndGame(Rank._2, Suit.C, managedGame);
-        if (twoOfClubs != null) {
-            managedGame.setCurrentSlot(twoOfClubs.getCardHolder());
-            managedGame.setTrickLeaderSlot(twoOfClubs.getCardHolder());
-            System.out.printf("Passed cards: 2C holder is slot %d%n", twoOfClubs.getCardHolder());
-        } else {
-            throw new IllegalStateException("2♣ not found after passing.");
-        }
-
-        managedGame.setPhase(GamePhase.FIRSTROUND);
-        gameRepository.save(managedGame);
-        gameRepository.flush();
-
-        Match match = managedGame.getMatch();
-
-        MatchPlayer currentMatchPlayer = matchPlayerRepository.findByMatchAndSlot(match, managedGame.getCurrentSlot());
-
-        User user = currentMatchPlayer.getUser();
-
-        if (user.getIsAiPlayer()) {
-            System.err.println("Location: collectPassedCards. triggerAiTurns was called in collectPassedCards");
-            triggerAiTurns(match, managedGame);
-        }
-    }
-
-    private Map<Integer, Integer> determinePassingDirection(int gameNumber) {
-        Map<Integer, Integer> direction = new HashMap<>();
-
-        switch (gameNumber % 4) {
-            case 1: // Left
-                direction.put(1, 2);
-                direction.put(2, 3);
-                direction.put(3, 4);
-                direction.put(4, 1);
-                break;
-            case 2: // Right
-                direction.put(1, 4);
-                direction.put(2, 1);
-                direction.put(3, 2);
-                direction.put(4, 3);
-                break;
-            case 3: // Across
-                direction.put(1, 3);
-                direction.put(2, 4);
-                direction.put(3, 1);
-                direction.put(4, 2);
-                break;
-            case 0: // No passing
-            default:
-                direction.put(1, 1);
-                direction.put(2, 2);
-                direction.put(3, 3);
-                direction.put(4, 4);
-                break;
-        }
-
-        return direction;
-    }
-
-    public List<Card> getPlayableCardsForPlayer(Match match, Game game, User player, int slot) {
-        MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatchAndSlot(player, match, slot);
-        if (matchPlayer == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not in this match.");
-        }
-
-        // Get unplayed cards in hand
-        List<GameStats> handStats = gameStatsRepository.findByGameAndCardHolderAndPlayedBy(game, slot, 0);
-
-        List<Card> hand = handStats.stream()
-                .map(CardUtils::fromGameStats)
-                .collect(Collectors.toList());
-
-        List<Card> sortedHand = CardUtils.sortCardsByCardOrder(hand);
-
-        String cardsAsString = sortedHand.stream()
-                .map(Card::getCode)
-                .collect(Collectors.joining(", "));
-        System.out.println("Location: getPlayableCardsForPlayer "
-                + (player.getIsAiPlayer() ? "ai" : "human")
-                + " player [id=" + player.getId() + "], hand: " + cardsAsString);
-
-        // Game state flags
-        boolean isFirstRound = game.getGameNumber() == 1;
-        boolean heartsBroken = Boolean.TRUE.equals(game.getHeartsBroken());
-        boolean isFirstCardOfGame = gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0) == 0;
-
-        // Current trick
-        List<String> currentTrickCodes = game.getCurrentTrick();
-        List<Card> currentTrickAsCards = currentTrickCodes.stream()
-                .map(CardUtils::fromCode)
-                .collect(Collectors.toList());
-
-        boolean isLeading = currentTrickAsCards.isEmpty();
-
-        final String trickSuitLocal = isLeading ? null : currentTrickAsCards.get(0).getSuit();
-
-        boolean hasSuitInHand = trickSuitLocal != null &&
-                sortedHand.stream().anyMatch(c -> c.getSuit().equals(trickSuitLocal));
-
-        List<Card> playable = new ArrayList<>();
-
-        for (Card card : sortedHand) {
-            String code = card.getCode();
-            String suit = card.getSuit();
-
-            if (isFirstCardOfGame) {
-                if ("2C".equals(code)) {
-                    playable.add(card);
-                }
-                continue;
-            }
-
-            if (isFirstRound && (suit.equals("H") || code.equals("QS"))) {
-                continue; // Cannot play hearts or Queen of Spades in first round unless forced
-            }
-
-            if (isLeading) {
-                if (suit.equals("H") && !heartsBroken) {
-                    boolean onlyHearts = sortedHand.stream().allMatch(c -> c.getSuit().equals("H"));
-                    if (!onlyHearts) {
-                        continue; // Cannot lead hearts if hearts not broken
-                    }
-                }
-                playable.add(card);
-            } else {
-                if (hasSuitInHand) {
-                    // Must follow suit
-                    if (suit.equals(trickSuitLocal)) {
-                        playable.add(card);
-                    }
-                } else {
-                    // No card of lead suit -> can play anything (even Hearts/Queen)
-                    playable.add(card);
-                }
-            }
-
-        }
-
-        List<Card> sortedPlayable = CardUtils.sortCardsByCardOrder(playable);
-
-        // Debugging outputs
-        String currentTrickAsString = currentTrickAsCards.stream()
-                .map(Card::getCode)
-                .collect(Collectors.joining(", "));
-        System.out.println("Current Trick: " + currentTrickAsString);
-
-        String sortedPlayableAsString = sortedPlayable.stream()
-                .map(Card::getCode)
-                .collect(Collectors.joining(", "));
-        System.out.println("Playable cards for " + (player.getIsAiPlayer() ? "ai" : "human")
-                + " player [id=" + player.getId() + "]: " + sortedPlayableAsString);
-
-        return sortedPlayable;
-    }
-
-    @Transactional
-    public void playAiTurns(Long matchId) {
-        Game currentGame = getActiveGameByMatchId(matchId);
-        if (currentGame == null) {
+    public void playAiTurns(Game game) {
+        if (game == null) {
             System.out.println(
-                    "Location: playAiTurns. Initiating an AiTurn, but not finding a Game for matchId=" + matchId + ".");
+                    "Location: playAiTurns. Initiating an AiTurn, but the passed game argument is null.");
             return;
         }
 
-        Match match = currentGame.getMatch();
+        Match match = game.getMatch();
 
-        // Handle full trick before playing
-        if (currentGame.getCurrentTrick().size() == 4) {
-            System.out.println("Current trick is full. Handling trick completion.");
-            handleTrickCompletion(currentGame, match); // PASS BOTH game and match
-            currentGame = getActiveGameByMatchId(matchId); // Reload updated game state after trick is completed
-            match = currentGame.getMatch();
-        }
-
-        System.out.println(
-                "\nAIPLAYER\nLocation: playAiTurns. Initiating an AiTurn. GamePhase=" + currentGame.getPhase());
-
-        if (isGameFinished(currentGame)) {
-            System.out.println(
-                    "Location: playAiTurns. Game is apparently finished. GamePhase=" + currentGame.getPhase() + ".");
-            return;
-        }
-
-        int currentSlot = currentGame.getCurrentSlot();
-        User aiPlayer = match.getUserBySlot(currentSlot);
-
-        System.out.println("Location: playAiTurns. UserId: " + (aiPlayer != null ? aiPlayer.getId() : "null"));
+        MatchPlayer aiPlayer = match.getMatchPlayerBySlot(game.getCurrentSlot());
 
         // Stop if it's a human's turn or no AI player
         if (aiPlayer == null || !Boolean.TRUE.equals(aiPlayer.getIsAiPlayer())) {
             return;
         }
 
-        List<Card> playableCards = getPlayableCardsForPlayer(match, currentGame, aiPlayer, currentSlot);
-        if (playableCards.isEmpty()) {
-            return; // Something went wrong — no cards to play
-        }
-
-        // Randomization not very practical for testing
-        // Collections.shuffle(playableCards);
-        String cardCode = playableCards.get(0).getCode();
-        System.out.println("Location: playAiTurns ready to playCardAsAi. cardCode: " + cardCode);
-
-        // Add delay
+        String cardCode = aiPlayingService.selectCardToPlay(aiPlayer);
         try {
             // Thread.sleep(300 + new Random().nextInt(400)); // fancy version
             Thread.sleep(50); // short and simple
@@ -1326,7 +700,7 @@ public class GameService {
             Thread.currentThread().interrupt();
         }
 
-        playCardAsAi(matchId, currentSlot, cardCode);
+        playCardAsAi(aiPlayer, cardCode);
     }
 
     public Game getActiveGameByMatchId(Long matchId) {
@@ -1344,21 +718,6 @@ public class GameService {
         }
 
         return game;
-    }
-
-    public long countPlayedCards(Game game) {
-        return gameStatsRepository.countByGameAndPlayedByGreaterThan(game, 0);
-    }
-
-    private boolean hasOnlyHearts(List<Card> hand) {
-        return hand.stream().allMatch(card -> card.getSuit().equals("H"));
-    }
-
-    private void checkAndBreakHearts(Game game, Card attemptedCard) {
-        if ("H".equals(attemptedCard.getSuit()) && !game.getHeartsBroken()) {
-            game.setHeartsBroken(true);
-            System.out.println("Hearts are now broken due to card: " + attemptedCard.getCode());
-        }
     }
 
     @Transactional
@@ -1418,7 +777,7 @@ public class GameService {
         newGame.setCurrentSlot(1);
         newGame = gameRepository.save(newGame);
 
-        gameStatsService.initializeGameStats(match, newGame);
+        // gameStatsService.initializeGameStats(match, newGame);
 
         match.getGames().add(newGame);
         matchRepository.save(match);
@@ -1452,5 +811,4 @@ public class GameService {
 
         return resultDTO;
     }
-
 }

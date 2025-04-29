@@ -3,6 +3,9 @@ package ch.uzh.ifi.hase.soprafs24.entity;
 import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.constant.Rank;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import javax.persistence.*;
 
 @Entity
@@ -48,10 +51,22 @@ public class GameStats {
     private int pointsWorth;
 
     @Column(nullable = false)
+    private int passedBy;
+
+    @Column(nullable = false)
+    private int passedTo;
+
+    @Column(nullable = false)
     private int cardHolder = 0; // 1–4 for slots, or 0 for unassigned
 
     @Column(name = "trick_number", nullable = false)
     private int trickNumber;
+
+    @Column(name = "trick_lead_by_slot", nullable = false)
+    private int trickLeadBySlot;
+
+    @Column(name = "card_order", nullable = false)
+    private int cardOrder;
 
     // Automatically set rankSuit on persist/update
     @PrePersist
@@ -133,6 +148,14 @@ public class GameStats {
         this.playedBy = playedBy;
     }
 
+    public int getCardOrder() {
+        return cardOrder;
+    }
+
+    public void setCardOrder(int cardOrder) {
+        this.cardOrder = cardOrder;
+    }
+
     public int getPossibleHolders() {
         return possibleHolders;
     }
@@ -147,6 +170,22 @@ public class GameStats {
 
     public void setPointsWorth(int pointsWorth) {
         this.pointsWorth = pointsWorth;
+    }
+
+    public int getpassedBy() {
+        return passedBy;
+    }
+
+    public void setPassedBy(int passedBy) {
+        this.passedBy = passedBy;
+    }
+
+    public int getPassedTo() {
+        return passedTo;
+    }
+
+    public void setPassedTo(int passedTo) {
+        this.passedTo = passedTo;
     }
 
     public int getPointsBilledTo() {
@@ -192,6 +231,54 @@ public class GameStats {
 
     public void setTrickNumber(int trickNumber) {
         this.trickNumber = trickNumber;
+    }
+
+    public int getTrickLeadBySlot() {
+        return trickLeadBySlot;
+    }
+
+    public void setTrickLeadBySlot(int trickLeadBySlot) {
+        this.trickLeadBySlot = trickLeadBySlot;
+    }
+
+    public void setPossibleHolder(int slotNumber) {
+        validateSlotNumber(slotNumber);
+        int mask = 1 << (slotNumber - 1);
+        this.possibleHolders = this.possibleHolders | mask;
+    }
+
+    public void clearPossibleHolder(int slotNumber) {
+        validateSlotNumber(slotNumber);
+        int mask = ~(1 << (slotNumber - 1));
+        this.possibleHolders = this.possibleHolders & mask;
+    }
+
+    public boolean isPossibleHolder(int slotNumber) {
+        validateSlotNumber(slotNumber);
+        int mask = 1 << (slotNumber - 1);
+        return (this.possibleHolders & mask) != 0;
+    }
+
+    public List<Integer> getPossibleHolderList() {
+        List<Integer> holders = new ArrayList<>();
+        for (int i = 1; i <= 4; i++) {
+            if (isPossibleHolder(i)) {
+                holders.add(i);
+            }
+        }
+        return holders;
+    }
+
+    private void validateSlotNumber(int slotNumber) {
+        if (slotNumber < 1 || slotNumber > 4) {
+            throw new IllegalArgumentException("Slot number must be between 1 and 4.");
+        }
+    }
+
+    public void setOnlyPossibleHolder(int slotNumber) {
+        validateSlotNumber(slotNumber);
+        int mask = 1 << (slotNumber - 1);
+        this.possibleHolders = mask;
     }
 
 }

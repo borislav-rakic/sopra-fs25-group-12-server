@@ -3,16 +3,15 @@ package ch.uzh.ifi.hase.soprafs24.service;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
-import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayerCards;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
@@ -21,102 +20,85 @@ public class CardRulesService {
 
     private static final int TOTAL_CARD_COUNT = 52;
 
-    /**
-     * Returns the list of card codes that the player is allowed to play.
-     */
-    public List<String> getLegalCards(Game game, MatchPlayer player) {
-        List<MatchPlayerCards> hand = player.getCardsInHand();
-        if (hand == null || hand.isEmpty()) {
-            return List.of();
+    public String getPlayableCardsForMatchPlayer(MatchPlayer matchPlayer) {
+        String hand = matchPlayer.getHand();
+        if (hand == null || hand.isBlank()) {
+            return "";
         }
 
-        // Figure out if player must follow suit based on current trick info in Game
-        String leadingSuit = getLeadingSuitOfCurrentTrick(game);
+        Match match = matchPlayer.getMatch();
+        Game activeGame = match.getActiveGame();
+        if (activeGame == null) {
+            throw new IllegalStateException("No active game found for this match.");
+        }
+
+        String leadingSuit = getLeadingSuitOfCurrentTrick(activeGame);
 
         if (leadingSuit == null) {
-            // No cards played yet in this trick → player leads, can play anything
-            return hand.stream()
-                    .map(MatchPlayerCards::getCard)
-                    .collect(Collectors.toList());
+            if (activeGame.getPhase() == GamePhase.FIRSTTRICK) {
+                if (!matchPlayer.hasCardCodeInHand("2C")) {
+                    throw new IllegalStateException("2C is not found in starting MatchPlayer's hand.");
+                }
+                return "2C";
+            }
+            if (!activeGame.getHeartsBroken()) {
+                return matchPlayer.getCardsNotOfSuit('H');
+            }
+            return hand;
         } else {
-            // Must follow suit if possible
-            List<String> cardsMatchingSuit = hand.stream()
-                    .map(MatchPlayerCards::getCard)
-                    .filter(card -> card.endsWith(leadingSuit))
-                    .collect(Collectors.toList());
+            // Filter cards matching leading suit
+            StringBuilder matchingCards = new StringBuilder();
+            String[] cards = hand.split(",");
 
-            if (!cardsMatchingSuit.isEmpty()) {
-                return cardsMatchingSuit;
+            for (String card : cards) {
+                if (card.endsWith(leadingSuit)) {
+                    if (matchingCards.length() > 0) {
+                        matchingCards.append(",");
+                    }
+                    matchingCards.append(card);
+                }
+            }
+
+            if (matchingCards.length() > 0) {
+                return matchingCards.toString();
             } else {
-                // No matching suit → can play anything
-                return hand.stream()
-                        .map(MatchPlayerCards::getCard)
-                        .collect(Collectors.toList());
+                // No matching suit -> can play any card
+                return hand;
             }
         }
     }
 
-    public List<Card> getLegalCardsAsCards(Game game, MatchPlayer player) {
-        List<String> cardCodes = getLegalCards(game, player);
-        List<Card> unsortedCards = CardUtils.fromCodes(cardCodes);
-        return CardUtils.sortCardsByCardOrder(unsortedCards);
-    }
-
-    private void validateSuitFollowRules(Game game, MatchPlayer player, String cardCode) {
-        String leadingSuit = getLeadingSuitOfCurrentTrick(game);
-        if (leadingSuit == null) {
-            return; // No need to follow suit if leading
-        }
-
-        // Must follow suit if possible
-        boolean hasLeadingSuit = player.getCardsInHand().stream()
-                .anyMatch(card -> CardUtils.fromCode(card.getCard()).getSuit().equals(leadingSuit));
-
-        if (hasLeadingSuit) {
-            // If player has the leading suit, they must play it
-            Card playedCard = CardUtils.fromCode(cardCode);
-            if (!playedCard.getSuit().equals(leadingSuit)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Must follow suit: " + leadingSuit);
-            }
+    public void validatePlayedCard(MatchPlayer matchPlayer, String cardCode) {
+        CardUtils.isValidCardFormat(cardCode);
+        if (!getPlayableCardsForMatchPlayer(matchPlayer).contains(cardCode)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Illegal card played: " + cardCode);
         }
     }
 
-    public boolean isGameFinished(Game game) {
-        Match match = game.getMatch();
-        List<MatchPlayer> players = match.getMatchPlayers();
-
-        int totalCardsRemaining = 0;
-        for (MatchPlayer player : players) {
-            if (player.getCardsInHand() != null) {
-                totalCardsRemaining += player.getCardsInHand().size();
-            }
-        }
-
-        return totalCardsRemaining == 0;
-    }
-
-    /**
-     * Checks whether a given card is legal for the player to play.
-     */
-    public boolean isCardLegal(Game game, MatchPlayer player, String cardCode) {
-        List<String> legalCards = getLegalCards(game, player);
-        return legalCards.contains(cardCode);
-    }
-
-    /**
-     * Helper: Determines the leading suit of the current trick.
-     * Purely from Game, not from GameStats.
-     */
     private String getLeadingSuitOfCurrentTrick(Game game) {
+        if (game.getCurrentTrickSize() == 0)
+            return null;
+        String firstCard = game.getCardInCurrentTrick(0);
+        return firstCard.substring(firstCard.length() - 1);
+    }
+
+    /**
+     * Helper: Returns the cardCode of the leading card of the trick.
+     * 
+     * @param game : current game.
+     * @return card code.
+     */
+    private String getLeadingCardCodeOfCurrentTrick(Game game) {
         if (game.getCurrentTrickSize() == 0) {
             return null; // No cards played yet in this trick
         }
-
-        String firstCard = game.getCardInCurrentTrick(0); // First card played in current trick
+        // First card played in current trick
+        String firstCard = game.getCardInCurrentTrick(0);
         if (firstCard == null || firstCard.length() < 2) {
             throw new IllegalStateException("Invalid card format in trick.");
         }
-        return firstCard.substring(firstCard.length() - 1); // Last char = suit
+        // Last char = suit
+        return firstCard.substring(firstCard.length() - 1);
     }
 
     /**
@@ -183,55 +165,27 @@ public class CardRulesService {
         return points;
     }
 
-    public void validateCardPlay(MatchPlayer matchPlayer, Game game, String cardCode) {
-        // 1. Ensure player has the card
-        boolean hasCard = matchPlayer.getCardsInHand().stream()
-                .anyMatch(card -> card.getCard().equals(cardCode));
-        if (!hasCard) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Card " + cardCode + " not in hand.");
-        }
-
-        // 2. Check first move must be 2C
-        if (isFirstCardOfGame(game) && !cardCode.equals("2C")) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "First card of game must be 2♣.");
-        }
-
-        // 3. No hearts or QS on first trick
-        if (isFirstTrick(game)) {
-            Card card = new Card();
-            card.setCode(cardCode);
-            if (card.getSuit().equals("H") || cardCode.equals("QS")) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Cannot play Hearts or Queen of Spades during first trick.");
-            }
-        }
-
-        // 4. Validate following suit if needed
-        // (you probably already have this inside your old validateCardPlay)
-        validateSuitFollowRules(game, matchPlayer, cardCode);
-    }
-
     public Map<Integer, Integer> determinePassingDirection(int gameNumber) {
         Map<Integer, Integer> passMap = new HashMap<>();
 
         switch (gameNumber % 4) {
             case 1: // Pass to the left
-                passMap.put(0, 1);
                 passMap.put(1, 2);
                 passMap.put(2, 3);
-                passMap.put(3, 0);
+                passMap.put(3, 4);
+                passMap.put(4, 1);
                 break;
-            case 2: // Pass to the right
-                passMap.put(0, 3);
-                passMap.put(1, 0);
+            case 2: // Pass across
+                passMap.put(1, 3);
+                passMap.put(2, 4);
+                passMap.put(3, 1);
+                passMap.put(4, 2);
+                break;
+            case 3: // Pass to the right
+                passMap.put(1, 4);
                 passMap.put(2, 1);
                 passMap.put(3, 2);
-                break;
-            case 3: // Pass across
-                passMap.put(0, 2);
-                passMap.put(1, 3);
-                passMap.put(2, 0);
-                passMap.put(3, 1);
+                passMap.put(4, 3);
                 break;
             default: // No pass
                 break;
@@ -259,17 +213,21 @@ public class CardRulesService {
         }
     }
 
-    private boolean isFirstCardOfGame(Game game) {
-        int totalCardsLeft = game.getMatch().getMatchPlayers().stream()
-                .mapToInt(mp -> mp.getCardsInHand() != null ? mp.getCardsInHand().size() : 0)
-                .sum();
-        return totalCardsLeft == 52;
+    public boolean isGameReadyForResults(Game game) {
+        Match match = game.getMatch();
+        if (match == null) {
+            throw new IllegalStateException("Game has no associated match.");
+        }
+
+        int totalCardsRemaining = 0;
+        for (MatchPlayer player : match.getMatchPlayers()) {
+            String hand = player.getHand();
+            if (hand != null && !hand.isBlank()) {
+                totalCardsRemaining += hand.split(",").length;
+            }
+        }
+
+        return totalCardsRemaining == 0;
     }
 
-    private boolean isFirstTrick(Game game) {
-        int totalCardsLeft = game.getMatch().getMatchPlayers().stream()
-                .mapToInt(mp -> mp.getCardsInHand() != null ? mp.getCardsInHand().size() : 0)
-                .sum();
-        return totalCardsLeft > 48; // 52 - 4
-    }
 }

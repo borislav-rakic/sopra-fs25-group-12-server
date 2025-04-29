@@ -2,8 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.entity;
 
 import javax.persistence.*;
 
-import java.util.ArrayList;
-import java.util.List;
+import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
 /**
  * The MATCH_PLAYER relation saves the ids of the players that are in a match,
@@ -12,7 +11,7 @@ import java.util.List;
 @Entity
 @Table(name = "MATCH_PLAYER")
 public class MatchPlayer {
-    private static final long serialVersionUID = 1L;
+    private static final String CARD_PATTERN = "^([2-9AJKQ][CDHS])(,([2-9AJKQ][CDHS]))*$";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -29,8 +28,8 @@ public class MatchPlayer {
     @Column(name = "slot", nullable = false)
     private int slot;
 
-    @OneToMany(mappedBy = "matchPlayer", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
-    private List<MatchPlayerCards> cardsInHand;
+    @Column(name = "hand", nullable = false)
+    private String hand = "";
 
     @Column(name = "match_score", nullable = false)
     private int matchScore = 0; // total score across games (formerly "score")
@@ -76,12 +75,12 @@ public class MatchPlayer {
         this.user = user;
     }
 
-    public List<MatchPlayerCards> getCardsInHand() {
-        return cardsInHand;
+    public String getHand() {
+        return hand;
     }
 
-    public void setCardsInHand(List<MatchPlayerCards> cardsInHand) {
-        this.cardsInHand = cardsInHand;
+    public void setHand(String hand) {
+        this.hand = hand;
     }
 
     public int getSlot() {
@@ -108,7 +107,7 @@ public class MatchPlayer {
         this.gameScore = gameScore;
     }
 
-    public Boolean isReady() {
+    public Boolean getIsReady() {
         return ready;
     }
 
@@ -174,16 +173,143 @@ public class MatchPlayer {
         this.shotTheMoonCount = 0;
     }
 
-    public void addCardToHand(String cardCode) {
-        if (this.cardsInHand == null) {
-            this.cardsInHand = new ArrayList<>();
-        }
-        this.cardsInHand.add(MatchPlayerCards.of(cardCode, this));
-    }
-
     public void resetMatchStats() {
         this.setMatchScore(0);
         this.setPerfectGames(0);
         this.setShotTheMoonCount(0);
     }
+
+    // === HAND MANIPULATION HELPERS (PURE STRING ONLY) ===
+
+    public void addCardCodeToHand(String cardCode) {
+        if (hand == null || hand.isBlank()) {
+            hand = cardCode;
+        } else {
+            hand += "," + cardCode;
+        }
+    }
+
+    public void removeCardCodeFromHand(String cardCode) {
+        if (hand == null || hand.isBlank()) {
+            return;
+        }
+
+        String[] cards = hand.split(",");
+        StringBuilder newHand = new StringBuilder();
+        for (String card : cards) {
+            if (!card.equals(cardCode)) {
+                if (newHand.length() > 0) {
+                    newHand.append(",");
+                }
+                newHand.append(card);
+            }
+        }
+        hand = newHand.toString();
+    }
+
+    public boolean hasCardCodeInHand(String cardCode) {
+        if (hand == null || hand.isBlank()) {
+            return false;
+        }
+        String[] cards = hand.split(",");
+        for (String card : cards) {
+            if (card.equals(cardCode)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public int numberOfCardsInHand() {
+        if (hand == null || hand.isBlank()) {
+            return 0;
+        }
+        return hand.split(",").length;
+    }
+
+    public void clearHand() {
+        this.hand = "";
+    }
+
+    public boolean isProperHandFormat() {
+        if (hand == null || hand.isBlank()) {
+            return true; // Empty hand is OK
+        }
+        return hand.matches(CARD_PATTERN);
+    }
+
+    public boolean hasNoDuplicateCards() {
+        if (hand == null || hand.isBlank()) {
+            return true; // Empty hand, no duplicates
+        }
+        String[] cards = hand.split(",");
+        java.util.Set<String> seen = new java.util.HashSet<>();
+        for (String card : cards) {
+            if (!seen.add(card)) {
+                return false; // Card already seen -> duplicate
+            }
+        }
+        return true;
+    }
+
+    public boolean isValidHand() {
+        return isProperHandFormat() && hasNoDuplicateCards();
+    }
+
+    public void sortHand() {
+        if (hand == null || hand.isBlank()) {
+            return;
+        }
+        String[] cards = hand.split(",");
+        java.util.Arrays.sort(cards, java.util.Comparator.comparingInt(CardUtils::calculateCardOrder));
+        hand = String.join(",", cards);
+    }
+
+    public String getCardsOfSuit(char suit) {
+        if (hand == null || hand.isBlank()) {
+            return "";
+        }
+
+        StringBuilder result = new StringBuilder();
+        String[] cards = hand.split(",");
+
+        for (String card : cards) {
+            if (!card.isEmpty() && card.charAt(card.length() - 1) == suit) {
+                if (result.length() > 0) {
+                    result.append(",");
+                }
+                result.append(card);
+            }
+        }
+
+        return result.toString();
+    }
+
+    public String getCardsNotOfSuit(char suit) {
+        if (hand == null || hand.isBlank()) {
+            return "";
+        }
+
+        StringBuilder result = new StringBuilder();
+        String[] cards = hand.split(",");
+
+        for (String card : cards) {
+            if (!card.isEmpty() && card.charAt(card.length() - 1) != suit) {
+                if (result.length() > 0) {
+                    result.append(",");
+                }
+                result.append(card);
+            }
+        }
+
+        return result.toString();
+    }
+
+    public String[] getHandCardsArray() {
+        if (hand == null || hand.isBlank()) {
+            return new String[0];
+        }
+        return hand.split(",");
+    }
+
 }

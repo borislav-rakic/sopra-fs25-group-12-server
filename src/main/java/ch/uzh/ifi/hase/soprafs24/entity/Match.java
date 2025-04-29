@@ -205,6 +205,30 @@ public class Match implements Serializable {
         return -1; // Or throw an exception if player is not found
     }
 
+    public int requireSlotByUser(User user) {
+        if (player1 != null && player1.getId().equals(user.getId()))
+            return 1;
+        if (player2 != null && player2.getId().equals(user.getId()))
+            return 2;
+        if (player3 != null && player3.getId().equals(user.getId()))
+            return 3;
+        if (player4 != null && player4.getId().equals(user.getId()))
+            return 4;
+        throw new IllegalArgumentException("User is not part of this match.");
+    }
+
+    public MatchPlayer requireMatchPlayerByUser(User user) {
+        Long userId = user.getId();
+        if (userId == null) {
+            throw new IllegalArgumentException("User ID cannot be null.");
+        }
+
+        return matchPlayers.stream()
+                .filter(mp -> mp.getUser() != null && userId.equals(mp.getUser().getId()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalArgumentException("User " + userId + " is not part of this match."));
+    }
+
     public boolean containsPlayer(Long userId) {
         return (player1 != null && player1.getId().equals(userId)) ||
                 (player2 != null && player2.getId().equals(userId)) ||
@@ -231,7 +255,6 @@ public class Match implements Serializable {
     // ==== UTIL FUNCTIONS
 
     public User getUserBySlot(int slot) {
-        System.out.println("getUserBySlot: searching for slot " + slot);
         return matchPlayers.stream()
                 .filter(mp -> mp.getSlot() == slot)
                 .peek(mp -> System.out.println("Checking MatchPlayer slot: " + mp.getSlot()))
@@ -288,5 +311,13 @@ public class Match implements Serializable {
             pointsOfPlayers.put(mp.getSlot(), mp.getGameScore());
         }
         return pointsOfPlayers;
+    }
+
+    public void addGame(Game game) {
+        if (this.games == null) {
+            this.games = new ArrayList<>();
+        }
+        this.games.add(game);
+        game.setMatch(this); // ensure both sides consistent
     }
 }
