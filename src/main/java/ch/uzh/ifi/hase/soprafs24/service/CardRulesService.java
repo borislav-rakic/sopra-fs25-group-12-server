@@ -101,6 +101,9 @@ public class CardRulesService {
     }
 
     public void validateMatchPlayerCardCode(Game game, MatchPlayer matchPlayer, String cardCode) {
+        log.warn("🔥 validateMatchPlayerCardCode CALLED 🔥");
+        Arrays.stream(Thread.currentThread().getStackTrace())
+                .forEach(ste -> log.warn("  at {}", ste));
         log.info("THIS IS VALIDATEPLAYERCARDCODE and currentTrickNumber is {}", game.getCurrentTrickNumber());
         game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
         log.info(

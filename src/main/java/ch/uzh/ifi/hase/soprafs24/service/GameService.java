@@ -270,7 +270,7 @@ public class GameService {
                 // ... we are in the middle of playing an actual trick
                 && (game.getPhase() == GamePhase.FIRSTTRICK || game.getPhase() == GamePhase.NORMALTRICK
                         || game.getPhase() == GamePhase.FINALTRICK)) {
-            playAiTurns(game);
+            // playAiTurns(game);
         }
         /// END: AI PLAYER
         return dto;
@@ -394,7 +394,7 @@ public class GameService {
         // If current player is an AI, trigger their turn(s)
         if (currentPlayer != null && Boolean.TRUE.equals(currentPlayer.getUser().getIsAiPlayer())) {
             System.out.println("Location: triggerAiTurns. Repeated Call.");
-            playAiTurns(game);
+            // playAiTurns(game);
         }
     }
 
@@ -493,7 +493,7 @@ public class GameService {
         executeValidatedCardPlay(game, matchPlayer, cardCode);
     }
 
-    public void playCardAsAi(Game game, MatchPlayer aiPlayer, String cardCode) {
+    public void __playCardAsAi(Game game, MatchPlayer aiPlayer, String cardCode) {
         CardUtils.requireValidCardFormat(cardCode);
 
         String hand = aiPlayer.getHand();
@@ -626,7 +626,7 @@ public class GameService {
     }
 
     @Transactional
-    public void playAiTurns(Game game) {
+    public void __playAiTurns(Game game) {
         if (game == null) {
             System.out.println(
                     "Location: playAiTurns. Initiating an AiTurn, but the passed game argument is null.");

@@ -117,8 +117,9 @@ public class GameStatsService {
         // Get active game safely
         Game activeGame = match.getActiveGameOrThrow();
 
-        // Validate the card can be played
-        cardRulesService.validateMatchPlayerCardCode(game, matchPlayer, cardCode);
+        if (!game.getCurrentTrick().contains(cardCode)) {
+            log.warn("Recording play of card {} that was not added to trick — suspicious!", cardCode);
+        }
 
         // Record stats
         GameStats gameStats = gameStatsRepository.findByGameAndRankSuit(activeGame, cardCode);
