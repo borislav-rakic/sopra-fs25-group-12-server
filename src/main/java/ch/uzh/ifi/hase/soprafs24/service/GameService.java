@@ -445,6 +445,7 @@ public class GameService {
                         throw new IllegalStateException("Invalid slot [6372]: " + slot);
                     }
                     game.setCurrentSlot(slot); // Set starting player
+                    game.setTrickLeaderSlot(slot);
                 }
 
                 if (handBuilder.length() > 0) {
@@ -468,8 +469,10 @@ public class GameService {
     }
 
     public void playCardAsHuman(Game game, MatchPlayer matchPlayer, String cardCode) {
-        log.info("======================= PLAY CARD AS HUMAN {}=======================", game.getCurrentTrickNumber());
-        game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
+        log.info("======================= PLAY CARD AS HUMAN, PlayOrder: {}, CurrentSlot: {} =======================",
+                game.getCurrentPlayOrder(), game.getCurrentSlot());
+        log.info("=== HUMAN at slot {} attempting to play card {}. ===", matchPlayer.getInfo(),
+                cardCode);
         // Defensive checks
         if (game.getPhase().isNotActive()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
@@ -526,95 +529,76 @@ public class GameService {
     }
 
     public void executeValidatedCardPlay(Game game, MatchPlayer matchPlayer, String cardCode) {
-        log.info("\n=== executeValidateCardPlay ===");
+        log.info("\n=== executeValidatedCardPlay ===");
 
-        log.info("MatchPlayer {} holds in hand: {}.", matchPlayer.getInfo(), matchPlayer.getHand());
-        // Delete card properly from database
-        log.info("About to delete card {} from hand: {}.", cardCode, matchPlayer.getHand());
-        matchPlayer.removeCardCodeFromHand(cardCode);
-        log.info("Card {} was removed from hand: {}.", cardCode, matchPlayer.getHand());
-        log.info("After removing {}, MatchPlayer {} holds in hand: {}.", cardCode, matchPlayer.getInfo(),
-                matchPlayer.getHand());
-        log.info("Trying to add {} to current trick {}.", cardCode, game.getCurrentTrick());
+        log.info("Playing card: {} by MatchPlayer {} (before play: hand = {})",
+                cardCode, matchPlayer.getInfo(), matchPlayer.getHand());
 
-        addCardToCurrentTrick(game, matchPlayer, cardCode);
-        log.info("SUCCESS:Card {} was added to trick: {}.", cardCode, game.getCurrentTrick());
+        // Step 1: Remove the card from hand
+        if (!matchPlayer.removeCardCodeFromHand(cardCode)) {
+            throw new IllegalStateException("Tried to remove a card that wasn't in hand: " + cardCode);
+        }
 
-        // Record card play
-        gameStatsService.recordCardPlay(game, matchPlayer, cardCode);
-        log.info("SUCCESS: GameStats were updated.");
-        log.info("About to change currentSlot {}.", game.getCurrentSlot());
-        // Advance to next player if trick not finished yet
+        // Step 2: Add the card to the trick
+        game.addCardToCurrentTrick(cardCode, matchPlayer.getSlot());
+        game.setCurrentPlayOrder(game.getCurrentPlayOrder() + 1);
+
+        log.info("Card {} added to trick: {}. Hand now: {}", cardCode, game.getCurrentTrick(), matchPlayer.getHand());
+
+        // Step 3: Advance the turn if trick is not complete
         if (game.getCurrentTrickSize() < 4) {
             int nextSlot = (game.getCurrentSlot() % 4) + 1;
             game.setCurrentSlot(nextSlot);
-            log.info("Turn advanced to slot {}", game.getCurrentSlot());
+            log.info("Turn advanced to next slot: {}", game.getCurrentSlot());
         }
-        log.info("Succeeded in updating currentSlot {}.", game.getCurrentSlot());
-        // Check if trick completed
+
+        // Step 4: Handle trick completion
         handlePotentialTrickCompletion(game);
 
-        // Check if game completed
+        // Step 5: Check for game completion
         if (cardRulesService.isGameReadyForResults(game)) {
             game.setPhase(GamePhase.RESULT);
             gameRepository.save(game);
+            log.info("Game phase advanced to RESULT.");
         }
-    }
 
-    private void requireNonNullMatchPlayer(MatchPlayer matchPlayer) {
-        if (matchPlayer == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Encountered empty MatchPlayer.");
-        }
-    }
-
-    private Match requireMatchByMatchPlayer(MatchPlayer matchPlayer) {
-        Match match = matchPlayer.getMatch();
-        if (match == null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "Could not find match for match player.");
-        }
-        return match;
-    }
-
-    private Game requireActiveGameByMatch(Match match) {
-        Game activeGame = match.getActiveGame();
-        if (activeGame == null) {
-            throw new IllegalStateException("No active game found for this match.");
-        }
-        return activeGame;
-    }
-
-    // Method to add a card to the current trick
-    private void addCardToCurrentTrick(Game game, MatchPlayer matchPlayer, String cardCode) {
-        game.addCardToCurrentTrick(cardCode);
+        // Step 6: Record the completed play — now that state is stable
+        gameStatsService.recordCardPlay(game, matchPlayer, cardCode);
+        log.info("Stats recorded for card {} by MatchPlayer {}", cardCode, matchPlayer.getInfo());
     }
 
     private void handlePotentialTrickCompletion(Game game) {
-        if (game.getCurrentTrickSize() == 4) {
-            // Trick complete
-
-            // Determine winner, calculate points, etc.
-            int winnerSlot = cardRulesService.determineTrickWinner(game);
-            int points = cardRulesService.calculateTrickPoints(game.getCurrentTrick());
-
-            game.setPreviousTrickWinnerSlot(winnerSlot);
-            game.setPreviousTrickPoints(points);
-
-            // Update currentTrickNumber +1
-            game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
-
-            // Move current trick to previous trick
-            game.setPreviousTrick(game.getCurrentTrick());
-            game.emptyCurrentTrick();
-            game.getCurrentTrickSlots().clear();
-
-            // Set the new trick leader
-            game.setCurrentSlot(winnerSlot);
-
-            // Save changes
-            gameRepository.save(game);
+        if (game.getCurrentTrickSize() != 4) {
+            return; // Trick is not complete yet
         }
+
+        log.info("Trick complete: {}", game.getCurrentTrick());
+
+        // Step 1: Determine winner and points
+        int winnerSlot = cardRulesService.determineTrickWinner(game);
+        int points = cardRulesService.calculateTrickPoints(game.getCurrentTrick());
+
+        log.info("Trick winner: slot {} ({} points)", winnerSlot, points);
+
+        // Step 2: Archive the trick
+        game.setPreviousTrick(game.getCurrentTrick());
+        game.setPreviousTrickWinnerSlot(winnerSlot);
+        game.setPreviousTrickPoints(points);
+
+        // Step 3: Prepare next trick
+        game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
+        game.emptyCurrentTrick();
+        game.getCurrentTrickSlots().clear();
+
+        // Step 4: Set next trick leader
+        game.setCurrentSlot(winnerSlot);
+        game.setTrickLeaderSlot(winnerSlot);
+
+        // Step 5: Persist state
+        gameRepository.save(game);
+
+        log.info("Trick transitioned. New currentSlot: {}. Current trick #: {}",
+                game.getCurrentSlot(), game.getCurrentTrickNumber());
     }
 
     @Transactional

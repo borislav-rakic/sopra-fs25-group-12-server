@@ -156,6 +156,15 @@ public class Game {
 
     public void setTrickLeaderSlot(Integer trickLeaderSlot) {
         this.trickLeaderSlot = trickLeaderSlot;
+
+        if (trickLeaderSlot != null) {
+            List<Integer> orderedSlots = new ArrayList<>();
+            for (int i = 0; i < 4; i++) {
+                int slot = ((trickLeaderSlot - 1 + i) % 4) + 1;
+                orderedSlots.add(slot);
+            }
+            this.currentTrickSlots = new LinkedHashSet<>(orderedSlots);
+        }
     }
 
     public int getCurrentTrickNumber() {
@@ -199,11 +208,13 @@ public class Game {
     }
     // === Game logic convenience methods ===
 
-    public void addCardToCurrentTrick(String cardCode) {
+    public void addCardToCurrentTrick(String cardCode, int slot) {
         if (currentTrick.size() >= 4) {
             throw new IllegalStateException("Current trick already has 4 cards");
         }
+
         currentTrick.add(cardCode);
+        currentTrickSlots.add(slot);
     }
 
     public int getCurrentTrickSize() {

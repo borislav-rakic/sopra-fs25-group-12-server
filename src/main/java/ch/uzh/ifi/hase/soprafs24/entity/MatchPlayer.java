@@ -189,22 +189,28 @@ public class MatchPlayer {
         }
     }
 
-    public void removeCardCodeFromHand(String cardCode) {
+    public boolean removeCardCodeFromHand(String cardCode) {
         if (hand == null || hand.isBlank()) {
-            return;
+            return false;
         }
 
         String[] cards = hand.split(",");
         StringBuilder newHand = new StringBuilder();
+        boolean removed = false;
+
         for (String card : cards) {
             if (!card.equals(cardCode)) {
                 if (newHand.length() > 0) {
                     newHand.append(",");
                 }
                 newHand.append(card);
+            } else {
+                removed = true;
             }
         }
+
         hand = newHand.toString();
+        return removed;
     }
 
     public boolean hasCardCodeInHand(String cardCode) {

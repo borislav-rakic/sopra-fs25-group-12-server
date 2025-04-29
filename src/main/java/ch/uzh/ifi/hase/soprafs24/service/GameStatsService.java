@@ -29,16 +29,13 @@ public class GameStatsService {
 
     private final GameStatsRepository gameStatsRepository;
     private final MatchRepository matchRepository;
-    private final CardRulesService cardRulesService;
 
     @Autowired
     public GameStatsService(
             @Qualifier("gameStatsRepository") GameStatsRepository gameStatsRepository,
-            @Qualifier("matchRepository") MatchRepository matchRepository,
-            @Qualifier("cardRulesService") CardRulesService cardRulesService) {
+            @Qualifier("matchRepository") MatchRepository matchRepository) {
         this.gameStatsRepository = gameStatsRepository;
         this.matchRepository = matchRepository;
-        this.cardRulesService = cardRulesService;
     }
 
     public void initializeGameStats(Match match, Game game) {

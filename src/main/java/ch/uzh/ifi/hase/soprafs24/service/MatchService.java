@@ -743,6 +743,17 @@ public class MatchService {
                 "The matchPlayerId=%s (userId=%s, slot=%s), is trying to play the card %s, his hand being %s.",
                 matchPlayer.getMatchPlayerId(), matchPlayer.getUser().getId(), playerSlotServer, cardCode,
                 matchPlayer.getHand()));
+
+        log.info("======S=L=O=T======");
+        List<Integer> slots = game.getCurrentTrickSlots();
+        String slotsAsString = slots.stream().map(String::valueOf).collect(Collectors.joining(","));
+        log.info("Order of Slots: {}.", slotsAsString);
+        game.setTrickLeaderSlot(2);
+        List<Integer> slots2 = game.getCurrentTrickSlots();
+        String slotsAsString2 = slots2.stream().map(String::valueOf).collect(Collectors.joining(","));
+        log.info("Order of Slots2: {}.", slotsAsString2);
+        log.info("MUSTDELETE THESE LINES!");
+
         gameService.playCardAsHuman(game, matchPlayer, cardCode);
     }
 
@@ -783,7 +794,11 @@ public class MatchService {
             nextGame.setMatch(match);
             nextGame.setGameNumber(match.getGames().size() + 1);
             nextGame.setPhase(GamePhase.PASSING);
-            nextGame.setCurrentSlot(1);
+            nextGame.setCurrentSlot(0);
+            nextGame.setTrickLeaderSlot(0); // will have to be initialised only after passing
+            nextGame.setCurrentPlayOrder(1);
+            nextGame.setCurrentTrickNumber(1);
+            nextGame.setHeartsBroken(false);
             gameRepository.save(nextGame);
 
             match.getGames().add(nextGame);

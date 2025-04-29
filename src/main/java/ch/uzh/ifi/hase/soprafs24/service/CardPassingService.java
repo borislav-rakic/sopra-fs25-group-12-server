@@ -149,6 +149,10 @@ public class CardPassingService {
             System.out.println(player.getSlot() + " " + player.getHand());
             if (player.hasCardCodeInHand("2C")) {
                 game.setCurrentSlot(player.getSlot());
+                game.setTrickLeaderSlot(player.getSlot());
+                List<Integer> slots = game.getCurrentTrickSlots();
+                String slotsAsString = slots.stream().map(String::valueOf).collect(Collectors.joining(","));
+                log.info("=+=+=+=Order of Slots based on 2C at {}: {}.", player.getSlot(), slotsAsString);
                 System.out.println("2C with " + player.getSlot() + " " + player.getHand());
                 System.out.println("Reassigned starting slot to player holding 2C (slot:" + player.getSlot() + ").");
                 break;

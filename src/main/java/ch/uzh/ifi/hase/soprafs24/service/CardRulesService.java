@@ -1,15 +1,18 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
@@ -101,11 +104,7 @@ public class CardRulesService {
     }
 
     public void validateMatchPlayerCardCode(Game game, MatchPlayer matchPlayer, String cardCode) {
-        log.warn("🔥 validateMatchPlayerCardCode CALLED 🔥");
-        Arrays.stream(Thread.currentThread().getStackTrace())
-                .forEach(ste -> log.warn("  at {}", ste));
         log.info("THIS IS VALIDATEPLAYERCARDCODE and currentTrickNumber is {}", game.getCurrentTrickNumber());
-        game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
         log.info(
                 "This is game {} and MatchPlayer {} is trying to play the card {}, their hand being: {}.",
                 game.getGameId(), matchPlayer.getInfo(), cardCode, matchPlayer.getHand());
@@ -168,34 +167,88 @@ public class CardRulesService {
      * @return the slot number (integer) of the winning player
      */
     public int determineTrickWinner(Game game) {
-        List<String> currentTrick = game.getCurrentTrick();
-        List<Integer> currentTrickSlots = game.getCurrentTrickSlots();
+        List<String> trick = game.getCurrentTrick();
+        List<Integer> slots = game.getCurrentTrickSlots();
 
-        if (currentTrick == null || currentTrickSlots == null || currentTrick.size() != 4
-                || currentTrickSlots.size() != 4) {
+        int leaderSlot = game.getTrickLeaderSlot();
+
+        if (trick == null || slots == null || trick.size() != 4 || slots.size() != 4) {
             throw new IllegalStateException("Cannot determine winner before trick is complete.");
         }
 
-        // Leading card determines leading suit
-        Card leadingCard = CardUtils.fromCode(currentTrick.get(0));
-        String leadingSuit = leadingCard.getSuit(); // e.g., "H", "S", "C", "D"
+        int leaderIndex = slots.indexOf(leaderSlot);
+        if (leaderIndex == -1) {
+            throw new IllegalStateException("Trick leader did not play this trick.");
+        }
 
-        int bestIndex = 0;
-        int bestValue = leadingCard.getValue();
+        List<String> rotatedTrick = rotate(trick, leaderIndex);
+        List<Integer> rotatedSlots = rotate(slots, leaderIndex);
 
-        for (int i = 1; i < currentTrick.size(); i++) {
-            Card currentCard = CardUtils.fromCode(currentTrick.get(i));
+        String leadingCardCode = rotatedTrick.get(0);
+        char leadingSuit = getSuit(leadingCardCode);
+        int bestValue = getCardValue(leadingCardCode);
+        int winningIndex = 0;
 
-            // Only compare cards of the same suit
-            if (leadingSuit.equals(currentCard.getSuit())) {
-                if (currentCard.getValue() > bestValue) {
-                    bestValue = currentCard.getValue();
-                    bestIndex = i;
+        for (int i = 1; i < rotatedTrick.size(); i++) {
+            String cardCode = rotatedTrick.get(i);
+            char suit = getSuit(cardCode);
+            int value = getCardValue(cardCode);
+            // log.info("Evaluating card {} with suit {} and value {}, leading suit: {}",
+            // cardCode, suit, value, leadingSuit);
+            // log.info("Slot {} played card {}", slots.get(i), trick.get(i));
+            if (suit == leadingSuit) {
+                if (value > bestValue) {
+                    bestValue = value;
+                    winningIndex = i;
                 }
             }
         }
+        String trickAsString = String.join(",", trick);
+        String slotsAsString = slots.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+        String rotatedSlotsAsString = rotatedSlots.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+        int winningSlot = rotatedSlots.get(winningIndex);
+        log.info("Establishing Winner: LeaderSlot: {}, Trick: {}, Slots: {}, Rotated Slots: {}, Winner:{}",
+                game.getTrickLeaderSlot(),
+                trickAsString, slotsAsString,
+                rotatedSlotsAsString, winningSlot);
+        return winningSlot;
+    }
 
-        return currentTrickSlots.get(bestIndex);
+    private <T> List<T> rotate(List<T> list, int index) {
+        List<T> result = new ArrayList<>();
+        result.addAll(list.subList(index, list.size()));
+        result.addAll(list.subList(0, index));
+        return result;
+    }
+
+    private char getSuit(String cardCode) {
+        return cardCode.charAt(cardCode.length() - 1);
+    }
+
+    private int getCardValue(String cardCode) {
+        String valuePart = cardCode.substring(0, cardCode.length() - 1);
+        switch (valuePart) {
+            case "J":
+                return 11;
+            case "Q":
+                return 12;
+            case "K":
+                return 13;
+            case "A":
+                return 14;
+            case "0":
+                return 10; // Like our external API, we use '0' for 10 as in '0C'
+            default:
+                try {
+                    return Integer.parseInt(valuePart);
+                } catch (NumberFormatException e) {
+                    throw new IllegalArgumentException("Invalid card code: " + cardCode);
+                }
+        }
     }
 
     /**
