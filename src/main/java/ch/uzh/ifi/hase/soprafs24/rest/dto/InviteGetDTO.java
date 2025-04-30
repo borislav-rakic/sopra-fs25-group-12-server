@@ -3,6 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.rest.dto;
 public class InviteGetDTO {
     private Long matchId;
     private int playerSlot;
+    private int matchPlayerSlot;
     private String fromUsername;
     private Long hostId;
     private Long userId;
@@ -19,8 +20,13 @@ public class InviteGetDTO {
         return playerSlot;
     }
 
-    public void setPlayerSlot(int playerSlot) {
-        this.playerSlot = playerSlot;
+    public int getMatchPlayerSlot() {
+        return matchPlayerSlot;
+    }
+
+    public void setMatchPlayerSlot(int matchPlayerSlot) {
+        this.matchPlayerSlot = matchPlayerSlot;
+        this.playerSlot = this.matchPlayerSlot - 1;
     }
 
     public String getFromUsername() {
@@ -46,5 +52,4 @@ public class InviteGetDTO {
     public void setUserId(Long userId) {
         this.userId = userId;
     }
-
 }

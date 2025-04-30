@@ -13,4 +13,8 @@ public enum GamePhase {
     public boolean isNotActive() {
         return this == FINISHED || this == ABORTED;
     }
+
+    public boolean inTrick() {
+        return this == FIRSTTRICK || this == NORMALTRICK || this == FINALTRICK;
+    }
 }

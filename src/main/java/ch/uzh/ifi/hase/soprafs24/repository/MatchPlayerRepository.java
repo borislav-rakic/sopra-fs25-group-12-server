@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 @Repository("matchPlayerRepository")
 public interface MatchPlayerRepository extends JpaRepository<MatchPlayer, Long>, JpaSpecificationExecutor<MatchPlayer> {
     MatchPlayer findByUserAndMatch(User user, Match match);
-    MatchPlayer findByUserAndMatchAndSlot(User user, Match match, int slot);
-    MatchPlayer findByMatchAndSlot(Match match, int slot);
+
+    MatchPlayer findByUserAndMatchAndMatchPlayerSlot(User user, Match match, int matchPlayerSlot);
+
+    MatchPlayer findByMatchAndMatchPlayerSlot(Match match, int matchPlayerSlot);
 }

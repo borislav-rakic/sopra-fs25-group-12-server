@@ -25,8 +25,8 @@ public class MatchPlayer {
     @JoinColumn(name = "player_id")
     private User user;
 
-    @Column(name = "slot", nullable = false)
-    private int slot;
+    @Column(name = "matchPlayerSlot", nullable = false)
+    private int matchPlayerSlot;
 
     @Column(name = "hand", nullable = false)
     private String hand = "";
@@ -83,12 +83,12 @@ public class MatchPlayer {
         this.hand = hand;
     }
 
-    public int getSlot() {
-        return slot;
+    public int getMatchPlayerSlot() {
+        return matchPlayerSlot;
     }
 
-    public void setSlot(int slot) {
-        this.slot = slot;
+    public void setMatchPlayerSlot(int matchPlayerSlot) {
+        this.matchPlayerSlot = matchPlayerSlot;
     }
 
     public int getMatchScore() {
@@ -319,7 +319,7 @@ public class MatchPlayer {
     }
 
     public String getInfo() {
-        return this.getMatch().getMatchId() + "/" + this.getSlot();
+        return this.getMatch().getMatchId() + "/" + this.getMatchPlayerSlot();
     }
 
 }

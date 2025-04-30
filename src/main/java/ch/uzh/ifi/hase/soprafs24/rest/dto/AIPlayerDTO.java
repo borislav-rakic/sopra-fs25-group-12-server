@@ -2,8 +2,10 @@ package ch.uzh.ifi.hase.soprafs24.rest.dto;
 
 public class AIPlayerDTO {
 
+    // gets sent from frontend to backend
+
     private int difficulty; // 0 = Easy, 1 = Medium, 2 = Difficult
-    private int slot; // available slots are 1, 2 and 3.
+    private int playerSlot; // available slots are 1, 2 and 3.
 
     public AIPlayerDTO() {
     }
@@ -20,11 +22,11 @@ public class AIPlayerDTO {
         this.difficulty = difficulty;
     }
 
-    public int getSlot() {
-        return slot;
+    public int getPlayerSlot() {
+        return playerSlot;
     }
 
-    public void setSlot(int slot) {
-        this.slot = slot;
+    public void setPlayerSlot(int playerSlot) {
+        this.playerSlot = playerSlot;
     }
 }

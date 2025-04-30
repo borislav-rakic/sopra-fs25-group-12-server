@@ -38,7 +38,7 @@ public class Match implements Serializable {
 
     @ElementCollection
     @CollectionTable(name = "match_invites", joinColumns = @JoinColumn(name = "match_id"))
-    @MapKeyColumn(name = "slot_index")
+    @MapKeyColumn(name = "matchPlayerSlot_index")
     @Column(name = "user_id")
     private Map<Integer, Long> invites = new HashMap<>();
 
@@ -265,20 +265,20 @@ public class Match implements Serializable {
 
     // ==== UTIL FUNCTIONS
 
-    public User getUserBySlot(int slot) {
+    public User requireUserBySlot(int matchPlayerSlot) {
         return matchPlayers.stream()
-                .filter(mp -> mp.getSlot() == slot)
+                .filter(mp -> mp.getMatchPlayerSlot() == matchPlayerSlot)
                 .map(MatchPlayer::getUser)
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No player in slot " + slot));
+                .orElseThrow(() -> new IllegalArgumentException("No player in matchPlayerSlot " + matchPlayerSlot));
     }
 
-    public Long getUserIdBySlot(int slot) {
+    public Long rqequireUserIdBySlot(int matchPlayerSlot) {
         return matchPlayers.stream()
-                .filter(mp -> mp.getSlot() == slot)
+                .filter(mp -> mp.getMatchPlayerSlot() == matchPlayerSlot)
                 .map(mp -> mp.getUser().getId())
                 .findFirst()
-                .orElseThrow(() -> new IllegalArgumentException("No player in slot " + slot));
+                .orElseThrow(() -> new IllegalArgumentException("No player in matchPlayerSlot " + matchPlayerSlot));
     }
 
     public Game getActiveGameOrThrow() {
@@ -295,30 +295,24 @@ public class Match implements Serializable {
                 .orElse(null);
     }
 
-    public MatchPlayer getMatchPlayerBySlot(int slot) {
-        return matchPlayers.stream()
-                .filter(mp -> mp.getSlot() == slot)
-                .findFirst()
-                .orElse(null);
-    }
-
-    public MatchPlayer findPlayerBySlot(int slot) {
+    public MatchPlayer requireMatchPlayerBySlot(int matchPlayerSlot) {
         return this.getMatchPlayers().stream()
-                .filter(mp -> mp.getSlot() == slot)
+                .filter(mp -> mp.getMatchPlayerSlot() == matchPlayerSlot)
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No player found for slot: " + slot));
+                .orElseThrow(
+                        () -> new IllegalStateException("No player found for matchPlayerSlot: " + matchPlayerSlot));
     }
 
     public List<MatchPlayer> findPlayersExceptSlot(int excludedSlot) {
         return this.getMatchPlayers().stream()
-                .filter(mp -> mp.getSlot() != excludedSlot)
+                .filter(mp -> mp.getMatchPlayerSlot() != excludedSlot)
                 .toList();
     }
 
     public Map<Integer, Integer> collectCurrentGameScores() {
         Map<Integer, Integer> pointsOfPlayers = new HashMap<>();
         for (MatchPlayer mp : this.getMatchPlayers()) {
-            pointsOfPlayers.put(mp.getSlot(), mp.getGameScore());
+            pointsOfPlayers.put(mp.getMatchPlayerSlot(), mp.getGameScore());
         }
         return pointsOfPlayers;
     }

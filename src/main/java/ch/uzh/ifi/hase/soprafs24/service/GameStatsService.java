@@ -121,15 +121,15 @@ public class GameStatsService {
         // Record stats
         GameStats gameStats = gameStatsRepository.findByGameAndRankSuit(activeGame, cardCode);
         // who dealt it?
-        gameStats.setPlayedBy(matchPlayer.getSlot()); // or getUser().getId(), depending on your entity
+        gameStats.setPlayedBy(matchPlayer.getMatchPlayerSlot()); // or getUser().getId(), depending on your entity
         // the how-many-eth card was it in this game?
         gameStats.setPlayOrder(activeGame.getCurrentPlayOrder()); // explained below
         //
-        gameStats.setOnlyPossibleHolder(matchPlayer.getSlot()); // now we know exactly who had the card
+        gameStats.setOnlyPossibleHolder(matchPlayer.getMatchPlayerSlot()); // now we know exactly who had the card
 
         gameStats.setTrickNumber(activeGame.getCurrentTrickNumber());
 
-        gameStats.setTrickLeadBySlot(activeGame.getTrickLeaderSlot());
+        gameStats.setTrickLeadBySlot(activeGame.getTrickLeaderMatchPlayerSlot());
 
     }
 
@@ -154,7 +154,7 @@ public class GameStatsService {
                     }
 
                     // Update the card holder
-                    existingStats.setCardHolder(player.getSlot());
+                    existingStats.setCardHolder(player.getMatchPlayerSlot());
 
                     statsToUpdate.add(existingStats);
                 }

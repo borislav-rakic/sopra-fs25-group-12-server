@@ -39,7 +39,7 @@ public class GameStats {
     private int playOrder;
 
     @Column(nullable = false)
-    private int playedBy; // 0 = not yet played; 1–4 = slot number
+    private int playedBy; // 0 = not yet played; 1–4 = matchPlayerSlot number
 
     @Column(nullable = false)
     private int possibleHolders;
@@ -271,7 +271,7 @@ public class GameStats {
 
     private void validateSlotNumber(int slotNumber) {
         if (slotNumber < 1 || slotNumber > 4) {
-            throw new IllegalArgumentException("Slot number must be between 1 and 4.");
+            throw new IllegalArgumentException("matchPlayerNumber must be between 1 and 4.");
         }
     }
 

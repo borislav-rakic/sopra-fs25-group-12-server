@@ -266,18 +266,18 @@ public class UserService {
     for (Match match : matches) {
       Map<Integer, Long> matchInvites = match.getInvites();
       if (matchInvites != null && matchInvites.containsValue(user.getId())) {
-        Integer slot = null;
+        Integer matchPlayerSlot = null;
         for (Map.Entry<Integer, Long> entry : matchInvites.entrySet()) {
           if (entry.getValue().equals(user.getId())) {
-            slot = entry.getKey();
+            matchPlayerSlot = entry.getKey();
             break;
           }
         }
 
-        if (slot != null) {
+        if (matchPlayerSlot != null) {
           InviteGetDTO dto = new InviteGetDTO();
           dto.setMatchId(match.getMatchId());
-          dto.setPlayerSlot(slot);
+          dto.setMatchPlayerSlot(matchPlayerSlot);
           dto.setHostId(match.getHostId());
           dto.setUserId(user.getId());
           User hostUser = userRepository.findById(match.getHostId())
@@ -323,31 +323,4 @@ public class UserService {
     // Check if the match phase is neither FINISHED nor ABORTED
     return match.getPhase() != MatchPhase.FINISHED && match.getPhase() != MatchPhase.ABORTED;
   }
-
-  // public List<InviteGetDTO> getPendingInvitesForUser(User user) {
-  // List<InviteGetDTO> pendingInvites = new ArrayList<>();
-  //
-  // List<Match> allMatches = matchRepository.findAll();
-  //
-  // for (Match match : allMatches) {
-  // Map<Integer, Long> invites = match.getInvites();
-  // if (invites == null) continue;
-  //
-  // for (Map.Entry<Integer, Long> entry : invites.entrySet()) {
-  // Integer slot = entry.getKey();
-  // Long invitedUserId = entry.getValue();
-  //
-  // if (invitedUserId.equals(user.getId())) {
-  // InviteGetDTO dto = new InviteGetDTO();
-  // dto.setMatchId(match.getMatchId());
-  // dto.setPlayerSlot(slot);
-  // dto.setFromUsername(match.getHost()); // uses host's username
-  // pendingInvites.add(dto);
-  // }
-  // }
-  // }
-  //
-  // return pendingInvites;
-  // }
-
 }

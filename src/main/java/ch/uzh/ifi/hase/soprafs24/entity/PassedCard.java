@@ -17,8 +17,8 @@ public class PassedCard {
     @Column(name = "rank_suit", length = 2, nullable = false)
     private String rankSuit;
 
-    @JoinColumn(name = "from_slot")
-    private int fromSlot;
+    @Column(name = "from_match_player_slot")
+    private int fromMatchPlayerSlot;
 
     @Column(name = "game_number", nullable = false)
     private int gameNumber;
@@ -26,10 +26,10 @@ public class PassedCard {
     public PassedCard() {
     }
 
-    public PassedCard(Game game, String rankSuit, int fromSlot, int gameNumber) {
+    public PassedCard(Game game, String rankSuit, int fromMatchPlayerSlot, int gameNumber) {
         this.game = game;
         this.rankSuit = rankSuit;
-        this.fromSlot = fromSlot;
+        this.fromMatchPlayerSlot = fromMatchPlayerSlot;
         this.gameNumber = gameNumber;
     }
 
@@ -59,12 +59,12 @@ public class PassedCard {
         this.rankSuit = rankSuit;
     }
 
-    public int getFromSlot() {
-        return fromSlot;
+    public int getFromMatchPlayerSlot() {
+        return fromMatchPlayerSlot;
     }
 
-    public void setFromSlot(int fromSlot) {
-        this.fromSlot = fromSlot;
+    public void setFromMatchPlayerSlot(int fromMatchPlayerSlot) {
+        this.fromMatchPlayerSlot = fromMatchPlayerSlot;
     }
 
     public int getGameNumber() {

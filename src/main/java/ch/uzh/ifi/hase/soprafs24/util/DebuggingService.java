@@ -183,13 +183,13 @@ public final class DebuggingService {
                         <table>
                             <thead>
                                 <tr>
-                                    <th>Slot 1</th>
-                                    <th>Slot 2</th>
-                                    <th>Slot 3</th>
-                                    <th>Slot 4</th>
-                                    <th>Slot 1</th>
-                                    <th>Slot 2</th>
-                                    <th>Slot 3</th>
+                                    <th>matchPlayerSlot 1</th>
+                                    <th>matchPlayerSlot 2</th>
+                                    <th>matchPlayerSlot 3</th>
+                                    <th>matchPlayerSlot 4</th>
+                                    <th>matchPlayerSlot 1</th>
+                                    <th>matchPlayerSlot 2</th>
+                                    <th>matchPlayerSlot 3</th>
                                     <th>Summary</th>
                                 </tr>
                             </thead>
@@ -207,9 +207,9 @@ public final class DebuggingService {
             List<GameStats> cardsInTrick = tricks.get(trickNum);
             cardsInTrick.sort(Comparator.comparingInt(GameStats::getPlayOrder));
 
-            String[] slots = { "", "", "", "", "", "", "" }; // 7 slots
+            String[] matchPlayerSlots = { "", "", "", "", "", "", "" }; // 7 matchPlayerSlots
 
-            int leaderSlot = findTrickLeaderSlot(game, trickNum, cardsInTrick); // 1-based (1..4)
+            int leaderSlot = findTrickLeaderMatchPlayerSlot(game, trickNum, cardsInTrick); // 1-based (1..4)
 
             // Map leaderSlot to starting index
             int startIndex;
@@ -222,22 +222,24 @@ public final class DebuggingService {
             }
 
             for (int i = 0; i < cardsInTrick.size(); i++) {
-                int slotIndex = (startIndex + i) % 7; // wrap around 0-6
-                slots[slotIndex] = renderCard(cardsInTrick.get(i).getRankSuit());
+                int matchPlayerSlotIndex = (startIndex + i) % 7; // wrap around 0-6
+                matchPlayerSlots[matchPlayerSlotIndex] = renderCard(cardsInTrick.get(i).getRankSuit());
             }
 
             int totalPoints = cardsInTrick.stream().mapToInt(GameStats::getPointsWorth).sum();
-            int billedSlot = cardsInTrick.stream()
+            int billedMatchPlayerSlot = cardsInTrick.stream()
                     .filter(card -> card.getPointsBilledTo() > 0)
                     .findFirst()
                     .map(GameStats::getPointsBilledTo)
                     .orElse(0);
 
-            String summary = totalPoints > 0 ? totalPoints + " points to slot " + billedSlot : "No points";
+            String summary = totalPoints > 0
+                    ? totalPoints + " points to matchPlayerMatchPlayerSlot " + billedMatchPlayerSlot
+                    : "No points";
 
             html.append("<tr>");
-            for (String slot : slots) {
-                html.append("<td>").append(slot.isEmpty() ? "-" : slot).append("</td>");
+            for (String matchPlayerSlot : matchPlayerSlots) {
+                html.append("<td>").append(matchPlayerSlot.isEmpty() ? "-" : matchPlayerSlot).append("</td>");
             }
             html.append("<td>").append(summary).append("</td>");
             html.append("</tr>");
@@ -260,7 +262,7 @@ public final class DebuggingService {
                 + "\" height=\"60\">";
     }
 
-    private static int findTrickLeaderSlot(Game game, Integer trickNum, List<GameStats> cardsInTrick) {
+    private static int findTrickLeaderMatchPlayerSlot(Game game, Integer trickNum, List<GameStats> cardsInTrick) {
         return cardsInTrick.stream()
                 .filter(gs -> gs.getPlayOrder() == 1)
                 .map(GameStats::getPlayedBy)
@@ -282,16 +284,16 @@ public final class DebuggingService {
             List<GameStats> cardsInTrick = tricks.get(trickNum);
             cardsInTrick.sort(Comparator.comparingInt(GameStats::getPlayOrder));
 
-            int leaderSlot = findTrickLeaderSlot(game, trickNum, cardsInTrick);
+            int leaderMatchPlayerSlot = findTrickLeaderMatchPlayerSlot(game, trickNum, cardsInTrick);
 
             tricksInfo.append("Trick=").append(trickNum)
-                    .append(", LeadingSlot=").append(leaderSlot)
+                    .append(", LeadingMatchPlayerSlot=").append(leaderMatchPlayerSlot)
                     .append(", playedCards: ");
 
             List<String> cardDescriptions = new ArrayList<>();
 
             for (GameStats card : cardsInTrick) {
-                String desc = card.getRankSuit() + " (slot" + card.getPlayedBy() + ")";
+                String desc = card.getRankSuit() + " (matchPlayerMatchPlayerSlot" + card.getPlayedBy() + ")";
                 cardDescriptions.add(desc);
             }
 
@@ -315,16 +317,13 @@ public final class DebuggingService {
     }
 
     private static String buildCurrentHands(Long matchId, Long gameId) {
-        Match match = matchRepository.findById(matchId)
-                .orElseThrow(() -> new IllegalArgumentException("Match not found with id " + matchId));
-
         Game game = gameRepository.findById(gameId)
                 .orElseThrow(() -> new IllegalArgumentException("Game not found with id " + gameId));
 
         List<GameStats> allStats = gameStatsRepository.findByGame(game);
 
         // Cards still in players' hands
-        Map<Integer, List<String>> handsBySlot = allStats.stream()
+        Map<Integer, List<String>> handsByMatchPlayerSlot = allStats.stream()
                 .filter(gs -> gs.getPlayedBy() == 0) // not played yet
                 .collect(Collectors.groupingBy(
                         GameStats::getCardHolder,
@@ -332,17 +331,17 @@ public final class DebuggingService {
 
         StringBuilder html = new StringBuilder();
         html.append("<div class=\"game-visualization\">\n<h2>Current Hands</h2>\n<table>\n<thead><tr>");
-        html.append("<th>Slot</th><th>Cards in Hand</th>");
+        html.append("<th>MatchPlayerSlot</th><th>Cards in Hand</th>");
         html.append("</tr></thead>\n<tbody>\n");
 
-        for (int slot = 1; slot <= 4; slot++) {
-            List<String> cards = handsBySlot.getOrDefault(slot, Collections.emptyList());
+        for (int matchPlayerSlot = 1; matchPlayerSlot <= 4; matchPlayerSlot++) {
+            List<String> cards = handsByMatchPlayerSlot.getOrDefault(matchPlayerSlot, Collections.emptyList());
 
             // Sort cards nicely (optional)
             Collections.sort(cards);
 
             html.append("<tr>");
-            html.append("<td>").append("Slot ").append(slot).append("</td>");
+            html.append("<td>").append("MatchPlayerSlot ").append(matchPlayerSlot).append("</td>");
             html.append("<td>");
             for (String card : cards) {
                 html.append(renderCard(card)).append(" ");
@@ -412,7 +411,7 @@ public final class DebuggingService {
             sb.append("🎲 Game        : ID=").append(game.getGameId())
                     .append(", Number=").append(game.getGameNumber())
                     .append(", Phase=").append(game.getPhase())
-                    .append(", Current Slot=").append(game.getCurrentSlot())
+                    .append(", Current MatchPlayerSlot=").append(game.getCurrentMatchPlayerSlot())
                     .append(", Trick Size=").append(game.getCurrentTrickSize()).append("\n");
             sb.append("📈 Trick       : ").append(game.getCurrentTrick()).append("\n");
         } else {
@@ -421,7 +420,7 @@ public final class DebuggingService {
 
         // Player
         if (matchPlayer != null) {
-            sb.append("🎮 MatchPlayer : Slot=").append(matchPlayer.getSlot())
+            sb.append("🎮 MatchPlayer : MatchPlayerSlot=").append(matchPlayer.getMatchPlayerSlot())
                     .append(", Score=").append(matchPlayer.getGameScore())
                     .append(", Hand=").append(matchPlayer.getHand()).append("\n");
         } else {
@@ -438,5 +437,13 @@ public final class DebuggingService {
      */
     public static void richLog(User user, Match match, Game game, MatchPlayer matchPlayer, String cardCode) {
         richLog(user, match, game, matchPlayer, cardCode, null);
+    }
+
+    public static int matchPlayerSlotToPlayerSlot(int matchPlayerSlot) {
+        if (matchPlayerSlot < 1 || matchPlayerSlot > 3) {
+            return -1;
+        }
+        int playerSlot = matchPlayerSlot - 1;
+        return playerSlot;
     }
 }

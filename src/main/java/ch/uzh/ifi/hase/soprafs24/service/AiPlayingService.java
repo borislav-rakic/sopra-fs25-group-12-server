@@ -15,7 +15,7 @@ public class AiPlayingService {
     }
 
     public String selectCardToPlay(Game game, MatchPlayer matchPlayer) {
-        String playableCardsString = cardRulesService.getPlayableCardsForMatchPlayer(game, matchPlayer);
+        String playableCardsString = cardRulesService.getPlayableCardsForMatchPlayerPolling(game, matchPlayer);
 
         System.out.println("I am MatchPlayer with hand: " + matchPlayer.getHand());
         System.out.println("I am MatchPlayer with playable hand: " + playableCardsString);

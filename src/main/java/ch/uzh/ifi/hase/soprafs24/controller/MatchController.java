@@ -12,9 +12,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * Match Controller
  * This class is responsible for handling all REST request that are related to
@@ -25,7 +22,6 @@ import org.slf4j.LoggerFactory;
 @RestController
 public class MatchController {
     private final MatchService matchService;
-    private final Logger log = LoggerFactory.getLogger(MatchController.class);
 
     MatchController(MatchService matchService) {
         this.matchService = matchService;
@@ -108,10 +104,10 @@ public class MatchController {
     /**
      * Revoke an invitation sent to a player.
      */
-    @DeleteMapping("/matches/{matchId}/invite/{slot}")
+    @DeleteMapping("/matches/{matchId}/invite/{playerSlot}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void cancelInvite(@PathVariable Long matchId, @PathVariable Integer slot) {
-        matchService.cancelInvite(matchId, slot);
+    public void cancelInvite(@PathVariable Long matchId, @PathVariable Integer playerSlot) {
+        matchService.cancelInvite(matchId, playerSlot);
     }
 
     /**
@@ -134,10 +130,10 @@ public class MatchController {
     /**
      * Remove a player from lobby.
      */
-    @DeleteMapping("matches/{matchId}/player/{slot}")
+    @DeleteMapping("matches/{matchId}/player/{playerSlot}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
-    public void removePlayer(@PathVariable Long matchId, @PathVariable Integer slot) {
-        matchService.removePlayer(matchId, slot);
+    public void removePlayer(@PathVariable Long matchId, @PathVariable Integer playerSlot) {
+        matchService.removePlayer(matchId, playerSlot);
     }
 
     /**
@@ -298,8 +294,6 @@ public class MatchController {
             @RequestHeader("Authorization") String authHeader,
             @RequestBody PlayedCardDTO playedCardDTO) {
         String token = authHeader.replace("Bearer ", "");
-        log.info(String.format("Reached endpoint /play for match {}, clientSlot {}.", matchId,
-                playedCardDTO.getPlayerSlot()));
         matchService.playCardAsHuman(token, matchId, playedCardDTO);
     }
 }

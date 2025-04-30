@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
-import ch.uzh.ifi.hase.soprafs24.controller.MatchController;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
@@ -73,11 +72,11 @@ public class CardPassingService {
         validateAllCardsPassed(match, game);
 
         List<PassedCard> passedCards = passedCardRepository.findByGame(game);
-        Map<Integer, List<PassedCard>> cardsBySlot = mapPassedCardsBySlot(passedCards);
+        Map<Integer, List<PassedCard>> cardsByMatchPlayerSlot = mapPassedCardsByMatchPlayerSlot(passedCards);
 
         Map<Integer, Integer> passTo = cardRulesService.determinePassingDirection(game.getGameNumber());
 
-        reassignPassedCards(game, cardsBySlot, passTo);
+        reassignPassedCards(game, cardsByMatchPlayerSlot, passTo);
         // Delete passed cards
         passedCardRepository.deleteAll(passedCards);
         passedCardRepository.flush();
@@ -91,29 +90,31 @@ public class CardPassingService {
         }
     }
 
-    private Map<Integer, List<PassedCard>> mapPassedCardsBySlot(List<PassedCard> passedCards) {
-        Map<Integer, List<PassedCard>> cardsBySlot = new HashMap<>();
-        for (PassedCard passed : passedCards) {
-            cardsBySlot.computeIfAbsent(passed.getFromSlot(), k -> new ArrayList<>()).add(passed);
+    private Map<Integer, List<PassedCard>> mapPassedCardsByMatchPlayerSlot(List<PassedCard> passedCards) {
+        Map<Integer, List<PassedCard>> cardsByMatchPlayerSlot = new HashMap<>();
+        for (PassedCard passedCard : passedCards) {
+            cardsByMatchPlayerSlot.computeIfAbsent(passedCard.getFromMatchPlayerSlot(), k -> new ArrayList<>())
+                    .add(passedCard);
         }
-        return cardsBySlot;
+        return cardsByMatchPlayerSlot;
     }
 
-    private void reassignPassedCards(Game game, Map<Integer, List<PassedCard>> cardsBySlot,
+    private void reassignPassedCards(Game game, Map<Integer, List<PassedCard>> cardsByMatchPlayerSlot,
             Map<Integer, Integer> passTo) {
         Match match = game.getMatch();
         List<GameStats> updatedGameStats = new ArrayList<>(); // Collect for batch update
 
-        for (Map.Entry<Integer, List<PassedCard>> entry : cardsBySlot.entrySet()) {
-            int fromSlot = entry.getKey();
-            Integer toSlot = passTo.get(fromSlot);
+        for (Map.Entry<Integer, List<PassedCard>> entry : cardsByMatchPlayerSlot.entrySet()) {
+            int fromMatchPlayerSlot = entry.getKey();
+            Integer toMatchPlayerSlot = passTo.get(fromMatchPlayerSlot);
 
-            if (toSlot == null || toSlot < 1 || toSlot > 4) {
-                throw new IllegalStateException("Invalid passing target slot for slot: " + fromSlot);
+            if (toMatchPlayerSlot == null || toMatchPlayerSlot < 1 || toMatchPlayerSlot > 4) {
+                int fromPlayerSlot = (int) fromMatchPlayerSlot;
+                throw new IllegalStateException("Invalid passing target playerSlot for playerSlot: " + fromPlayerSlot);
             }
 
-            MatchPlayer sender = findMatchPlayer(game, fromSlot);
-            MatchPlayer receiver = findMatchPlayer(game, toSlot);
+            MatchPlayer sender = findMatchPlayer(game, fromMatchPlayerSlot);
+            MatchPlayer receiver = findMatchPlayer(game, toMatchPlayerSlot);
 
             for (PassedCard card : entry.getValue()) {
                 String cardCode = card.getRankSuit();
@@ -125,13 +126,16 @@ public class CardPassingService {
                 receiver.addCardCodeToHand(cardCode);
 
                 // Update GameStats: passedBy and passedTo
-                GameStats gameStat = gameStatsRepository.findByRankSuitAndGameAndCardHolder(cardCode, game, fromSlot);
+                GameStats gameStat = gameStatsRepository.findByRankSuitAndGameAndCardHolder(cardCode, game,
+                        fromMatchPlayerSlot);
                 if (gameStat != null) {
-                    gameStat.setPassedBy(fromSlot);
-                    gameStat.setPassedTo(toSlot);
+                    gameStat.setPassedBy(fromMatchPlayerSlot);
+                    gameStat.setPassedTo(toMatchPlayerSlot);
                     updatedGameStats.add(gameStat); // Collect to batch-save later
                 } else {
-                    throw new IllegalStateException("GameStat not found for card: " + cardCode + ", slot: " + fromSlot);
+                    int fromPlayerSlot = fromMatchPlayerSlot - 1;
+                    throw new IllegalStateException(
+                            "GameStat not found for card: " + cardCode + ", playerSlot: " + fromPlayerSlot);
                 }
             }
 
@@ -144,30 +148,33 @@ public class CardPassingService {
         gameStatsRepository.saveAll(updatedGameStats);
         gameStatsRepository.flush(); // Optional but ensures immediate write
 
-        // Set the starting player (holding 2C)
         for (MatchPlayer player : match.getMatchPlayers()) {
-            System.out.println(player.getSlot() + " " + player.getHand());
+            System.out.println(player.getMatchPlayerSlot() + " " + player.getHand());
             if (player.hasCardCodeInHand("2C")) {
-                game.setCurrentSlot(player.getSlot());
-                game.setTrickLeaderSlot(player.getSlot());
-                List<Integer> slots = game.getCurrentTrickSlots();
-                String slotsAsString = slots.stream().map(String::valueOf).collect(Collectors.joining(","));
-                log.info("=+=+=+=Order of Slots based on 2C at {}: {}.", player.getSlot(), slotsAsString);
-                System.out.println("2C with " + player.getSlot() + " " + player.getHand());
-                System.out.println("Reassigned starting slot to player holding 2C (slot:" + player.getSlot() + ").");
+                game.setCurrentMatchPlayerSlot(player.getMatchPlayerSlot());
+                game.setTrickLeaderMatchPlayerSlot(player.getMatchPlayerSlot());
+                log.info(
+                        "° After passing the new trick lead (holding 2C) is matchPlayerSlot {}. New trickMatchPlayerSlotOrder: {}.",
+                        player.getMatchPlayerSlot(), game.getTrickMatchPlayerSlotOrderAsString());
+                System.out.println("° 2C with " + player.getMatchPlayerSlot() + " " + player.getHand());
+                System.out.println("° Reassigned starting matchPlayerSlot to player holding 2C (matchPlayerSlot:"
+                        + player.getMatchPlayerSlot() + ").");
                 break;
             }
         }
+        gameRepository.flush();
     }
 
-    private MatchPlayer findMatchPlayer(Game game, int slot) {
-        if (slot < 1 || slot > 4) {
-            throw new IllegalArgumentException("Slot must be between 1 and 4. Got: " + slot);
+    private MatchPlayer findMatchPlayer(Game game, int matchPlayerSlot) {
+        if (matchPlayerSlot < 1 || matchPlayerSlot > 4) {
+            int playerSlot = matchPlayerSlot - 1;
+            throw new IllegalArgumentException("PlayerSlot must be between 0 and 3. Got: " + playerSlot);
         }
+        int playerSlot = matchPlayerSlot - 1;
         return game.getMatch().getMatchPlayers().stream()
-                .filter(mp -> mp.getSlot() == slot)
+                .filter(mp -> mp.getMatchPlayerSlot() == matchPlayerSlot)
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No MatchPlayer found for slot " + slot));
+                .orElseThrow(() -> new IllegalStateException("No MatchPlayer found for playerSlot " + playerSlot));
     }
 
     public void passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO) {
@@ -175,7 +182,7 @@ public class CardPassingService {
         List<String> cardsToPass = passingDTO.getCards();
         Match match = matchPlayer.getMatch();
 
-        int slot = matchPlayer.getSlot();
+        int matchPlayerSlot = matchPlayer.getMatchPlayerSlot();
 
         if (cardsToPass == null || cardsToPass.size() != 3) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exactly 3 cards must be passed.");
@@ -193,13 +200,14 @@ public class CardPassingService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid card format: " + cardCode);
             }
 
+            int playerSlot = matchPlayerSlot - 1; // client logic.
             if (!matchPlayer.hasCardCodeInHand(cardCode)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Card " + cardCode + " is not owned by player in slot " + slot);
+                        "Card " + cardCode + " is not owned by player in playerSlot " + playerSlot);
             }
-            if (passedCardRepository.existsByGameAndFromSlotAndRankSuit(game, slot, cardCode)) {
+            if (passedCardRepository.existsByGameAndFromMatchPlayerSlotAndRankSuit(game, playerSlot, cardCode)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
-                        "Card " + cardCode + " has already been passed by slot " + slot);
+                        "Card " + cardCode + " has already been passed by playerSlot " + playerSlot);
             }
 
             if (passedCardRepository.existsByGameAndRankSuit(game, cardCode)) {
@@ -210,23 +218,23 @@ public class CardPassingService {
 
         // Save all passed cards in a batch
         List<PassedCard> passedCards = cardsToPass.stream()
-                .map(cardCode -> new PassedCard(game, cardCode, slot, game.getGameNumber()))
+                .map(cardCode -> new PassedCard(game, cardCode, matchPlayerSlot, game.getGameNumber()))
                 .collect(Collectors.toList());
         passedCardRepository.saveAll(passedCards);
         passedCardRepository.flush();
-        log.info("MatchPlayer {} is passing cards {} from his hand {}. {}", matchPlayer.getInfo(),
+        log.info("° MatchPlayer {} is passing cards {} from his hand {}. {}", matchPlayer.getInfo(),
                 passingDTO.getCardsAsString(), matchPlayer.getHand(),
-                cardRulesService.describePassingDirection(game.getGameNumber(), matchPlayer.getSlot()));
+                cardRulesService.describePassingDirection(game.getGameNumber(), matchPlayer.getMatchPlayerSlot()));
         // Count how many cards have been passed in total
         long passedCount = passedCardRepository.countByGame(game);
 
         // If not all 12 passed yet, check if AI players need to pass
         if (passedCount < 12) {
             int expectedHumanPasses = (int) match.getMatchPlayers().stream()
-                    .filter(mp -> mp.getSlot() >= 1 && mp.getSlot() <= 4)
+                    .filter(mp -> mp.getMatchPlayerSlot() >= 1 && mp.getMatchPlayerSlot() <= 4)
                     .filter(mp -> mp.getUser() != null && Boolean.FALSE.equals(mp.getUser().getIsAiPlayer()))
-                    .map(mp -> mp.getSlot()) // map by slot
-                    .distinct() // unique slots only
+                    .map(mp -> mp.getMatchPlayerSlot()) // map by matchPlayer
+                    .distinct() // unique matchPlayer only
                     .count() * 3;
             if (passedCount == expectedHumanPasses) {
                 aiPassingService.passForAllAiPlayers(game);
@@ -237,10 +245,12 @@ public class CardPassingService {
         // If all 12 cards passed, proceed to collect
         if (passedCount == 12) {
             collectPassedCards(game);
+            log.info("°°° PASSING CONCLUDED °°°");
             // Transition phase to FIRSTTRICK!
             game.setPhase(GamePhase.FIRSTTRICK);
             game.setCurrentTrickNumber(1);
             gameRepository.save(game);
+            log.info("/// READY TO PLAY FIRST TRICK ///");
 
         }
 
@@ -248,6 +258,20 @@ public class CardPassingService {
 
     private boolean isValidCardFormat(String cardCode) {
         return cardCode != null && cardCode.matches("^[02-9JQKA][HDCS]$");
+    }
+
+    public int playerSlotToMatchPlayerSlot(int playerSlot) {
+        if (playerSlot < 0 || playerSlot > 3) {
+            throw new IllegalArgumentException("Invalid playerSlot: " + playerSlot + ". Expected 0–3.");
+        }
+        return playerSlot + 1;
+    }
+
+    public int matchPlayerSlotToPlayerSlot(int matchPlayerSlot) {
+        if (matchPlayerSlot < 1 || matchPlayerSlot > 4) {
+            throw new IllegalArgumentException("Invalid matchPlayerSlot: " + matchPlayerSlot + ". Expected 1–4.");
+        }
+        return matchPlayerSlot - 1;
     }
 
 }

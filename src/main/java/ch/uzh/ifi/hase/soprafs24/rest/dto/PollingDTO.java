@@ -20,10 +20,12 @@ public class PollingDTO {
     private boolean heartsBroken; // [13]
 
     private List<Card> currentTrick; // [14]
-    private int currentTrickLeaderSlot; // [15]
+    private Integer currentTrickLeaderMatchPlayerSlot; // [15a]
+    private Integer currentTrickLeaderPlayerSlot; // [15b]
 
     private List<Card> previousTrick; // [16]
-    private int previousTrickWinnerSlot; // [17]
+    private Integer previousTrickWinnerMatchPlayerSlot; // [17a]
+    private Integer previousTrickWinnerPlayerSlot; // [17b]
     private int previousTrickPoints; // [18]
 
     // Info about the other players
@@ -33,7 +35,8 @@ public class PollingDTO {
     private Map<Integer, Integer> playerPoints; // [24]
     private Map<Integer, Integer> aiPlayers; // [25]
     // Info about myself
-    private int slot; // [31]
+    private int matchPlayerSlot; // [31a]
+    private int playerSlot; // [31b]
     private boolean isMyTurn = false; // [32]
     private List<PlayerCardDTO> playerCards; // [33]
     private List<PlayerCardDTO> playableCards; // [34]
@@ -70,12 +73,21 @@ public class PollingDTO {
         this.matchGoal = matchGoal;
     }
 
-    public int getSlot() {
-        return slot;
+    public int getMatchPlayerSlot() {
+        return matchPlayerSlot;
     }
 
-    public void setSlot(int slot) {
-        this.slot = slot;
+    public void setMatchPlayerSlot(int matchPlayerSlot) {
+        this.matchPlayerSlot = matchPlayerSlot;
+        this.playerSlot = this.matchPlayerSlot - 1;
+    }
+
+    public int getPlayerSlot() {
+        return playerSlot;
+    }
+
+    public void setPlayerSlot(int playerSlot) {
+        this.playerSlot = playerSlot;
     }
 
     public Map<Integer, Integer> getAiPlayers() {
@@ -142,20 +154,36 @@ public class PollingDTO {
         this.currentTrick = currentTrick;
     }
 
-    public int getCurrentTrickLeaderSlot() {
-        return currentTrickLeaderSlot;
+    public void setCurrentTrickLeaderPlayerSlot(int currentTrickLeaderPlayerSlot) {
+        this.currentTrickLeaderPlayerSlot = currentTrickLeaderPlayerSlot;
     }
 
-    public void setCurrentTrickLeaderSlot(int currentTrickLeaderSlot) {
-        this.currentTrickLeaderSlot = currentTrickLeaderSlot;
+    public Integer getCurrentTrickLeaderPlayerSlot() {
+        return currentTrickLeaderPlayerSlot;
     }
 
-    public int getPreviousTrickWinnerSlot() {
-        return previousTrickWinnerSlot;
+    public Integer getCurrentTrickLeaderMatchPlayerSlot() {
+        return currentTrickLeaderMatchPlayerSlot;
     }
 
-    public void setPreviousTrickWinnerSlot(int previousTrickWinnerSlot) {
-        this.previousTrickWinnerSlot = previousTrickWinnerSlot;
+    public void setCurrentTrickLeaderMatchPlayerSlot(Integer currentTrickLeaderMatchPlayerSlot) {
+        this.currentTrickLeaderMatchPlayerSlot = currentTrickLeaderMatchPlayerSlot;
+    }
+
+    public Integer getPreviousTrickWinnerMatchPlayerSlot() {
+        return previousTrickWinnerMatchPlayerSlot;
+    }
+
+    public void setPreviousTrickWinnerMatchPlayerSlot(Integer previousTrickWinnerMatchPlayerSlot) {
+        this.previousTrickWinnerMatchPlayerSlot = previousTrickWinnerMatchPlayerSlot;
+    }
+
+    public Integer getPreviousTrickWinnerPlayerSlot() {
+        return previousTrickWinnerPlayerSlot;
+    }
+
+    public void setPreviousTrickWinnerPlayerSlot(Integer previousTrickWinnerPlayerSlot) {
+        this.previousTrickWinnerPlayerSlot = previousTrickWinnerPlayerSlot;
     }
 
     public int getPreviousTrickPoints() {

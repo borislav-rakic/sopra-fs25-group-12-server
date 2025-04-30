@@ -5,12 +5,18 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 @Entity
 @Table(name = "GAME")
 public class Game {
+
+    private static final Logger log = LoggerFactory.getLogger(Game.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -20,8 +26,8 @@ public class Game {
     @JoinColumn(name = "match_id", nullable = false)
     private Match match;
 
-    @Column(name = "current_slot", nullable = false)
-    private int currentSlot = 0; // values 1–4
+    @Column(name = "current_match_player_slot", nullable = false)
+    private int currentMatchPlayerSlot = 1; // values 1–4
 
     @Column(nullable = false)
     private int gameNumber;
@@ -36,8 +42,8 @@ public class Game {
     @Column(nullable = false)
     private GamePhase phase = GamePhase.PRESTART;
 
-    @Column(name = "trick_leader_slot", nullable = false)
-    private Integer trickLeaderSlot = 0;
+    @Column(name = "trick_leader_match_player_slot", nullable = false)
+    private Integer trickLeaderMatchPlayerSlot = 0;
 
     @ElementCollection(fetch = FetchType.EAGER)
     @CollectionTable(name = "current_trick", joinColumns = @JoinColumn(name = "game_id"))
@@ -49,22 +55,21 @@ public class Game {
     @Column(name = "card_code")
     private Set<String> previousTrick = new LinkedHashSet<>();
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "current_trick_slots", joinColumns = @JoinColumn(name = "game_id"))
-    @Column(name = "slot_number")
-    private Set<Integer> currentTrickSlots = new LinkedHashSet<>();
-
     @Column(nullable = false)
     private int currentTrickNumber = 0;
 
     @Column(nullable = false)
     private int currentPlayOrder = 0;
 
-    @Column(name = "previous_trick_winner_slot")
-    private int previousTrickWinnerSlot;
+    @Column(name = "previous_trick_leader_match_player_slot")
+    private Integer previousTrickLeaderMatchPlayerSlot;
+
+    @Column(name = "previous_trick_winner_match_player_slot")
+    private Integer previousTrickWinnerMatchPlayerSlot;
 
     @Column(name = "previous_trick_points")
     private int previousTrickPoints;
+
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GameStats> gameStats = new ArrayList<>();
 
@@ -86,12 +91,12 @@ public class Game {
         this.match = match;
     }
 
-    public int getCurrentSlot() {
-        return currentSlot;
+    public int getCurrentMatchPlayerSlot() {
+        return currentMatchPlayerSlot;
     }
 
-    public void setCurrentSlot(int currentSlot) {
-        this.currentSlot = currentSlot;
+    public void setCurrentMatchPlayerSlot(int currentMatchPlayerSlot) {
+        this.currentMatchPlayerSlot = currentMatchPlayerSlot;
     }
 
     public int getGameNumber() {
@@ -134,6 +139,11 @@ public class Game {
         this.currentTrick = new LinkedHashSet<>(currentTrick); // preserve order & remove duplicates
     }
 
+    public String getCurrentTrickAsString() {
+        List<String> trick = this.getCurrentTrick();
+        return trick.stream().collect(Collectors.joining(","));
+    }
+
     public List<String> getPreviousTrick() {
         return new ArrayList<>(previousTrick);
     }
@@ -142,29 +152,55 @@ public class Game {
         this.previousTrick = new LinkedHashSet<>(previousTrick);
     }
 
-    public List<Integer> getCurrentTrickSlots() {
-        return new ArrayList<>(currentTrickSlots);
+    public Integer getTrickLeaderMatchPlayerSlot() {
+        return trickLeaderMatchPlayerSlot;
     }
 
-    public void setCurrentTrickSlots(List<Integer> currentTrickSlots) {
-        this.currentTrickSlots = new LinkedHashSet<>(currentTrickSlots);
+    public void setTrickLeaderMatchPlayerSlot(int trickLeaderMatchPlayerSlot) {
+        this.trickLeaderMatchPlayerSlot = trickLeaderMatchPlayerSlot;
     }
 
-    public Integer getTrickLeaderSlot() {
-        return trickLeaderSlot;
+    public Integer getPreviousTrickLeaderMatchPlayerSlot() {
+        return previousTrickLeaderMatchPlayerSlot;
     }
 
-    public void setTrickLeaderSlot(Integer trickLeaderSlot) {
-        this.trickLeaderSlot = trickLeaderSlot;
+    public void setPreviousTrickLeaderMatchPlayerSlot(Integer previousTrickLeaderMatchPlayerSlot) {
+        this.previousTrickLeaderMatchPlayerSlot = previousTrickLeaderMatchPlayerSlot;
+    }
 
-        if (trickLeaderSlot != null) {
-            List<Integer> orderedSlots = new ArrayList<>();
-            for (int i = 0; i < 4; i++) {
-                int slot = ((trickLeaderSlot - 1 + i) % 4) + 1;
-                orderedSlots.add(slot);
-            }
-            this.currentTrickSlots = new LinkedHashSet<>(orderedSlots);
+    public List<Integer> getTrickMatchPlayerSlotOrder() {
+        if (trickLeaderMatchPlayerSlot == null || trickLeaderMatchPlayerSlot < 1 || trickLeaderMatchPlayerSlot > 4) {
+            throw new IllegalStateException(
+                    "Invalid or unset trickLeaderMatchPlayerSlot: " + trickLeaderMatchPlayerSlot);
         }
+
+        List<Integer> order = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            int matchPlayerSlot = ((trickLeaderMatchPlayerSlot - 1 + i) % 4) + 1;
+            order.add(matchPlayerSlot);
+        }
+        return order;
+    }
+
+    public List<Integer> getPreviousTrickMatchPlayerSlotOrder() {
+        if (previousTrickLeaderMatchPlayerSlot == null || previousTrickLeaderMatchPlayerSlot < 1
+                || previousTrickLeaderMatchPlayerSlot > 4) {
+            throw new IllegalStateException(
+                    "Invalid or unset previousTrickLeaderMatchPlayerSlot: " + previousTrickLeaderMatchPlayerSlot);
+        }
+
+        List<Integer> order = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            int matchPlayerSlot = ((previousTrickLeaderMatchPlayerSlot - 1 + i) % 4) + 1;
+            order.add(matchPlayerSlot);
+        }
+        return order;
+    }
+
+    public String getTrickMatchPlayerSlotOrderAsString() {
+        return getTrickMatchPlayerSlotOrder().stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
     }
 
     public int getCurrentTrickNumber() {
@@ -183,12 +219,12 @@ public class Game {
         this.currentPlayOrder = currentPlayOrder;
     }
 
-    public int getPreviousTrickWinnerSlot() {
-        return previousTrickWinnerSlot;
+    public Integer getPreviousTrickWinnerMatchPlayerSlot() {
+        return previousTrickWinnerMatchPlayerSlot;
     }
 
-    public void setPreviousTrickWinnerSlot(int previousTrickWinnerSlot) {
-        this.previousTrickWinnerSlot = previousTrickWinnerSlot;
+    public void setPreviousTrickWinnerMatchPlayerSlot(Integer previousTrickWinnerMatchPlayerSlot) {
+        this.previousTrickWinnerMatchPlayerSlot = previousTrickWinnerMatchPlayerSlot;
     }
 
     public int getPreviousTrickPoints() {
@@ -208,13 +244,11 @@ public class Game {
     }
     // === Game logic convenience methods ===
 
-    public void addCardToCurrentTrick(String cardCode, int slot) {
+    public void addCardToCurrentTrick(String cardCode) {
         if (currentTrick.size() >= 4) {
             throw new IllegalStateException("Current trick already has 4 cards");
         }
-
         currentTrick.add(cardCode);
-        currentTrickSlots.add(slot);
     }
 
     public int getCurrentTrickSize() {
@@ -232,6 +266,18 @@ public class Game {
     public void emptyCurrentTrick() {
         if (this.currentTrick != null) {
             this.currentTrick.clear();
+        }
+    }
+
+    public void updatePhaseBasedOnPlayOrder() {
+        if (currentPlayOrder >= 49) {
+            this.phase = GamePhase.FINALTRICK;
+            log.info("GamePhase set to FINALTRICK (playOrder = {}).", currentPlayOrder);
+        } else if (currentPlayOrder >= 5) {
+            this.phase = GamePhase.NORMALTRICK;
+            log.info("GamePhase set to NORMALTRICK (playOrder = {}).", currentPlayOrder);
+        } else {
+            log.info("GamePhase remains unchanged (playOrder = {}).", currentPlayOrder);
         }
     }
 }

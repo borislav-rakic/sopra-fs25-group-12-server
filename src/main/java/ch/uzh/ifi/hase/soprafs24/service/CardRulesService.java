@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
-import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
@@ -28,19 +27,52 @@ public class CardRulesService {
 
     private final Logger log = LoggerFactory.getLogger(CardRulesService.class);
 
-    private static final int TOTAL_CARD_COUNT = 52;
+    /**
+     * "Returns cards that the MatchPlayer could play."
+     * 
+     * @param game
+     * @param matchPlayer
+     * @return list of playable cards
+     **/
+    public String getPlayableCardsForMatchPlayerPolling(Game game, MatchPlayer matchPlayer) {
+        return getPlayableCardsForMatchPlayer(game, matchPlayer, true);
+    }
 
-    public String getPlayableCardsForMatchPlayer(Game game, MatchPlayer matchPlayer) {
-        String myReturn = "";
+    /**
+     * "Returns cards that the MatchPlayer may play (and is trying to play)."
+     * 
+     * @param game
+     * @param matchPlayer
+     * @return list of playable cards
+     **/
+    public String getPlayableCardsForMatchPlayerPlaying(Game game, MatchPlayer matchPlayer) {
+        return getPlayableCardsForMatchPlayer(game, matchPlayer, false);
+    }
+
+    /**
+     * "Gives assessment of potential candidate cards for playing."
+     * 
+     * @param game
+     * @param matchPlayer
+     * @param scenario
+     * @return list of playable cards
+     **/
+    public String getPlayableCardsForMatchPlayer(Game game, MatchPlayer matchPlayer, boolean isPlaying) {
+        // Only players who are actually about to play get info on playability of cards.
+        if (!game.getPhase().inTrick() || game.getCurrentMatchPlayerSlot() != matchPlayer.getMatchPlayerSlot()) {
+            // Only during actual ongoing games does it makes sense to investigate
+            // playability of cards (passing must be over).
+            return "";
+        }
         String leadingSuit = getLeadingSuitOfCurrentTrick(game);
 
         log.info("=== Which Cards are Playable? ===");
         log.info(
-                "MatchPlayer [{}] in slot {}, playing in trick #{}. Trick so far: {}. Leading suit: {}. Phase: {}. Hearts {} broken. Current play order: {}. Hand: [{}]",
+                "= MatchPlayer [{}] in matchPlayerSlot {}, playing in trick #{}. Trick so far: {}. Leading suit: {}. Phase: {}. Hearts {} broken. Current play order: {}. Hand: [{}]",
                 matchPlayer.getInfo(),
-                matchPlayer.getSlot(),
+                matchPlayer.getMatchPlayerSlot(),
                 game.getCurrentTrickNumber(),
-                game.getCurrentTrick(),
+                game.getCurrentTrickAsString(),
                 leadingSuit,
                 game.getPhase(),
                 game.getHeartsBroken() ? "is" : "is not yet",
@@ -49,41 +81,48 @@ public class CardRulesService {
 
         String hand = matchPlayer.getHand();
         if (hand == null || hand.isBlank()) {
-            log.info("VERDICT: Hand is empty.");
+            log.info("=== VERDICT: Hand is empty. ===");
             return "";
         }
 
-        if (leadingSuit == null) {
-            log.info("This player is leading the trick.");
+        if (leadingSuit == null && matchPlayer.getMatchPlayerSlot() == game.getCurrentMatchPlayerSlot()) {
+            log.info("= This player is leading the trick.");
 
             if (game.getPhase() == GamePhase.FIRSTTRICK) {
                 boolean has2C = matchPlayer.hasCardCodeInHand("2C");
-                log.info("It is the first trick and the player {} 2C.", has2C ? "has" : "does not have");
+                log.info("= It is the first trick and the player in matchPlayerSlot {} with hand {} {} 2C.",
+                        matchPlayer.getMatchPlayerSlot(),
+                        matchPlayer.getHand(), has2C ? "has" : "does not have");
 
-                if (!has2C) {
-                    throw new IllegalStateException("The card 2C is not found in starting MatchPlayer's hand.");
+                if (matchPlayer.getMatchPlayerSlot() == game.getCurrentMatchPlayerSlot() && !has2C && isPlaying) {
+                    log.warn("= The card 2C is not found in starting MatchPlayer's hand {}.", matchPlayer.getHand());
+                    throw new IllegalStateException(
+                            String.format(
+                                    "The card 2C is not found in starting MatchPlayer's (matchPlayerSlot %s) hand %s.",
+                                    game.getCurrentMatchPlayerSlot(), matchPlayer.getHand()));
+                } else if (matchPlayer.getMatchPlayerSlot() == game.getCurrentMatchPlayerSlot()) {
+                    return "2C";
+                } else {
+                    return "2C";
                 }
-
-                log.info("VERDICT: Only the card 2C is allowed as the opening play: [2C]");
-                return "2C";
             }
 
             if (!game.getHeartsBroken()) {
                 String nonHearts = matchPlayer.getCardsNotOfSuit('H');
                 if (!nonHearts.isBlank()) {
-                    log.info("VERDICT: Hearts not broken, and the player has non-Hearts cards: [{}]",
+                    log.info("=== VERDICT: Hearts not broken, and the player has non-Hearts cards: [{}]. ===",
                             nonHearts);
                     return nonHearts;
                 }
             }
 
-            log.info("VERDICT: Player only has Hearts or Hearts are broken; may play any card: [{}]", hand);
+            log.info("=== VERDICT: Player only has Hearts or Hearts are broken; may play any card: [{}]. ===", hand);
             return hand;
         }
 
         // Player must follow suit if possible
         String[] cards = hand.split(",");
-        log.info(String.format("The leading suit is [%s].", leadingSuit));
+        log.info(String.format("= The leading suit is [%s].", leadingSuit));
         StringBuilder matchingCards = new StringBuilder();
         for (String card : cards) {
             if (!card.isBlank() && card.endsWith(leadingSuit)) {
@@ -95,42 +134,49 @@ public class CardRulesService {
         }
 
         if (matchingCards.length() > 0) {
-            log.info("VERDICT Player has cards in the leading suit and must play one of: [{}]", matchingCards);
+            log.info("=== VERDICT: Player has cards in the leading suit and must play one of: [{}]. ===",
+                    matchingCards);
             return matchingCards.toString();
         } else {
-            log.info("Player has no cards in the leading suit and may play any card: [{}]", hand);
+            log.info("==== VERDICT: Player has no cards in the leading suit and may play any card: [{}]. ===", hand);
             return hand;
         }
     }
 
     public void validateMatchPlayerCardCode(Game game, MatchPlayer matchPlayer, String cardCode) {
-        log.info("THIS IS VALIDATEPLAYERCARDCODE and currentTrickNumber is {}", game.getCurrentTrickNumber());
-        log.info(
-                "This is game {} and MatchPlayer {} is trying to play the card {}, their hand being: {}.",
+        log.info("+++ VALIDATEPLAYERCARDCODE: Trick #{} +++", game.getCurrentTrickNumber());
+        log.info("+ Game ID: {}, Player: {}, Attempting to play: {}, Hand: {}",
                 game.getGameId(), matchPlayer.getInfo(), cardCode, matchPlayer.getHand());
-        // 1. This is a valid cardCode.
-        CardUtils.isValidCardFormat(cardCode);
-        if (!getPlayableCardsForMatchPlayer(game, matchPlayer).contains(cardCode)) {
-            DebuggingService.richLog(null, matchPlayer.getMatch(), game, matchPlayer, cardCode, "Illegal card played.");
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Illegal card played: " + cardCode
-                    + ". Legal cards are said to be: " + getPlayableCardsForMatchPlayer(game, matchPlayer));
 
+        // 1. Format check
+        CardUtils.isValidCardFormat(cardCode);
+
+        // 2. Determine playability
+        String playableCards = getPlayableCardsForMatchPlayerPlaying(game, matchPlayer);
+        boolean cardIsPlayable = playableCards.contains(cardCode);
+
+        // 3. Check if card is playable
+        if (!cardIsPlayable) {
+            DebuggingService.richLog(null, matchPlayer.getMatch(), game, matchPlayer, cardCode, "Illegal card played.");
+
+            log.info("+ Only legal cards: {} | Hand: {} | Trick so far: {} | # of Trick: {} | Hearts {}broken",
+                    playableCards, matchPlayer.getHand(), game.getCurrentTrick(), game.getCurrentTrickNumber(),
+                    game.getHeartsBroken() ? "" : "not ");
+
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    String.format("Illegal card played: %s. Legal cards: %s. Current trick: %s",
+                            cardCode, playableCards, game.getCurrentTrick()));
         }
-        // 2. The player actually holds that card
-        boolean matchPlayerHoldsCard = matchPlayer.hasCardCodeInHand(cardCode);
-        if (!matchPlayerHoldsCard) {
-            String informativeThrow = String.format("MatchPlayer %s does not hold card %s in their hand.",
-                    matchPlayer.getInfo(), cardCode);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, informativeThrow);
+
+        // 4. Confirm the card is in hand
+        if (!matchPlayer.hasCardCodeInHand(cardCode)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+                    String.format("MatchPlayer %s does not hold card %s in their hand.",
+                            matchPlayer.getInfo(), cardCode));
         }
-        // 3. This card is among the legal moves in this game.
-        String playableCards = getPlayableCardsForMatchPlayer(game, matchPlayer);
-        boolean isPlayable = isCardCodePlayable(cardCode, playableCards);
-        if (!isPlayable) {
-            String informativeThrow = String.format("MatchPlayer %s cannot play card %s.",
-                    matchPlayer.getInfo(), cardCode);
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, informativeThrow);
-        }
+
+        log.info("+++ VERDICT: CARD {} IS OK TO PLAY IN TRICK {} [#{}] +++",
+                cardCode, game.getCurrentTrick(), game.getCurrentTrickNumber());
     }
 
     private String getLeadingSuitOfCurrentTrick(Game game) {
@@ -141,41 +187,26 @@ public class CardRulesService {
     }
 
     /**
-     * Helper: Returns the cardCode of the leading card of the trick.
-     * 
-     * @param game : current game.
-     * @return card code.
-     */
-    private String getLeadingCardCodeOfCurrentTrick(Game game) {
-        if (game.getCurrentTrickSize() == 0) {
-            return null; // No cards played yet in this trick
-        }
-        // First card played in current trick
-        String firstCard = game.getCardInCurrentTrick(0);
-        if (firstCard == null || firstCard.length() < 2) {
-            throw new IllegalStateException("Invalid card format in trick.");
-        }
-        // Last char = suit
-        return firstCard.substring(firstCard.length() - 1);
-    }
-
-    /**
-     * Determines which player (slot) wins the current trick.
+     * Determines which player (matchPlayerSlot) wins the current trick.
      * Based on highest card of the leading suit.
      *
      * @param game the Game containing current trick state
-     * @return the slot number (integer) of the winning player
+     * @return the matchPlayerSlot number (integer) of the winning player
      */
     public int determineTrickWinner(Game game) {
-        List<String> trick = game.getCurrentTrick();
-        List<Integer> slots = game.getCurrentTrickSlots();
+        log.info("   ççç DETERMINING TRICK WINNER OF TRICK #{}.", game.getCurrentTrickNumber());
+        log.info("   ç Current Trick is {}.", game.getCurrentTrickAsString());
+        log.info("   ç Current trick matchPlayerSlot order (derived) is {}.",
+                game.getTrickMatchPlayerSlotOrderAsString());
 
-        int leaderSlot = game.getTrickLeaderSlot();
+        List<String> trick = game.getCurrentTrick(); // Cards played, in order
+        List<Integer> slots = game.getTrickMatchPlayerSlotOrder(); // Slots who played, in order
 
-        if (trick == null || slots == null || trick.size() != 4 || slots.size() != 4) {
+        if (trick.size() != 4 || slots.size() != 4) {
             throw new IllegalStateException("Cannot determine winner before trick is complete.");
         }
 
+        int leaderSlot = game.getTrickLeaderMatchPlayerSlot();
         int leaderIndex = slots.indexOf(leaderSlot);
         if (leaderIndex == -1) {
             throw new IllegalStateException("Trick leader did not play this trick.");
@@ -193,28 +224,23 @@ public class CardRulesService {
             String cardCode = rotatedTrick.get(i);
             char suit = getSuit(cardCode);
             int value = getCardValue(cardCode);
-            // log.info("Evaluating card {} with suit {} and value {}, leading suit: {}",
-            // cardCode, suit, value, leadingSuit);
-            // log.info("Slot {} played card {}", slots.get(i), trick.get(i));
-            if (suit == leadingSuit) {
-                if (value > bestValue) {
-                    bestValue = value;
-                    winningIndex = i;
-                }
+
+            log.info("   ç Evaluating card {} with suit {} and value {}, leading suit: {}",
+                    cardCode, suit, value, leadingSuit);
+            log.info("   ç MatchPlayerSlot {} played card {}", rotatedSlots.get(i), rotatedTrick.get(i));
+
+            if (suit == leadingSuit && value > bestValue) {
+                bestValue = value;
+                winningIndex = i;
             }
         }
-        String trickAsString = String.join(",", trick);
-        String slotsAsString = slots.stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
-        String rotatedSlotsAsString = rotatedSlots.stream()
-                .map(String::valueOf)
-                .collect(Collectors.joining(","));
+
         int winningSlot = rotatedSlots.get(winningIndex);
-        log.info("Establishing Winner: LeaderSlot: {}, Trick: {}, Slots: {}, Rotated Slots: {}, Winner:{}",
-                game.getTrickLeaderSlot(),
-                trickAsString, slotsAsString,
-                rotatedSlotsAsString, winningSlot);
+        log.info("   ç Establishing Winner: LeaderSlot: {}, Rotated Slots: {}, Trick: {}",
+                leaderSlot,
+                rotatedSlots.stream().map(String::valueOf).collect(Collectors.joining(",")),
+                rotatedTrick);
+        log.info("   ççç VERDICT: Winner is {}", winningSlot);
         return winningSlot;
     }
 
@@ -347,14 +373,15 @@ public class CardRulesService {
     }
 
     /**
-     * Returns a message like "Cards will be passed from slot X to slot Y
+     * Returns a message like "Cards will be passed from matchPlayerSlot X to
+     * matchPlayerSlot Y
      * (left/right/across/no pass)"
      */
-    public String describePassingDirection(int gameNumber, int fromSlot) {
+    public String describePassingDirection(int gameNumber, int fromMatchPlayerSlot) {
         Map<Integer, Integer> passMap = determinePassingDirection(gameNumber);
-        Integer toSlot = passMap.get(fromSlot);
+        Integer toMatchPlayerSlot = passMap.get(fromMatchPlayerSlot);
 
-        if (toSlot == null) {
+        if (toMatchPlayerSlot == null) {
             return String.format("No passing this round (game %s).", gameNumber);
         }
 
@@ -366,7 +393,9 @@ public class CardRulesService {
             default -> directionLabel = "no pass";
         }
 
-        return String.format("Cards will be passed from slot %s to slot %s (%s)", fromSlot, toSlot, directionLabel);
+        return String.format("Cards will be passed from matchPlayerSlot %s to matchPlayerSlot %s (%s)",
+                fromMatchPlayerSlot,
+                toMatchPlayerSlot, directionLabel);
     }
 
 }

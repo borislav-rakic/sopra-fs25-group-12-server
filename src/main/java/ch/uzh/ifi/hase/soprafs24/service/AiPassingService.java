@@ -71,17 +71,19 @@ public class AiPassingService {
             throw new IllegalStateException("Game does not belong to match.");
         }
 
-        for (int slot = 1; slot <= 4; slot++) {
-            MatchPlayer matchPlayer = match.getMatchPlayerBySlot(slot);
+        for (int matchPlayerSlot = 1; matchPlayerSlot <= 4; matchPlayerSlot++) {
+            MatchPlayer matchPlayer = match.requireMatchPlayerBySlot(matchPlayerSlot);
             if (matchPlayer == null) {
-                throw new IllegalStateException("There is no match player in slot " + slot + ".");
+                int playerSlot = matchPlayerSlot - 1;
+                throw new IllegalStateException(
+                        String.format("There is no match player in playerSlot %d.", playerSlot));
             }
             if (Boolean.TRUE.equals(matchPlayer.getIsAiPlayer())) {
                 List<String> cardsToPass = selectCardsToPass(matchPlayer);
 
                 for (String cardCode : cardsToPass) {
                     if (!passedCardRepository.existsByGameAndRankSuit(game, cardCode)) {
-                        PassedCard passedCard = new PassedCard(game, cardCode, slot, game.getGameNumber());
+                        PassedCard passedCard = new PassedCard(game, cardCode, matchPlayerSlot, game.getGameNumber());
                         passedCardRepository.save(passedCard);
 
                         // Also remove the passed card from AI hand

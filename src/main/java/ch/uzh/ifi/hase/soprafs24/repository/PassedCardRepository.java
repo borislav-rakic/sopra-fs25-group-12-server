@@ -13,7 +13,7 @@ public interface PassedCardRepository extends JpaRepository<PassedCard, Long> {
     List<PassedCard> findByGame(Game game);
 
     // Check if a specific slot already passed a specific card
-    boolean existsByGameAndFromSlotAndRankSuit(Game game, int fromSlot, String rankSuit);
+    boolean existsByGameAndFromMatchPlayerSlotAndRankSuit(Game game, int fromMatchPlayerSlot, String rankSuit);
 
     // Check if anyone passed a specific card
     boolean existsByGameAndRankSuit(Game game, String rankSuit);
