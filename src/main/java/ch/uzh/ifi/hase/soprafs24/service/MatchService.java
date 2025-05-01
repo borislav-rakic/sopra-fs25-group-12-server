@@ -19,9 +19,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-
 import java.util.Map.Entry;
 
 import java.util.*;
@@ -55,6 +52,7 @@ public class MatchService {
 
     @Autowired
     public MatchService(
+            @Qualifier("cardRulesService") CardRulesService cardRulesService,
             @Qualifier("gameRepository") GameRepository gameRepository,
             @Qualifier("gameService") GameService gameService,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
@@ -69,9 +67,6 @@ public class MatchService {
         this.userService = userService;
 
     }
-
-    @Autowired
-    private ObjectMapper objectMapper;
 
     /**
      * Creates a new {@link Match} entity for the user associated with the provided
@@ -190,11 +185,13 @@ public class MatchService {
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found.");
         }
-
+        log.info("Invitation received: %s.", request);
         // Only allow inviting to matchPlayerSlots 2, 3, or 4
-        if (playerSlot < 2 || playerSlot > 4) {
+        if (matchPlayerSlot < 2 || matchPlayerSlot > 4) {
+            log.info("Invitation received, but it is to illegal matchPlayerSlot %d.", matchPlayerSlot);
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "You can only invite players to matchPlayerSlots 2, 3, or 4.");
+                    String.format("Invitations can only go to playerSlot 1, 2, or 3 (received %d).",
+                            matchPlayerSlot));
         }
 
         // Check if that matchPlayerSlot is already taken
@@ -333,7 +330,6 @@ public class MatchService {
         match.setInvites(invites);
 
         checkAndUpdateMatchPhaseIfReady(match);
-
         matchRepository.save(match);
     }
 
@@ -748,37 +744,31 @@ public class MatchService {
         }
     }
 
-    public void passingAcceptCards(Long matchId, GamePassingDTO passingDTO, String token) {
+    public void passingAcceptCards(Long matchId, GamePassingDTO passingDTO, String token, Boolean pickRandomly) {
         Match match = requireMatchByMatchId(matchId);
         User user = userService.requireUserByToken(token);
         Game game = requireActiveGameByMatch(match);
         MatchPlayer matchPlayer = match.requireMatchPlayerByUser(user);
         System.out.println("matchService.passingAcceptCards reached");
-        gameService.passingAcceptCards(game, matchPlayer, passingDTO);
+        gameService.passingAcceptCards(game, matchPlayer, passingDTO, pickRandomly);
     };
 
     public void playCardAsHuman(String token, Long matchId, PlayedCardDTO dto) {
-        User user = userService.requireUserByToken(token);
+        // SANITIZE
         Match match = requireMatchByMatchId(matchId);
         Game game = requireActiveGameByMatch(match);
-        String cardCode = CardUtils.requireValidCardFormat(dto.getCard());
         MatchPlayer matchPlayer = match.requireMatchPlayerByToken(token);
         int matchPlayerSlot = dto.getPlayerSlot() + 1; // 1 to account for 0-based frontend counting
         if (matchPlayer.getMatchPlayerSlot() != matchPlayerSlot) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Mismatch between token and matchPlayerSlot");
         }
-        try {
-            log.info("PlayedCardDTO: {}", objectMapper.writeValueAsString(dto));
-            log.info(user.getUsername() + " / " + match.getMatchId() + "/" + matchPlayerSlot);
-        } catch (JsonProcessingException e) {
-            log.warn("Failed to serialize PlayedCardDTO", e);
+        String cardCode = "";
+        if (dto.getCard() == "XX") {
+            cardCode = "XX";
+        } else {
+            cardCode = CardUtils.requireValidCardFormat(dto.getCard());
         }
-        log.info(String.format(
-                "The matchPlayerId=%s (userId=%s, matchPlayerSlot=%s), is trying to play the card %s, his hand being %s.",
-                matchPlayer.getMatchPlayerId(), matchPlayer.getUser().getId(), matchPlayerSlot, cardCode,
-                matchPlayer.getHand()));
-
         gameService.playCardAsHuman(game, matchPlayer, cardCode);
     }
 

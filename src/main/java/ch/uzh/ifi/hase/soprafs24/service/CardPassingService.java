@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
@@ -177,12 +178,19 @@ public class CardPassingService {
                 .orElseThrow(() -> new IllegalStateException("No MatchPlayer found for playerSlot " + playerSlot));
     }
 
-    public void passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO) {
+    public void passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO,
+            Boolean pickRandomly) {
+        List<String> cardsToPass;
+        if (pickRandomly) {
+            cardsToPass = aiPassingService.selectCardsToPass(matchPlayer, Strategy.LEFTMOST);
+        } else {
+            cardsToPass = passingDTO.getCards();
+        }
 
-        List<String> cardsToPass = passingDTO.getCards();
         Match match = matchPlayer.getMatch();
 
         int matchPlayerSlot = matchPlayer.getMatchPlayerSlot();
+        int playerSlot = matchPlayerSlot - 1; // client logic.
 
         if (cardsToPass == null || cardsToPass.size() != 3) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exactly 3 cards must be passed.");
@@ -200,12 +208,11 @@ public class CardPassingService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid card format: " + cardCode);
             }
 
-            int playerSlot = matchPlayerSlot - 1; // client logic.
             if (!matchPlayer.hasCardCodeInHand(cardCode)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Card " + cardCode + " is not owned by player in playerSlot " + playerSlot);
             }
-            if (passedCardRepository.existsByGameAndFromMatchPlayerSlotAndRankSuit(game, playerSlot, cardCode)) {
+            if (passedCardRepository.existsByGameAndFromMatchPlayerSlotAndRankSuit(game, matchPlayerSlot, cardCode)) {
                 throw new ResponseStatusException(HttpStatus.CONFLICT,
                         "Card " + cardCode + " has already been passed by playerSlot " + playerSlot);
             }

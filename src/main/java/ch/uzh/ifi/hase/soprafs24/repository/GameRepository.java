@@ -12,4 +12,6 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 @Repository
 public interface GameRepository extends JpaRepository<Game, Long> {
     Game findFirstByMatchAndPhaseNotIn(Match match, List<GamePhase> excludedPhases);
+
+    Game findByGameId(Long gameId);
 }

@@ -76,7 +76,7 @@ public class MatchPlayer {
     }
 
     public String getHand() {
-        return hand;
+        return CardUtils.normalizeCardCodeString(hand);
     }
 
     public void setHand(String hand) {

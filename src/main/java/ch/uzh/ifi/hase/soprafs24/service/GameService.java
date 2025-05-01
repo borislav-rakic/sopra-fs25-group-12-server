@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
@@ -38,6 +39,7 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.GameResultDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
+import ch.uzh.ifi.hase.soprafs24.util.StrategyRegistry;
 import reactor.core.publisher.Mono;
 
 /**
@@ -96,6 +98,7 @@ public class GameService {
     }
 
     private static final Logger log = LoggerFactory.getLogger(GameService.class);
+    private static final Boolean PLAY_ALL_AI_TURNS_AT_ONCE = true;
 
     /**
      * Gets the necessary information for a player.
@@ -191,6 +194,7 @@ public class GameService {
         // My cards in my hand
 
         List<PlayerCardDTO> playerCardDTOList = new ArrayList<>();
+        String hand = CardUtils.normalizeCardCodeString(matchPlayer.getHand());
 
         for (String cardCode : matchPlayer.getHandCardsArray()) {
             PlayerCardDTO dtoCard = new PlayerCardDTO();
@@ -203,10 +207,12 @@ public class GameService {
 
         // Playable cards in my hand
         List<PlayerCardDTO> playableCardDTOList = new ArrayList<>();
+        String playableCards = "";
 
         // Only show playable cards if it is this player's turn
         if (matchPlayer.getMatchPlayerSlot() == game.getCurrentMatchPlayerSlot()) {
-            String playableCards = cardRulesService.getPlayableCardsForMatchPlayerPolling(game, matchPlayer);
+            playableCards = CardUtils.normalizeCardCodeString(
+                    cardRulesService.getPlayableCardsForMatchPlayerPolling(game, matchPlayer));
 
             if (playableCards != null && !playableCards.isBlank()) {
                 playableCardDTOList = java.util.Arrays.stream(playableCards.split(","))
@@ -257,8 +263,10 @@ public class GameService {
         dto.setMatchPlayerSlot(matchPlayer.getMatchPlayerSlot());
         dto.setPlayerSlot(matchPlayer.getMatchPlayerSlot() - 1);
         dto.setMyTurn(matchPlayer.getMatchPlayerSlot() == game.getCurrentMatchPlayerSlot()); // [32]
-        dto.setPlayerCards(playerCardDTOList); // [33]
-        dto.setPlayableCards(playableCardDTOList); // [34]
+        dto.setPlayerCards(playerCardDTOList); // [33a]
+        dto.setPlayerCardsAsString(hand); // [33b]
+        dto.setPlayableCards(playableCardDTOList); // [34a]
+        dto.setPlayableCardsAsString(playableCards); // [34b]
 
         /// See if an AI PLAYER is up for their turn.
         int currentSlot = game.getCurrentMatchPlayerSlot();
@@ -273,7 +281,7 @@ public class GameService {
                 // ... we are in the middle of playing an actual trick
                 && (game.getPhase() == GamePhase.FIRSTTRICK || game.getPhase() == GamePhase.NORMALTRICK
                         || game.getPhase() == GamePhase.FINALTRICK)) {
-            playPotentialAiTurn(game); // do not inject matchPlayer, that person has nothing to do with it.
+            playAiTurnsUntilHuman(game.getGameId()); // do not inject matchPlayer (runs independent of game owner)
         }
         /// END: AI PLAYER
         return dto;
@@ -388,7 +396,7 @@ public class GameService {
         Game game = new Game();
         game.setGameNumber(nextGameNumber);
         game.setPhase(GamePhase.PRESTART);
-        game.setCurrentPlayOrder(1);
+        game.setCurrentPlayOrder(0);
 
         match.addGame(game);
 
@@ -471,12 +479,22 @@ public class GameService {
         gameStatsService.updateGameStatsFromPlayers(match, game);
     }
 
+    public void playAiTurnsUntilHuman(Long gameId) {
+        while (true) {
+            boolean played = playSingleAiTurn(gameId);
+            if (!played || !PLAY_ALL_AI_TURNS_AT_ONCE)
+                break;
+        }
+    }
+
     @Transactional
-    public void playPotentialAiTurn(Game game) {
+    public boolean playSingleAiTurn(Long gameId) {
+        Game game = gameRepository.findByGameId(gameId);
         if (game == null) {
             System.out.println(
                     "Location: playAiTurns. Initiating an AiTurn, but the passed game argument is null.");
-            return;
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    String.format("Could not find game (playSingleAiTurn)."));
         }
 
         Match match = game.getMatch();
@@ -485,10 +503,12 @@ public class GameService {
 
         // Stop if it's a human's turn or no AI player
         if (aiPlayer == null || !Boolean.TRUE.equals(aiPlayer.getIsAiPlayer())) {
-            return;
+            return false;
         }
-
-        String cardCode = aiPlayingService.selectCardToPlay(game, aiPlayer);
+        Strategy strategy = StrategyRegistry.getStrategyForUserId(aiPlayer.getUser().getId());
+        // For now always play predictably the leftmost card.
+        strategy = Strategy.LEFTMOST;
+        String cardCode = aiPlayingService.selectCardToPlay(game, aiPlayer, strategy);
         try {
             // Thread.sleep(300 + new Random().nextInt(400)); // fancy version
             Thread.sleep(50); // short and simple
@@ -496,6 +516,7 @@ public class GameService {
             Thread.currentThread().interrupt();
         }
         playCardAsAi(game, aiPlayer, cardCode);
+        return true;
     }
 
     public void playCardAsHuman(Game game, MatchPlayer matchPlayer, String cardCode) {
@@ -508,10 +529,14 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Game is not active.");
         }
-        if (matchPlayer.getMatchPlayerSlot() != game.getCurrentMatchPlayerSlot()) {
+        int matchPlayerSlot = matchPlayer.getMatchPlayerSlot();
+        int playerSlot = matchPlayerSlot - 1;
+        int currentMatchPlayerSlot = game.getCurrentMatchPlayerSlot();
+        int currentPlayerSlot = currentMatchPlayerSlot - 1;
+        if (matchPlayerSlot != game.getCurrentMatchPlayerSlot()) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "You are matchPlayerSlot " + matchPlayer.getMatchPlayerSlot() + ", but current matchPlayerSlot is "
-                            + game.getCurrentMatchPlayerSlot());
+                    String.format("Not your turn, playerSlot %d; currentPlayerSlot is %d.", playerSlot,
+                            currentPlayerSlot));
         }
         log.info("= HUMAN at matchPlayerSlot {} attempting to play card {}.", matchPlayer.getInfo(),
                 cardCode);
@@ -520,9 +545,13 @@ public class GameService {
                 matchPlayer.getHand(),
                 game.getTrickLeaderMatchPlayerSlot(), game.getCurrentTrick(), game.getCurrentPlayOrder(),
                 game.getCurrentTrickNumber());
+
+        if (cardCode == "XX") {
+            cardCode = aiPlayingService.selectCardToPlay(game, matchPlayer, Strategy.RANDOM);
+        }
         cardRulesService.validateMatchPlayerCardCode(game, matchPlayer, cardCode);
         log.info(
-                "= About to executValidatedCardPlay");
+                "= About to executeValidatedCardPlay");
         executeValidatedCardPlay(game, matchPlayer, cardCode);
         log.info("=== PLAY CARD AS HUMAN CONCLUDED ({}) ===", game.getCurrentPlayOrder());
     }
@@ -577,12 +606,12 @@ public class GameService {
         }
 
         // Step 2: Add the card to the trick
-        game.addCardToCurrentTrick(cardCode);
+        game.addCardCodeToCurrentTrick(cardCode);
 
         log.info("   | Card {} added to trick: {}. Hand now: {}", cardCode, game.getCurrentTrick(),
                 matchPlayer.getHand());
         game.setCurrentPlayOrder(game.getCurrentPlayOrder() + 1);
-        game.updatePhaseBasedOnPlayOrder();
+        game.updateGamePhaseBasedOnPlayOrder();
 
         // Step 3: Advance the turn if trick is not complete
         if (game.getCurrentTrickSize() < 4) {
@@ -620,8 +649,9 @@ public class GameService {
         game.setPreviousTrickLeaderMatchPlayerSlot(game.getTrickLeaderMatchPlayerSlot());
 
         // Step 3: Prepare for the next trick
+        game.updateGamePhaseBasedOnPlayOrder();
         game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
-        game.emptyCurrentTrick(); // also clears currentTrickMatchPlayerSlot internally
+        game.clearCurrentTrick(); // also clears currentTrickMatchPlayerSlot internally
 
         // Step 4: Set next trick leader — which resets trick matchPlayerSlots properly
         game.setTrickLeaderMatchPlayerSlot(winnerMatchPlayerSlot); // internally sets new matchPlayerSlots order
@@ -639,8 +669,9 @@ public class GameService {
     }
 
     @Transactional
-    public void passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO) {
-        cardPassingService.passingAcceptCards(game, matchPlayer, passingDTO);
+    public void passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO,
+            Boolean pickRandomly) {
+        cardPassingService.passingAcceptCards(game, matchPlayer, passingDTO, pickRandomly);
         gameRepository.saveAndFlush(game);
     }
 

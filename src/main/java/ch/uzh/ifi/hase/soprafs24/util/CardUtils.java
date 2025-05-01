@@ -124,4 +124,25 @@ public class CardUtils {
         }
     }
 
+    public static String normalizeCardCodeString(String cardCodes) {
+        if (cardCodes == null || cardCodes.isBlank()) {
+            return "";
+        }
+
+        List<String> codes = List.of(cardCodes.split(","));
+
+        // Validate all codes first
+        for (String code : codes) {
+            requireValidCardFormat(code.trim()); // throws if invalid
+        }
+
+        // Sort and return
+        List<String> sorted = codes.stream()
+                .map(String::trim)
+                .sorted(CardUtils::compareCards)
+                .collect(Collectors.toList());
+
+        return String.join(",", sorted);
+    }
+
 }

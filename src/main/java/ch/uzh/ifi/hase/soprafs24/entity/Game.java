@@ -2,9 +2,8 @@ package ch.uzh.ifi.hase.soprafs24.entity;
 
 import javax.persistence.*;
 import java.util.ArrayList;
-import java.util.LinkedHashSet;
+import java.util.Arrays;
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
@@ -17,6 +16,7 @@ import org.slf4j.LoggerFactory;
 public class Game {
 
     private static final Logger log = LoggerFactory.getLogger(Game.class);
+    private static final String CARD_CODE_PATTERN = "^[02-9AJKQ][CDHS]$";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -45,15 +45,11 @@ public class Game {
     @Column(name = "trick_leader_match_player_slot", nullable = false)
     private Integer trickLeaderMatchPlayerSlot = 0;
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "current_trick", joinColumns = @JoinColumn(name = "game_id"))
-    @Column(name = "card_code")
-    private Set<String> currentTrick = new LinkedHashSet<>();
+    @Column(name = "current_trick", length = 32)
+    private String currentTrick; // e.g., "2C,3D,QH,AS"
 
-    @ElementCollection(fetch = FetchType.EAGER)
-    @CollectionTable(name = "previous_trick", joinColumns = @JoinColumn(name = "game_id"))
-    @Column(name = "card_code")
-    private Set<String> previousTrick = new LinkedHashSet<>();
+    @Column(name = "previous_trick", length = 32)
+    private String previousTrick; // e.g., "2C,3D,QH,AS"
 
     @Column(nullable = false)
     private int currentTrickNumber = 0;
@@ -129,27 +125,6 @@ public class Game {
 
     public void setPhase(GamePhase phase) {
         this.phase = phase;
-    }
-
-    public List<String> getCurrentTrick() {
-        return new ArrayList<>(currentTrick); // preserve order
-    }
-
-    public void setCurrentTrick(List<String> currentTrick) {
-        this.currentTrick = new LinkedHashSet<>(currentTrick); // preserve order & remove duplicates
-    }
-
-    public String getCurrentTrickAsString() {
-        List<String> trick = this.getCurrentTrick();
-        return trick.stream().collect(Collectors.joining(","));
-    }
-
-    public List<String> getPreviousTrick() {
-        return new ArrayList<>(previousTrick);
-    }
-
-    public void setPreviousTrick(List<String> previousTrick) {
-        this.previousTrick = new LinkedHashSet<>(previousTrick);
     }
 
     public Integer getTrickLeaderMatchPlayerSlot() {
@@ -242,42 +217,105 @@ public class Game {
     public void setGameStats(List<GameStats> gameStats) {
         this.gameStats = gameStats;
     }
-    // === Game logic convenience methods ===
 
-    public void addCardToCurrentTrick(String cardCode) {
-        if (currentTrick.size() >= 4) {
-            throw new IllegalStateException("Current trick already has 4 cards");
-        }
-        currentTrick.add(cardCode);
-    }
-
-    public int getCurrentTrickSize() {
-        return currentTrick.size();
-    }
-
-    public String getCardInCurrentTrick(int index) {
-        List<String> trickAsList = new ArrayList<>(currentTrick);
-        if (index < 0 || index >= trickAsList.size()) {
-            throw new IndexOutOfBoundsException("No card at index " + index);
-        }
-        return trickAsList.get(index);
-    }
-
-    public void emptyCurrentTrick() {
-        if (this.currentTrick != null) {
-            this.currentTrick.clear();
-        }
-    }
-
-    public void updatePhaseBasedOnPlayOrder() {
-        if (currentPlayOrder >= 49) {
+    /**
+     * "Sets the GamePhase by currentPlayOrder."
+     */
+    public void updateGamePhaseBasedOnPlayOrder() {
+        if (currentPlayOrder >= 48) {
             this.phase = GamePhase.FINALTRICK;
             log.info("GamePhase set to FINALTRICK (playOrder = {}).", currentPlayOrder);
-        } else if (currentPlayOrder >= 5) {
+        } else if (currentPlayOrder >= 4) {
             this.phase = GamePhase.NORMALTRICK;
             log.info("GamePhase set to NORMALTRICK (playOrder = {}).", currentPlayOrder);
         } else {
             log.info("GamePhase remains unchanged (playOrder = {}).", currentPlayOrder);
         }
     }
+
+    /******************* CURRENT TRICK *******************************/
+
+    public List<String> getCurrentTrick() {
+        if (currentTrick == null || currentTrick.isBlank()) {
+            return new ArrayList<>();
+        }
+        return new ArrayList<>(Arrays.asList(currentTrick.split(",")));
+    }
+
+    public String getCurrentTrickAsString() {
+        return currentTrick;
+    }
+
+    public void setCurrentTrick(List<String> cards) {
+        this.currentTrick = String.join(",", cards);
+    }
+
+    public void addCardCodeToCurrentTrick(String cardCode) {
+        if (cardCode == null || !cardCode.matches(CARD_CODE_PATTERN)) {
+            throw new IllegalArgumentException("Invalid card code format: " + cardCode);
+        }
+
+        List<String> cards = getCurrentTrick();
+        if (cards.size() >= 4) {
+            throw new IllegalStateException("Current trick already has 4 cards.");
+        }
+
+        cards.add(cardCode);
+        setCurrentTrick(cards);
+    }
+
+    public void clearCurrentTrick() {
+        this.currentTrick = "";
+    }
+
+    public int getCurrentTrickSize() {
+        return getCurrentTrick().size();
+    }
+
+    public String getCardCodeInCurrentTrick(int index) {
+        List<String> cards = getCurrentTrick();
+        if (index < 0 || index >= cards.size()) {
+            throw new IndexOutOfBoundsException("Invalid card index in current trick: " + index);
+        }
+        return cards.get(index);
+    }
+
+    public String getCardCodeOfFirstCardInCurrentTrick() {
+        List<String> cards = getCurrentTrick();
+        if (cards.isEmpty()) {
+            return "";
+        }
+        return cards.get(0);
+    }
+
+    public String getSuitOfFirstCardInCurrentTrick() {
+        List<String> cards = getCurrentTrick();
+        if (cards.isEmpty()) {
+            return "";
+        }
+
+        String card = cards.get(0);
+        if (card == null || card.length() < 1) {
+            return "";
+        }
+
+        return card.substring(card.length() - 1); // e.g., "H"
+    }
+
+    /******************* PREVIOUS TRICK *******************************/
+    public List<String> getPreviousTrick() {
+        if (previousTrick == null || previousTrick.isBlank()) {
+            return new ArrayList<>();
+        }
+        return List.of(previousTrick.split(","));
+    }
+
+    public String getPreviousTrickAsString() {
+        return previousTrick;
+    }
+
+    public void setPreviousTrick(List<String> cards) {
+        this.previousTrick = String.join(",", cards);
+    }
+
 }

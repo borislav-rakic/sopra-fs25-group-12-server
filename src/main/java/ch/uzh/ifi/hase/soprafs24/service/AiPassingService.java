@@ -1,16 +1,20 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
-import java.util.stream.Collectors;
+import java.util.Random;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
+import ch.uzh.ifi.hase.soprafs24.util.StrategyRegistry;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 
 import org.slf4j.Logger;
@@ -29,7 +33,7 @@ public class AiPassingService {
         this.passedCardRepository = passedCardRepository;
     }
 
-    public List<String> selectCardsToPass(MatchPlayer matchPlayer) {
+    public List<String> selectCardsToPass(MatchPlayer matchPlayer, Strategy strategy) {
         String hand = matchPlayer.getHand();
         if (hand == null || hand.isBlank()) {
             throw new IllegalStateException("AI player has no cards to pass.");
@@ -37,32 +41,34 @@ public class AiPassingService {
 
         String[] cardsArray = hand.split(",");
         if (cardsArray.length < 3) {
-            throw new IllegalStateException("AI player does not have enough cards to pass.");
+            throw new IllegalStateException("Player does not have enough cards to pass.");
+        }
+        Strategy effectiveStrategy = strategy;
+
+        Random random = new Random();
+        if (strategy == Strategy.WAVERING) {
+            do {
+                effectiveStrategy = Strategy.values()[random.nextInt(Strategy.values().length)];
+            } while (effectiveStrategy == Strategy.WAVERING);
+            log.info("WAVERING strategy resolved to: {}", effectiveStrategy);
         }
 
-        List<String> sortedHand = java.util.Arrays.stream(cardsArray)
-                .sorted((card1, card2) -> {
-                    if (card1.equals("QS"))
-                        return -1;
-                    if (card2.equals("QS"))
-                        return 1;
+        List<String> cards = new ArrayList<>(List.of(cardsArray));
 
-                    boolean c1Heart = card1.endsWith("H");
-                    boolean c2Heart = card2.endsWith("H");
-                    if (c1Heart && !c2Heart)
-                        return -1;
-                    if (!c1Heart && c2Heart)
-                        return 1;
+        switch (effectiveStrategy) {
+            case LEFTMOST:
+                return cards.subList(0, 3);
 
-                    return 0;
-                })
-                .collect(Collectors.toList());
+            case RIGHTMOST:
+                return cards.subList(cards.size() - 3, cards.size());
 
-        log.error("Location: AiPassingService.selectCardsToPass. Hand: " + String.join(",", sortedHand));
+            case RANDOM:
+                Collections.shuffle(cards);
+                return cards.subList(0, 3);
 
-        return sortedHand.stream()
-                .limit(3)
-                .collect(Collectors.toList());
+            default:
+                throw new IllegalArgumentException("Unsupported strategy: " + strategy);
+        }
     }
 
     public void passForAllAiPlayers(Game game) {
@@ -70,7 +76,7 @@ public class AiPassingService {
         if (match == null) {
             throw new IllegalStateException("Game does not belong to match.");
         }
-
+        Strategy strategy = Strategy.RANDOM;
         for (int matchPlayerSlot = 1; matchPlayerSlot <= 4; matchPlayerSlot++) {
             MatchPlayer matchPlayer = match.requireMatchPlayerBySlot(matchPlayerSlot);
             if (matchPlayer == null) {
@@ -79,11 +85,14 @@ public class AiPassingService {
                         String.format("There is no match player in playerSlot %d.", playerSlot));
             }
             if (Boolean.TRUE.equals(matchPlayer.getIsAiPlayer())) {
-                List<String> cardsToPass = selectCardsToPass(matchPlayer);
-
+                strategy = StrategyRegistry.getStrategyForUserId(matchPlayer.getUser().getId());
+                // For now we keep it predictability at LEFTMOST
+                strategy = Strategy.LEFTMOST;
+                List<String> cardsToPass = selectCardsToPass(matchPlayer, strategy);
                 for (String cardCode : cardsToPass) {
                     if (!passedCardRepository.existsByGameAndRankSuit(game, cardCode)) {
                         PassedCard passedCard = new PassedCard(game, cardCode, matchPlayerSlot, game.getGameNumber());
+                        passedCard.setGame(game);
                         passedCardRepository.save(passedCard);
 
                         // Also remove the passed card from AI hand

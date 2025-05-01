@@ -64,7 +64,7 @@ public class CardRulesService {
             // playability of cards (passing must be over).
             return "";
         }
-        String leadingSuit = getLeadingSuitOfCurrentTrick(game);
+        String leadingSuit = game.getSuitOfFirstCardInCurrentTrick();
 
         log.info("=== Which Cards are Playable? ===");
         log.info(
@@ -112,12 +112,12 @@ public class CardRulesService {
                 if (!nonHearts.isBlank()) {
                     log.info("=== VERDICT: Hearts not broken, and the player has non-Hearts cards: [{}]. ===",
                             nonHearts);
-                    return nonHearts;
+                    return CardUtils.normalizeCardCodeString(nonHearts);
                 }
             }
 
             log.info("=== VERDICT: Player only has Hearts or Hearts are broken; may play any card: [{}]. ===", hand);
-            return hand;
+            return CardUtils.normalizeCardCodeString(hand);
         }
 
         // Player must follow suit if possible
@@ -136,10 +136,10 @@ public class CardRulesService {
         if (matchingCards.length() > 0) {
             log.info("=== VERDICT: Player has cards in the leading suit and must play one of: [{}]. ===",
                     matchingCards);
-            return matchingCards.toString();
+            return CardUtils.normalizeCardCodeString(matchingCards.toString());
         } else {
             log.info("==== VERDICT: Player has no cards in the leading suit and may play any card: [{}]. ===", hand);
-            return hand;
+            return CardUtils.normalizeCardCodeString(hand);
         }
     }
 
@@ -177,13 +177,6 @@ public class CardRulesService {
 
         log.info("+++ VERDICT: CARD {} IS OK TO PLAY IN TRICK {} [#{}] +++",
                 cardCode, game.getCurrentTrick(), game.getCurrentTrickNumber());
-    }
-
-    private String getLeadingSuitOfCurrentTrick(Game game) {
-        if (game.getCurrentTrickSize() == 0)
-            return null;
-        String firstCard = game.getCardInCurrentTrick(0);
-        return firstCard.substring(firstCard.length() - 1);
     }
 
     /**

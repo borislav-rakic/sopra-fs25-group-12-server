@@ -19,11 +19,13 @@ public class PollingDTO {
     private boolean trickInProgress; // [12]
     private boolean heartsBroken; // [13]
 
-    private List<Card> currentTrick; // [14]
+    private List<Card> currentTrick; // [14a]
+    private String currentTrickAsString; // [14b]
     private Integer currentTrickLeaderMatchPlayerSlot; // [15a]
     private Integer currentTrickLeaderPlayerSlot; // [15b]
 
-    private List<Card> previousTrick; // [16]
+    private List<Card> previousTrick; // [16a]
+    private String previousTrickAsString; // [16b]
     private Integer previousTrickWinnerMatchPlayerSlot; // [17a]
     private Integer previousTrickWinnerPlayerSlot; // [17b]
     private int previousTrickPoints; // [18]
@@ -34,12 +36,15 @@ public class PollingDTO {
     private Map<Integer, Integer> cardsInHandPerPlayer; // [23]
     private Map<Integer, Integer> playerPoints; // [24]
     private Map<Integer, Integer> aiPlayers; // [25]
+
     // Info about myself
     private int matchPlayerSlot; // [31a]
     private int playerSlot; // [31b]
     private boolean isMyTurn = false; // [32]
-    private List<PlayerCardDTO> playerCards; // [33]
-    private List<PlayerCardDTO> playableCards; // [34]
+    private List<PlayerCardDTO> playerCards; // [33a]
+    private String playerCardsAsString; // [33b]
+    private List<PlayerCardDTO> playableCards; // [34a]
+    private String playableCardsAsString; // [34a]
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -114,6 +119,22 @@ public class PollingDTO {
         this.playableCards = playableCards;
     }
 
+    public String getPlayableCardsAsString() {
+        return playableCardsAsString;
+    }
+
+    public void setPlayableCardsAsString(String playableCardsAsString) {
+        this.playableCardsAsString = playableCardsAsString;
+    }
+
+    public String getPlayerCardsAsString() {
+        return playerCardsAsString;
+    }
+
+    public void setPlayerCardsAsString(String playerCardsAsString) {
+        this.playerCardsAsString = playerCardsAsString;
+    }
+
     public boolean isMyTurn() {
         return isMyTurn;
     }
@@ -138,13 +159,7 @@ public class PollingDTO {
         this.matchPhase = matchPhase;
     }
 
-    public List<Card> getPreviousTrick() {
-        return previousTrick;
-    }
-
-    public void setPreviousTrick(List<Card> previousTrick) {
-        this.previousTrick = previousTrick;
-    }
+    /******************** PREVIOUS TRICK **************************/
 
     public List<Card> getCurrentTrick() {
         return currentTrick;
@@ -152,6 +167,14 @@ public class PollingDTO {
 
     public void setCurrentTrick(List<Card> currentTrick) {
         this.currentTrick = currentTrick;
+    }
+
+    public String getCurrentTrickAsString() {
+        return currentTrickAsString;
+    }
+
+    public void setCurrentTrickAsString(String currentTrickAsString) {
+        this.currentTrickAsString = currentTrickAsString;
     }
 
     public void setCurrentTrickLeaderPlayerSlot(int currentTrickLeaderPlayerSlot) {
@@ -168,6 +191,24 @@ public class PollingDTO {
 
     public void setCurrentTrickLeaderMatchPlayerSlot(Integer currentTrickLeaderMatchPlayerSlot) {
         this.currentTrickLeaderMatchPlayerSlot = currentTrickLeaderMatchPlayerSlot;
+    }
+
+    /******************** PREVIOUS TRICK **************************/
+
+    public List<Card> getPreviousTrick() {
+        return previousTrick;
+    }
+
+    public void setPreviousTrick(List<Card> previousTrick) {
+        this.previousTrick = previousTrick;
+    }
+
+    public String getPreviousTrickAsString() {
+        return previousTrickAsString;
+    }
+
+    public void setPreviousTrickAsString(String previousTrickAsString) {
+        this.previousTrickAsString = previousTrickAsString;
     }
 
     public Integer getPreviousTrickWinnerMatchPlayerSlot() {

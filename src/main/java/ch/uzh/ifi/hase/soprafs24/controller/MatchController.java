@@ -234,7 +234,21 @@ public class MatchController {
         // Optionally extract Bearer token, if needed
         String token = authHeader.replace("Bearer ", "");
         // Delegate the work to the service
-        matchService.passingAcceptCards(matchId, passingDTO, token);
+        Boolean pickRandomly = false;
+        matchService.passingAcceptCards(matchId, passingDTO, token, pickRandomly);
+    }
+
+    @PostMapping("/matches/{matchId}/passing/any")
+    @ResponseStatus(HttpStatus.OK)
+    public void passAnyCards(
+            @PathVariable Long matchId,
+            @RequestBody GamePassingDTO passingDTO,
+            @RequestHeader("Authorization") String authHeader) {
+        // Optionally extract Bearer token, if needed
+        String token = authHeader.replace("Bearer ", "");
+        // Delegate the work to the service
+        Boolean pickRandomly = true;
+        matchService.passingAcceptCards(matchId, passingDTO, token, pickRandomly);
     }
 
     /**
@@ -294,6 +308,16 @@ public class MatchController {
             @RequestHeader("Authorization") String authHeader,
             @RequestBody PlayedCardDTO playedCardDTO) {
         String token = authHeader.replace("Bearer ", "");
+        matchService.playCardAsHuman(token, matchId, playedCardDTO);
+    }
+
+    @PostMapping("/matches/{matchId}/play/any")
+    @ResponseStatus(HttpStatus.OK)
+    public void playAnyCardAsHuman(@PathVariable Long matchId,
+            @RequestHeader("Authorization") String authHeader,
+            @RequestBody PlayedCardDTO playedCardDTO) {
+        String token = authHeader.replace("Bearer ", "");
+        playedCardDTO.setCard("XX");
         matchService.playCardAsHuman(token, matchId, playedCardDTO);
     }
 }

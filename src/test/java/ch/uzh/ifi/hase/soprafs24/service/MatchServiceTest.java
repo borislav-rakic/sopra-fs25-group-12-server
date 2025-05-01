@@ -25,10 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
@@ -51,10 +48,13 @@ public class MatchServiceTest {
     @Mock
     private MatchPlayerRepository matchPlayerRepository = Mockito.mock(MatchPlayerRepository.class);
     @Mock
+    private CardRulesService cardRulesService = Mockito.mock(CardRulesService.class);
+    @Mock
     private GameService gameService = Mockito.mock(GameService.class);
 
     @InjectMocks
     private MatchService matchService = new MatchService(
+            cardRulesService,
             gameRepository,
             gameService,
             matchPlayerRepository,
@@ -88,6 +88,7 @@ public class MatchServiceTest {
         user2.setStatus(UserStatus.ONLINE);
 
         match = new Match();
+        match.setPhase(MatchPhase.SETUP);
 
         List<MatchPlayer> matchPlayers = new ArrayList<>();
         matchPlayers.add(new MatchPlayer());

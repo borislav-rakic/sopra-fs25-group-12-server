@@ -427,7 +427,7 @@ public class GameServiceTest {
         given(passedCardRepository.save(Mockito.any())).willReturn(new PassedCard());
 
         // === ACT ===
-        gameService.passingAcceptCards(game, matchPlayer, dto);
+        gameService.passingAcceptCards(game, matchPlayer, dto, false);
 
         // === VERIFY ===
     }
