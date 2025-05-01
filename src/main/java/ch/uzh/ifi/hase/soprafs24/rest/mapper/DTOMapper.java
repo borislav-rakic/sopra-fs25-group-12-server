@@ -4,6 +4,9 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.mapstruct.*;
 import org.mapstruct.factory.Mappers;
 
@@ -22,6 +25,21 @@ import org.mapstruct.factory.Mappers;
 public interface DTOMapper {
 
   DTOMapper INSTANCE = Mappers.getMapper(DTOMapper.class);
+
+  @Named("convertAiPlayersToFrontendFormat")
+  default Map<Integer, Integer> convertAiPlayersToFrontendFormat(Map<Integer, Integer> aiPlayers) {
+    if (aiPlayers == null) {
+      return null;
+    }
+
+    Map<Integer, Integer> translated = new HashMap<>();
+    for (Map.Entry<Integer, Integer> entry : aiPlayers.entrySet()) {
+      int backendSlot = entry.getKey(); // e.g., 1–4
+      int frontendSlot = backendSlot - 1; // convert to 0-based
+      translated.put(frontendSlot, entry.getValue());
+    }
+    return translated;
+  }
 
   @Mapping(source = "password", target = "password")
   @Mapping(source = "username", target = "username")
@@ -130,7 +148,7 @@ public interface DTOMapper {
   @Mapping(source = "matchGoal", target = "matchGoal")
   @Mapping(source = "matchPlayers", target = "matchPlayerIds")
   @Mapping(source = "started", target = "started")
-  @Mapping(source = "aiPlayers", target = "aiPlayers")
+  @Mapping(source = "aiPlayers", target = "aiPlayers", qualifiedByName = "convertAiPlayersToFrontendFormat")
   @Mapping(source = "joinRequests", target = "joinRequests")
   @Mapping(source = "player1", target = "player1Id")
   @Mapping(source = "player2", target = "player2Id")

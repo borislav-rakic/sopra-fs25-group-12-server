@@ -463,7 +463,7 @@ public class MatchService {
                         && Boolean.TRUE.equals(mp.getUser().getIsAiPlayer()))
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "No AI player found at the specified playerSlot"));
+                        String.format("No AI player found at the specified playerSlot %d.", playerSlot)));
 
         // Remove MatchPlayer
         match.getMatchPlayers().remove(toRemove);

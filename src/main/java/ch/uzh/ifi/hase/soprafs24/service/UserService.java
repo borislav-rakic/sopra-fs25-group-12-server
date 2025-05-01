@@ -71,7 +71,7 @@ public class UserService {
   }
 
   public void populateUsersFromSQL() {
-    if (userRepository.count() > 9) {
+    if (userRepository.count() > 10) {
       return;
     }
     try {
