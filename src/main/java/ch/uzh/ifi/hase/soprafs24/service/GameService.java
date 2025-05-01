@@ -35,7 +35,6 @@ import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.GameResultDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
@@ -114,6 +113,9 @@ public class GameService {
         if (game == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "There is no active  game in this match.");
         }
+        // determine if owner is polling
+        int currentSlot = game.getCurrentMatchPlayerSlot();
+        User currentSlotUser = match.requireUserBySlot(currentSlot);
 
         // TRICK [12]
         boolean isTrickInProgress = game.getCurrentTrickSize() > 0 && game.getCurrentTrickSize() < 4;
@@ -145,6 +147,8 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Requesting Player does not appear to be part of this Match.");
         }
+
+        boolean poolingMatchOwner = (requestingMatchPlayer.getMatchPlayerSlot() == 1);
 
         // OTHER PLAYERS
 
@@ -232,6 +236,23 @@ public class GameService {
 
         PollingDTO dto = new PollingDTO();
 
+        if (poolingMatchOwner || match.getPhase() == MatchPhase.FINISHED) {
+            // Does match happen to be over?
+            if (match.getPhase() == MatchPhase.FINISHED) {
+                dto.setMatchPhase(MatchPhase.FINISHED);
+                dto.setResultHtml(buildMatchResultHtml(match, game));
+                return dto;
+            }
+            // does game happen to be over?
+            if (game.getPhase() == GamePhase.FINALTRICK && game.getCurrentPlayOrder() >= FULL_DECK_CARD_COUNT) {
+                // set all MatchPlayers to NOT ready.
+                resetAllPlayersReady(match.getMatchId());
+                dto.setResultHtml(buildGameResultHtml(match, game));
+                dto.setGamePhase(GamePhase.RESULT);
+                return dto;
+            }
+        }
+
         dto.setMatchId(match.getMatchId()); // [1]
         dto.setMatchGoal(match.getMatchGoal()); // [2]
         dto.setHostId(match.getHostId()); // [3]
@@ -258,6 +279,8 @@ public class GameService {
         dto.setCardsInHandPerPlayer(handCounts); // [23]
         dto.setPlayerPoints(pointsOfPlayers); // [24]
         dto.setAiPlayers(match.getAiPlayers()); // [25]
+        dto.setCurrentPlayerSlot(game.getCurrentMatchPlayerSlot() - 1);
+        dto.setCurrentPlayOrder(game.getCurrentPlayOrder());
 
         // Info about myself
         dto.setMatchPlayerSlot(matchPlayer.getMatchPlayerSlot());
@@ -268,18 +291,10 @@ public class GameService {
         dto.setPlayableCards(playableCardDTOList); // [34a]
         dto.setPlayableCardsAsString(playableCards); // [34b]
 
-        if (game.getPhase() == GamePhase.FINALTRICK && game.getCurrentPlayOrder() >= FULL_DECK_CARD_COUNT) {
-
-            dto.setGamePhase(GamePhase.RESULT);
-            return dto;
-        }
-
         /// See if an AI PLAYER is up for their turn.
-        int currentSlot = game.getCurrentMatchPlayerSlot();
-        User currentSlotUser = match.requireUserBySlot(currentSlot);
         if (
         // ... user 1, i.e. the match owner, happens to poll ...
-        requestingMatchPlayer.getMatchPlayerSlot() == 1
+        poolingMatchOwner
                 // ... there is a user in current matchPlayerSlot ...
                 && currentSlotUser != null
                 // ... this user happens to be an ai player ...
@@ -518,6 +533,8 @@ public class GameService {
             if (game.getCurrentPlayOrder() > FULL_DECK_CARD_COUNT) {
                 return false;
             }
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    "No Player found a this slot.");
         }
         Strategy strategy = StrategyRegistry.getStrategyForUserId(aiPlayer.getUser().getId());
         // For now always play predictably the leftmost card.
@@ -625,6 +642,7 @@ public class GameService {
         log.info("   | Card {} added to trick: {}. Hand now: {}", cardCode, game.getCurrentTrick(),
                 matchPlayer.getHand());
         game.setCurrentPlayOrder(game.getCurrentPlayOrder() + 1);
+        log.info("CURRENTPLAYORDER {}", game.getCurrentPlayOrder());
         game.updateGamePhaseBasedOnPlayOrder();
 
         // Step 3: Advance the turn if trick is not complete
@@ -706,56 +724,29 @@ public class GameService {
         return game;
     }
 
-    public GameResultDTO buildGameResult(Game game) {
-        Match match = game.getMatch();
-        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
+    @Transactional
+    public void resetAllPlayersReady(Long matchId) {
+        Match match = matchRepository.findById(matchId)
+                .orElseThrow(() -> new IllegalArgumentException("Match not found: " + matchId));
 
-        List<GameResultDTO.PlayerScore> scores = new ArrayList<>();
+        List<MatchPlayer> players = match.getMatchPlayers();
 
-        for (MatchPlayer player : matchPlayers) {
-            GameResultDTO.PlayerScore score = new GameResultDTO.PlayerScore();
-            score.setUsername(player.getUser().getUsername());
-            score.setTotalScore(player.getMatchScore());
-            score.setPointsThisGame(player.getGameScore()); // this game's score
-
-            scores.add(score);
+        if (players.size() != 4) {
+            throw new IllegalStateException("Expected 4 match players, but found " + players.size());
         }
-
-        GameResultDTO resultDTO = new GameResultDTO();
-        resultDTO.setMatchId(match.getMatchId());
-        resultDTO.setGameNumber(game.getGameNumber());
-        resultDTO.setPlayerScores(scores);
-
-        return resultDTO;
-    }
-
-    public GameResultDTO concludeGame(Game game) {
-        if (game.getCurrentPlayOrder() < FULL_DECK_CARD_COUNT) {
-            throw new IllegalStateException("Game not finished.");
-        }
-
-        List<MatchPlayer> players = game.getMatch().getMatchPlayers();
-        Integer shooter = players.stream()
-                .filter(p -> p.getGameScore() == 26)
-                .map(MatchPlayer::getMatchPlayerSlot)
-                .findFirst()
-                .orElse(null);
 
         for (MatchPlayer player : players) {
-            if (shooter != null && player.getMatchPlayerSlot() != shooter) {
-                player.setGameScore(26);
-            } else if (shooter != null) {
-                player.setGameScore(0);
-            }
-
-            player.setMatchScore(player.getMatchScore() + player.getGameScore());
-            matchPlayerRepository.save(player);
+            player.resetReady(); // Custom logic
         }
-
-        game.setPhase(GamePhase.FINISHED);
-        gameRepository.save(game);
-
-        return buildGameResult(game);
     }
 
+    public String buildGameResultHtml(Match match, Game game) {
+        String html = "<div>GAME OVER</div>";
+        return html;
+    }
+
+    public String buildMatchResultHtml(Match match, Game game) {
+        String html = "<div>MATCH OVER</div>";
+        return html;
+    }
 }

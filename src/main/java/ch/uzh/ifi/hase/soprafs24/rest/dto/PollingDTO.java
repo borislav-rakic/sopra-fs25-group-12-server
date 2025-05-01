@@ -23,12 +23,15 @@ public class PollingDTO {
     private String currentTrickAsString; // [14b]
     private Integer currentTrickLeaderMatchPlayerSlot; // [15a]
     private Integer currentTrickLeaderPlayerSlot; // [15b]
+    private Integer currentPlayerSlot; // [15c]
+    private int currentPlayOrder; // [15d]
 
     private List<Card> previousTrick; // [16a]
     private String previousTrickAsString; // [16b]
     private Integer previousTrickWinnerMatchPlayerSlot; // [17a]
     private Integer previousTrickWinnerPlayerSlot; // [17b]
     private int previousTrickPoints; // [18]
+    private String resultHtml; // [18a]
 
     // Info about the other players
     private List<String> matchPlayers; // [21]
@@ -78,6 +81,14 @@ public class PollingDTO {
         this.matchGoal = matchGoal;
     }
 
+    public int getCurrentPlayOrder() {
+        return currentPlayOrder;
+    }
+
+    public void setCurrentPlayOrder(int currentPlayOrder) {
+        this.currentPlayOrder = currentPlayOrder;
+    }
+
     public int getMatchPlayerSlot() {
         return matchPlayerSlot;
     }
@@ -93,6 +104,14 @@ public class PollingDTO {
 
     public void setPlayerSlot(int playerSlot) {
         this.playerSlot = playerSlot;
+    }
+
+    public Integer getCurrentPlayerSlot() {
+        return currentPlayerSlot;
+    }
+
+    public void setCurrentPlayerSlot(Integer currentPlayerSlot) {
+        this.currentPlayerSlot = currentPlayerSlot;
     }
 
     public Map<Integer, Integer> getAiPlayers() {
@@ -125,6 +144,14 @@ public class PollingDTO {
 
     public void setPlayableCardsAsString(String playableCardsAsString) {
         this.playableCardsAsString = playableCardsAsString;
+    }
+
+    public String getResultHtml() {
+        return resultHtml;
+    }
+
+    public void setResultHtml(String resultHtml) {
+        this.resultHtml = resultHtml;
     }
 
     public String getPlayerCardsAsString() {

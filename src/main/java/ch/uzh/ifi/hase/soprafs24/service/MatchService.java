@@ -761,7 +761,8 @@ public class MatchService {
         int matchPlayerSlot = dto.getPlayerSlot() + 1; // 1 to account for 0-based frontend counting
         if (matchPlayer.getMatchPlayerSlot() != matchPlayerSlot) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    "Mismatch between token and matchPlayerSlot");
+                    String.format("Mismatch between token-derived slot %d and matchPlayerSlot %d.",
+                            matchPlayer.getMatchPlayerSlot(), matchPlayerSlot));
         }
         String cardCode = "";
         if (dto.getCard() == "XX") {
@@ -818,10 +819,12 @@ public class MatchService {
         return activeGame;
     }
 
-    public GameResultDTO checkGameAndStartNextIfNeeded(Match match) {
-        Game activeGame = match.getActiveGame();
-        GameResultDTO result = gameService.concludeGame(activeGame);
-
+    public void checkGameAndStartNextIfNeeded(Match match) {
+        Game game = requireActiveGameByMatch(match);
+        if (game != null) {
+            // There is no active game anymore!
+            // ###################### NOT FINISHED
+        }
         boolean matchOver = match.getMatchPlayers().stream()
                 .anyMatch(mp -> mp.getMatchScore() >= match.getMatchGoal());
 
@@ -843,8 +846,6 @@ public class MatchService {
             match.setPhase(MatchPhase.FINISHED);
             matchRepository.save(match);
         }
-
-        return result;
     }
 
     public void confirmGameResult(String token, Long matchId) {
