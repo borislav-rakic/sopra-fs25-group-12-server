@@ -847,4 +847,40 @@ public class MatchService {
         return result;
     }
 
+    public void confirmGameResult(String token, Long matchId) {
+        Match match = requireMatchByMatchId(matchId);
+        Game game = requireActiveGameByMatch(match);
+
+        boolean allHumansReady = match.getMatchPlayers().stream()
+                .filter(mp -> !Boolean.TRUE.equals(mp.getUser().getIsAiPlayer()))
+                .allMatch(mp -> mp.getIsReady());
+
+        if (allHumansReady) {
+            game.setPhase(GamePhase.FINISHED);
+            gameRepository.save(game);
+
+            if (shouldEndMatch(match)) {
+                match.setPhase(MatchPhase.FINISHED);
+            } else {
+                match.setPhase(MatchPhase.BETWEEN_GAMES);
+                Long seed = null;
+                String seed_prefix = ExternalApiClientService.SEED_PREFIX;
+                if (game.getDeckId().startsWith(seed_prefix)) {
+                    String numberPart = game.getDeckId().substring(seed_prefix.length());
+                    seed = Long.parseLong(numberPart);
+                }
+                gameService.createAndStartGameForMatch(match, seed);
+                match.setPhase(MatchPhase.BETWEEN_GAMES);
+            }
+
+            matchRepository.save(match);
+        }
+    }
+
+    public boolean shouldEndMatch(Match match) {
+        int goal = match.getMatchGoal();
+        return match.getMatchPlayers().stream()
+                .anyMatch(mp -> mp.getGameScore() >= goal);
+    }
+
 }

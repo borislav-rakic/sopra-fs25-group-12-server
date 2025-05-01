@@ -320,4 +320,10 @@ public class MatchController {
         playedCardDTO.setCard("XX");
         matchService.playCardAsHuman(token, matchId, playedCardDTO);
     }
+
+    @PostMapping("/matches/{matchId}/game/confirm")
+    public void confirmGameResult(@PathVariable Long matchId, @RequestHeader("Authorization") String authHeader) {
+        String token = authHeader.replace("Bearer ", "");
+        matchService.confirmGameResult(token, matchId);
+    }
 }

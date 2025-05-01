@@ -98,7 +98,7 @@ public class GameService {
     }
 
     private static final Logger log = LoggerFactory.getLogger(GameService.class);
-    private static final Boolean PLAY_ALL_AI_TURNS_AT_ONCE = true;
+    private static final Boolean PLAY_ALL_AI_TURNS_AT_ONCE = false;
 
     /**
      * Gets the necessary information for a player.
@@ -268,6 +268,12 @@ public class GameService {
         dto.setPlayableCards(playableCardDTOList); // [34a]
         dto.setPlayableCardsAsString(playableCards); // [34b]
 
+        if (game.getPhase() == GamePhase.FINALTRICK && game.getCurrentPlayOrder() >= FULL_DECK_CARD_COUNT) {
+
+            dto.setGamePhase(GamePhase.RESULT);
+            return dto;
+        }
+
         /// See if an AI PLAYER is up for their turn.
         int currentSlot = game.getCurrentMatchPlayerSlot();
         User currentSlotUser = match.requireUserBySlot(currentSlot);
@@ -288,6 +294,10 @@ public class GameService {
     }
 
     public void createAndStartGameForMatch(Match match, Long seed) {
+        if (match.getPhase() != MatchPhase.READY && match.getPhase() != MatchPhase.BETWEEN_GAMES) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    String.format("Game cannot be created if match is in phase %s.", match.getPhase()));
+        }
         Game game = createNewGameInMatch(match);
         if (game == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Game could not be created.");
@@ -409,6 +419,8 @@ public class GameService {
         gameStatsService.initializeGameStats(match, game);
         gameStatsRepository.flush();
 
+        log.info("Created new game {} (gamePhase={}) for match {} (matchPhase={}).", game.getGameId(),
+                match.getMatchId(), game.getPhase(), match.getPhase());
         return game;
     }
 
@@ -503,7 +515,9 @@ public class GameService {
 
         // Stop if it's a human's turn or no AI player
         if (aiPlayer == null || !Boolean.TRUE.equals(aiPlayer.getIsAiPlayer())) {
-            return false;
+            if (game.getCurrentPlayOrder() > FULL_DECK_CARD_COUNT) {
+                return false;
+            }
         }
         Strategy strategy = StrategyRegistry.getStrategyForUserId(aiPlayer.getUser().getId());
         // For now always play predictably the leftmost card.
