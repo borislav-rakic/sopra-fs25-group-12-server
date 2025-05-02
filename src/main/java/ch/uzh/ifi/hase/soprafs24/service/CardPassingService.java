@@ -11,6 +11,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
@@ -264,7 +265,7 @@ public class CardPassingService {
     }
 
     private boolean isValidCardFormat(String cardCode) {
-        return cardCode != null && cardCode.matches("^[02-9JQKA][HDCS]$");
+        return cardCode != null && cardCode.matches(GameConstants.CARD_CODE_REGEX);
     }
 
     public int playerSlotToMatchPlayerSlot(int playerSlot) {

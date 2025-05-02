@@ -14,4 +14,6 @@ public interface GameRepository extends JpaRepository<Game, Long> {
     Game findFirstByMatchAndPhaseNotIn(Match match, List<GamePhase> excludedPhases);
 
     Game findByGameId(Long gameId);
+
+    List<Game> findByMatchMatchIdAndPhase(Long matchId, GamePhase phase);
 }

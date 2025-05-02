@@ -58,6 +58,7 @@ public class GameStatsService {
             }
         }
         gameStatsRepository.flush();
+
     }
 
     public List<GameStats> getGameStatsForMatch(Long matchId) {

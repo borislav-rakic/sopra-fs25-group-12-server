@@ -6,6 +6,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 
 import org.slf4j.Logger;
@@ -16,7 +17,6 @@ import org.slf4j.LoggerFactory;
 public class Game {
 
     private static final Logger log = LoggerFactory.getLogger(Game.class);
-    private static final String CARD_CODE_PATTERN = "^[02-9AJKQ][CDHS]$";
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -251,7 +251,7 @@ public class Game {
     }
 
     public void addCardCodeToCurrentTrick(String cardCode) {
-        if (cardCode == null || !cardCode.matches(CARD_CODE_PATTERN)) {
+        if (cardCode == null || !cardCode.matches(GameConstants.CARD_CODE_REGEX)) {
             throw new IllegalArgumentException("Invalid card code format: " + cardCode);
         }
 
