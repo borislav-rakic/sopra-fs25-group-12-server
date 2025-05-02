@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
@@ -25,21 +26,14 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
-import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
-import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
-import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 import ch.uzh.ifi.hase.soprafs24.util.StrategyRegistry;
-import reactor.core.publisher.Mono;
 
 /**
  * Game Service
@@ -57,15 +51,10 @@ public class GameService {
     private final AiPlayingService aiPlayingService;
     private final CardPassingService cardPassingService;
     private final CardRulesService cardRulesService;
-    private final ExternalApiClientService externalApiClientService;
     private final GameRepository gameRepository;
-    private final GameStatsRepository gameStatsRepository;
     private final GameStatsService gameStatsService;
     private final MatchPlayerRepository matchPlayerRepository;
-    private final UserRepository userRepository;
     private final MatchRepository matchRepository;
-
-    private static final int FULL_DECK_CARD_COUNT = 52;
 
     // or via constructor injection
 
@@ -74,25 +63,17 @@ public class GameService {
             @Qualifier("aiPlayingService") AiPlayingService aiPlayingService,
             @Qualifier("cardPassingService") CardPassingService cardPassingService,
             @Qualifier("cardRulesService") CardRulesService cardRulesService,
-            @Qualifier("externalApiClientService") ExternalApiClientService externalApiClientService,
             @Qualifier("gameRepository") GameRepository gameRepository,
-            @Qualifier("gameStatsRepository") GameStatsRepository gameStatsRepository,
             @Qualifier("gameStatsService") GameStatsService gameStatsService,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
-            @Qualifier("matchRepository") MatchRepository matchRepository,
-            @Qualifier("passedCardRepository") PassedCardRepository passedCardRepository,
-            @Qualifier("userRepository") UserRepository userRepository,
-            @Qualifier("userService") UserService userService) {
+            @Qualifier("matchRepository") MatchRepository matchRepository) {
         this.aiPlayingService = aiPlayingService;
         this.cardPassingService = cardPassingService;
         this.cardRulesService = cardRulesService;
-        this.externalApiClientService = externalApiClientService;
         this.gameRepository = gameRepository;
-        this.gameStatsRepository = gameStatsRepository;
         this.gameStatsService = gameStatsService;
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchRepository = matchRepository;
-        this.userRepository = userRepository;
 
     }
 
@@ -244,7 +225,8 @@ public class GameService {
                 return dto;
             }
             // does game happen to be over?
-            if (game.getPhase() == GamePhase.FINALTRICK && game.getCurrentPlayOrder() >= FULL_DECK_CARD_COUNT) {
+            if (game.getPhase() == GamePhase.FINALTRICK
+                    && game.getCurrentPlayOrder() >= GameConstants.FULL_DECK_CARD_COUNT) {
                 // set all MatchPlayers to NOT ready.
                 resetAllPlayersReady(match.getMatchId());
                 dto.setResultHtml(buildGameResultHtml(match, game));
@@ -308,204 +290,6 @@ public class GameService {
         return dto;
     }
 
-    public void createAndStartGameForMatch(Match match, Long seed) {
-        if (match.getPhase() != MatchPhase.READY && match.getPhase() != MatchPhase.BETWEEN_GAMES) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    String.format("Game cannot be created if match is in phase %s.", match.getPhase()));
-        }
-        Game game = createNewGameInMatch(match);
-        if (game == null) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Game could not be created.");
-        }
-
-        if (seed != null && seed != 0) {
-            game.setDeckId(ExternalApiClientService.buildSeedString(seed));
-            gameRepository.save(game);
-            distributeCards(match, game, seed);
-        } else {
-            fetchDeckAndDistributeCardsAsync(game.getGameId(), match.getMatchId());
-        }
-    }
-
-    /**
-     * Starts the match when the host clicks on the start button
-     * 
-     * @param matchId The match's id
-     * @param token   The token of the player sending the request
-     */
-    @Transactional
-    public void __startMatch(Long matchId, String token, Long seed) {
-        User user = userRepository.findUserByToken(token);
-        if (user == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found");
-        }
-
-        Match match = matchRepository.findMatchByMatchId(matchId);
-        if (match == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
-        } else if (match.getPhase() == MatchPhase.SETUP) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Match is not ready to start.");
-        } else if (match.getPhase().inGame()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Match is already in progress.");
-        } else if (match.getPhase().over()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Match is already over.");
-        }
-
-        Game game = createNewGameInMatch(match);
-        if (game == null) {
-            throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Game could not be created.");
-        }
-        Long savedGameId = game.getGameId();
-
-        match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
-
-        if (seed != null && seed != 0) {
-            game.setDeckId(ExternalApiClientService.buildSeedString(seed));
-            gameRepository.save(game);
-            distributeCards(match, game, seed);
-        } else {
-            fetchDeckAndDistributeCardsAsync(savedGameId, matchId);
-        }
-    }
-
-    // fetchDeckAndDistributeCardsAsync()
-    // is taking place outside the transactional method!
-
-    public void fetchDeckAndDistributeCardsAsync(Long savedGameId, Long matchId) {
-        Mono<NewDeckResponse> newDeckResponseMono = externalApiClientService.createNewDeck();
-
-        newDeckResponseMono.subscribe(response -> {
-            // Fresh DB fetch inside async
-            Game savedGame = gameRepository.findById(savedGameId)
-                    .orElseThrow(() -> new EntityNotFoundException("Game not found"));
-
-            Match savedMatch = matchRepository.findMatchByMatchId(matchId);
-            if (savedMatch == null) {
-                throw new EntityNotFoundException("Match not found");
-            }
-
-            savedGame.setDeckId(response.getDeck_id());
-            gameRepository.save(savedGame);
-
-            distributeCards(savedMatch, savedGame, null);
-        }, error -> {
-            // Good practice: catch errors inside subscribe!
-            log.error("Failed to fetch deck from external API", error);
-        });
-    }
-
-    /**
-     * Returns the next id of a game about to be started.
-     * 
-     * @param match The match to be started.
-     * @return game The new Game instance.
-     */
-    public int determineNextGameNumber(Match match) {
-        return match.getGames().stream()
-                .mapToInt(Game::getGameNumber)
-                .max()
-                .orElse(0) + 1;
-    }
-
-    /**
-     * Creates and persists a new Game for the given Match,
-     * assigning the next available game number and updating Match status
-     * accordingly.
-     *
-     * @param match The Match entity to which the new Game will belong.
-     * @return The newly created and saved Game entity.
-     */
-    private Game createNewGameInMatch(Match match) {
-        int nextGameNumber = determineNextGameNumber(match);
-
-        Game game = new Game();
-        game.setGameNumber(nextGameNumber);
-        game.setPhase(GamePhase.PRESTART);
-        game.setCurrentPlayOrder(0);
-
-        match.addGame(game);
-
-        gameRepository.save(game);
-        gameRepository.flush();
-
-        match.setPhase(MatchPhase.READY);
-        match.setStarted(true);
-        matchRepository.save(match);
-        gameStatsService.initializeGameStats(match, game);
-        gameStatsRepository.flush();
-
-        log.info("Created new game {} (gamePhase={}) for match {} (matchPhase={}).", game.getGameId(),
-                match.getMatchId(), game.getPhase(), match.getPhase());
-        return game;
-    }
-
-    /**
-     * Distributes 13 cards to each player
-     */
-    public void distributeCards(Match match, Game game, Long seed) {
-        if (seed != null && seed % 10000 == 9247) {
-            List<CardResponse> deterministicDeck = ExternalApiClientService
-                    .generateDeterministicDeck(FULL_DECK_CARD_COUNT, seed);
-            distributeFullDeckToPlayers(match, game, deterministicDeck);
-            return;
-        }
-        Long gameId = game.getGameId();
-        Long matchId = match.getMatchId();
-        Mono<DrawCardResponse> drawCardResponseMono = externalApiClientService.drawCard(game.getDeckId(),
-                FULL_DECK_CARD_COUNT);
-        drawCardResponseMono.subscribe(response -> {
-            // Manually draw fresh game object from DB.
-            Game refreshedGame = gameRepository.findById(gameId)
-                    .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + gameId));
-            // Manually draw fresh match object from DB:
-            Match refreshedMatch = matchRepository.findById(matchId)
-                    .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + matchId));
-            List<CardResponse> responseCards = response.getCards();
-            distributeFullDeckToPlayers(refreshedMatch, refreshedGame, responseCards);
-        });
-    }
-
-    private void distributeFullDeckToPlayers(Match match, Game game, List<CardResponse> responseCards) {
-        if (responseCards == null || responseCards.size() != FULL_DECK_CARD_COUNT) {
-            throw new IllegalArgumentException("Expected 52 cards to distribute.");
-        }
-
-        List<MatchPlayer> players = match.getMatchPlayers();
-        if (players.size() != 4) {
-            throw new IllegalStateException("Expected exactly 4 players to distribute cards.");
-        }
-
-        int cardIndex = 0;
-        for (MatchPlayer matchPlayer : players) {
-            StringBuilder handBuilder = new StringBuilder();
-
-            for (int i = 0; i < 13; i++) {
-                String code = responseCards.get(cardIndex).getCode();
-
-                // Placement of 2C is irrelevant before passing.
-
-                if (handBuilder.length() > 0) {
-                    handBuilder.append(",");
-                }
-                handBuilder.append(code);
-
-                cardIndex++;
-            }
-
-            matchPlayer.setHand(handBuilder.toString());
-        }
-
-        match.setPhase(MatchPhase.IN_PROGRESS);
-        game.setPhase(GamePhase.PASSING);
-        // gameRepository.flush();
-        log.info("°°° PASSING COMMENCES °°°");
-
-        // Save updated game + match
-        gameRepository.save(game);
-        matchRepository.save(match);
-        gameStatsService.updateGameStatsFromPlayers(match, game);
-    }
-
     public void playAiTurnsUntilHuman(Long gameId) {
         while (true) {
             boolean played = playSingleAiTurn(gameId);
@@ -530,7 +314,7 @@ public class GameService {
 
         // Stop if it's a human's turn or no AI player
         if (aiPlayer == null || !Boolean.TRUE.equals(aiPlayer.getIsAiPlayer())) {
-            if (game.getCurrentPlayOrder() > FULL_DECK_CARD_COUNT) {
+            if (game.getCurrentPlayOrder() > GameConstants.FULL_DECK_CARD_COUNT) {
                 return false;
             }
             throw new ResponseStatusException(HttpStatus.CONFLICT,

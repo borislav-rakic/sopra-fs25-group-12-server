@@ -16,4 +16,9 @@ public enum MatchPhase {
     public boolean over() {
         return this == FINISHED || this == ABORTED;
     }
+
+    public boolean notover() {
+        return this == SETUP || this == READY || this == IN_PROGRESS || this == BETWEEN_GAMES;
+    }
+
 }

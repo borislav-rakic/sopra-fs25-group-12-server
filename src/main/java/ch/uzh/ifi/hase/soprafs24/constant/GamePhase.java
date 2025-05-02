@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.constant;
 
 public enum GamePhase {
     PRESTART, // Game initialized, not yet started
+    WAITING_FOR_EXTERNAL_API, // Game is waiting asynchronously for external API
     PASSING, // Players pass 3 cards (Left, Right, Across)
     FIRSTTRICK, // First trick being played (2♣ lead)
     NORMALTRICK, // Middle tricks (after first)
