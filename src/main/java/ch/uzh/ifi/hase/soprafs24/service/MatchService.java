@@ -48,6 +48,7 @@ public class MatchService {
     private final GameService gameService;
     private final GameSetupService gameSetupService;
     private final MatchPlayerRepository matchPlayerRepository;
+    private final PollingService pollingService;
     private final UserRepository userRepository;
     private final UserService userService;
     private final MatchRepository matchRepository;
@@ -60,6 +61,7 @@ public class MatchService {
             @Qualifier("gameService") GameService gameService,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
             @Qualifier("matchRepository") MatchRepository matchRepository,
+            @Qualifier("pollingService") PollingService pollingService,
             @Qualifier("userRepository") UserRepository userRepository,
             @Qualifier("userService") UserService userService) {
         this.gameRepository = gameRepository;
@@ -67,6 +69,7 @@ public class MatchService {
         this.gameSetupService = gameSetupService;
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchRepository = matchRepository;
+        this.pollingService = pollingService;
         this.userRepository = userRepository;
         this.userService = userService;
 
@@ -777,7 +780,7 @@ public class MatchService {
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
-        PollingDTO playerPolling = gameService.getPlayerPolling(user, match);
+        PollingDTO playerPolling = pollingService.getPlayerPolling(user, match, matchPlayerRepository);
         return playerPolling;
     }
 

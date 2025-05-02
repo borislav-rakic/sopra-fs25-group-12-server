@@ -3,25 +3,14 @@ package ch.uzh.ifi.hase.soprafs24.service;
 import ch.uzh.ifi.hase.soprafs24.entity.*;
 import ch.uzh.ifi.hase.soprafs24.repository.*;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-
-import static org.mockito.ArgumentMatchers.anyList;
-import static org.mockito.ArgumentMatchers.eq;
-
-import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
-import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
-
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.Mockito.*;
 
 public class GameServiceTest {
@@ -38,13 +27,7 @@ public class GameServiceTest {
     private GameRepository gameRepository = Mockito.mock(GameRepository.class);
 
     @Mock
-    private GameStatsRepository gameStatsRepository = Mockito.mock(GameStatsRepository.class);
-
-    @Mock
     private GameStatsService gameStatsService = Mockito.mock(GameStatsService.class);
-
-    @Mock
-    private MatchPlayerRepository matchPlayerRepository = Mockito.mock(MatchPlayerRepository.class);
 
     @Mock
     private MatchRepository matchRepository = Mockito.mock(MatchRepository.class);
@@ -57,7 +40,6 @@ public class GameServiceTest {
             cardRulesService,
             gameRepository,
             gameStatsService,
-            matchPlayerRepository,
             matchRepository);
 
     private Match match;
@@ -100,120 +82,6 @@ public class GameServiceTest {
         game.setCurrentMatchPlayerSlot(1);
 
         match.getGames().add(game);
-    }
-
-    @Test
-    public void testGetPlayerPollingSuccess() {
-        // === Setup Users ===
-        User user = new User();
-        user.setId(4L);
-        user.setUsername("testuser");
-        user.setIsAiPlayer(false);
-
-        User p2 = new User();
-        p2.setId(5L);
-        p2.setUsername("bot2");
-        p2.setIsAiPlayer(false);
-        User p3 = new User();
-        p3.setId(6L);
-        p3.setUsername("bot3");
-        p3.setIsAiPlayer(false);
-        User p4 = new User();
-        p4.setId(7L);
-        p4.setUsername("bot4");
-        p4.setIsAiPlayer(false);
-
-        // === Setup Match ===
-        Match match = new Match();
-        match.setMatchId(1L);
-        match.setPlayer1(user);
-        match.setPlayer2(p2);
-        match.setPlayer3(p3);
-        match.setPlayer4(p4);
-        match.setHostId(4L);
-        match.setMatchGoal(100);
-        match.setPhase(MatchPhase.READY);
-        match.setAiPlayers(new HashMap<>());
-
-        // === Setup MatchPlayer ===
-        MatchPlayer matchPlayer = new MatchPlayer();
-        matchPlayer.setUser(user);
-        matchPlayer.setMatchPlayerSlot(1);
-
-        MatchPlayer mp2 = new MatchPlayer();
-        mp2.setUser(p2);
-        mp2.setMatchPlayerSlot(2);
-
-        MatchPlayer mp3 = new MatchPlayer();
-        mp3.setUser(p3);
-        mp3.setMatchPlayerSlot(3);
-
-        MatchPlayer mp4 = new MatchPlayer();
-        mp4.setUser(p4);
-        mp4.setMatchPlayerSlot(4);
-
-        matchPlayer.setGameScore(0);
-        mp2.setGameScore(0);
-        mp3.setGameScore(0);
-        mp4.setGameScore(0);
-
-        match.setMatchPlayers(List.of(matchPlayer, mp2, mp3, mp4));
-
-        // === Setup Game ===
-        Game game = new Game();
-        game.setGameId(1L);
-        game.setGameNumber(1);
-        game.setPhase(GamePhase.PASSING);
-        game.setMatch(match);
-        game.setCurrentTrickNumber(2);
-        game.setPreviousTrickWinnerMatchPlayerSlot(4);
-        game.setPreviousTrickPoints(0);
-        game.setTrickLeaderMatchPlayerSlot(1);
-        game.setHeartsBroken(false);
-        game.setCurrentMatchPlayerSlot(1);
-
-        matchPlayer.setHand("2C");
-
-        // === Tie Game to Match ===
-        match.setGames(List.of(game));
-
-        // === Mock Repositories ===
-        when(matchRepository.findMatchByMatchId(1L)).thenReturn(match);
-        when(matchPlayerRepository.findByUserAndMatch(user, match)).thenReturn(matchPlayer);
-        when(gameRepository.findFirstByMatchAndPhaseNotIn(eq(match), anyList())).thenReturn(game);
-        when(matchPlayerRepository.findByUserAndMatchAndMatchPlayerSlot(user, match, 1)).thenReturn(matchPlayer);
-
-        // === Act ===
-        System.out.println("Players in match: " + match.getMatchPlayers().size());
-        PollingDTO result = gameService.getPlayerPolling(user, match);
-
-        // === Assert ===
-        assertNotNull(result);
-        assertEquals(1L, result.getMatchId());
-        assertEquals(4, result.getHostId());
-        assertEquals(100, result.getMatchGoal());
-        // assertEquals(GamePhase.FIRSTTRICK, result.getGamePhase());
-        assertEquals(MatchPhase.READY, result.getMatchPhase());
-        assertEquals(List.of("testuser", "bot2", "bot3", "bot4"), result.getMatchPlayers());
-
-        // Hand
-        assertEquals(1, result.getPlayerCards().size());
-        assertEquals("2C", result.getPlayerCards().get(0).getCard().getCode());
-
-        // Current Trick
-        assertNotNull(result.getCurrentTrick()); // likely empty in this mock
-        assertEquals(0, result.getCurrentTrick().size());
-
-        // Previous Trick
-        assertNotNull(result.getPreviousTrick());
-        // assertEquals(4, result.getPreviousTrick().size());
-        // assertEquals("2", result.getPreviousTrick().get(0).getRank());
-        // assertEquals("C", result.getPreviousTrick().get(0).getSuit());
-
-        // Trick Info
-        assertEquals(4, result.getPreviousTrickWinnerMatchPlayerSlot());
-        assertEquals(0, result.getPreviousTrickPoints());
-        assertEquals(1, result.getCurrentTrickLeaderMatchPlayerSlot());
     }
 
     /*
