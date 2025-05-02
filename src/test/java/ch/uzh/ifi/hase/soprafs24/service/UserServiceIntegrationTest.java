@@ -15,7 +15,10 @@ import org.springframework.test.context.web.WebAppConfiguration;
 import org.springframework.web.server.ResponseStatusException;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
+
+import org.apache.tomcat.jni.Poll;
 
 /**
  * Test class for the UserService integration test.
@@ -37,6 +40,9 @@ public class UserServiceIntegrationTest {
 
   @MockBean
   private JdbcTemplate jdbcTemplate;
+
+  @MockBean
+  private PollingService pollingService;
 
   @BeforeEach
   public void setup() {

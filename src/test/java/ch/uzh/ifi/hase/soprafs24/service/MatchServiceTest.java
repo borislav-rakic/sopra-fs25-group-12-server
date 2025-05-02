@@ -33,6 +33,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.verify;
 
 public class MatchServiceTest {
+
     @Mock
     private CardRulesService cardRulesService = Mockito.mock(CardRulesService.class);
 
@@ -52,6 +53,9 @@ public class MatchServiceTest {
     private MatchRepository matchRepository = Mockito.mock(MatchRepository.class);
 
     @Mock
+    private PollingService pollingService = Mockito.mock(PollingService.class);
+
+    @Mock
     private UserRepository userRepository = Mockito.mock(UserRepository.class);
 
     @MockBean
@@ -65,6 +69,7 @@ public class MatchServiceTest {
             gameService,
             matchPlayerRepository,
             matchRepository,
+            pollingService,
             userRepository,
             userService
     // alphabetical order
