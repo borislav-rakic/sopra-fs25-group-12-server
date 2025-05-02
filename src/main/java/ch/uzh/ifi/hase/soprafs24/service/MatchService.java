@@ -3,6 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
@@ -384,6 +385,14 @@ public class MatchService {
         newMatchPlayer.setUser(aiPlayer);
         newMatchPlayer.setMatchPlayerSlot(matchPlayerSlot);
         newMatchPlayer.setIsAiPlayer(true);
+
+        int numberOfStrategies = Strategy.values().length;
+        Long userId = aiPlayer.getId();
+        int idAsInt = (userId != null)
+                ? Math.floorMod(userId, numberOfStrategies) + 1 // ensures [1–9]
+                : numberOfStrategies; // default to last strategy (9)
+        Strategy strategy = Strategy.values()[idAsInt - 1]; // convert to 0-based index
+        newMatchPlayer.setStrategy(strategy);
 
         match.getMatchPlayers().add(newMatchPlayer);
 
