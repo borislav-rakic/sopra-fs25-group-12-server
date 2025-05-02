@@ -146,4 +146,73 @@ public class CardUtils {
         return String.join(",", sorted);
     }
 
+    /**
+     * Calculates a sortable numeric value for a card code.
+     * Based on "score". First QS, then all Hearts, then descending Value.
+     */
+    public static int calculateHighestScoreOrder(String cardCode) {
+        if (cardCode == null || cardCode.length() < 2 || cardCode.length() > 3) {
+            throw new IllegalArgumentException("Invalid card format: " + cardCode);
+        }
+
+        // Queen of Spades
+        // QS = 999.
+        if (cardCode.equals("QS")) {
+            return 999;
+        }
+
+        String rankStr = cardCode.substring(0, cardCode.length() - 1);
+        char suitChar = cardCode.charAt(cardCode.length() - 1);
+
+        // Any Hearts
+        // AH = 914, KH = 913, ..., 2H = 902.
+        if (suitChar == 'H') {
+            int suitInt = rankStrToInt(rankStr);
+            return 900 + suitInt;
+        }
+
+        int suitValue = switch (suitChar) {
+            case 'C' -> 0;
+            case 'D' -> 15;
+            case 'S' -> 30;
+            default -> throw new IllegalArgumentException("Invalid suit: " + suitChar);
+        };
+        int rankValue = rankStrToInt(rankStr);
+
+        // AS = 730, AD = 715, AC = 700
+        // KS = 680, KD = 665, KC = 650
+        // QS = 630, QD = 615, QC = 600
+        // ...
+        // 3S = 180, 3D = 165, 3C = 150
+        // 2S = 130, 2D = 115, 2C = 100
+
+        return rankValue * 50 + suitValue;
+    }
+
+    public static int rankStrToInt(String rankStr) {
+        return switch (rankStr) {
+            case "J" -> 11;
+            case "Q" -> 12;
+            case "K" -> 13;
+            case "A" -> 14;
+            case "10", "0" -> 10;
+            default -> {
+                if (rankStr.matches("[2-9]")) {
+                    yield Integer.parseInt(rankStr);
+                }
+                yield 0;
+            }
+        };
+    }
+
+    public static int suitCharToInt(char suitChar) {
+        int suitValue = switch (suitChar) {
+            case 'C' -> 10;
+            case 'D' -> 30;
+            case 'S' -> 50;
+            case 'H' -> 70;
+            default -> throw new IllegalArgumentException("Invalid suit: " + suitChar);
+        };
+        return suitValue;
+    }
 }

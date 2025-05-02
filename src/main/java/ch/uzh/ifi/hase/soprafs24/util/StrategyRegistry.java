@@ -7,14 +7,14 @@ import java.util.Map;
 public class StrategyRegistry {
 
     private static final Map<Integer, Strategy> STRATEGY_MAP = Map.of(
-            1, Strategy.RANDOM,
-            2, Strategy.WAVERING,
-            3, Strategy.PREFERRED,
-            4, Strategy.LEFTMOST,
-            5, Strategy.RIGHTMOST,
-            6, Strategy.GETRIDOFCLUBSTHENHEARTS,
-            7, Strategy.GARY,
-            8, Strategy.ALBERT,
+            1, Strategy.LEFTMOST,
+            2, Strategy.RANDOM,
+            3, Strategy.DUMPHIGHESTFACEFIRST,
+            4, Strategy.GETRIDOFCLUBSTHENHEARTS,
+            5, Strategy.PREFERBLACK,
+            6, Strategy.VOIDSUIT,
+            7, Strategy.HYPATIA,
+            8, Strategy.GARY,
             9, Strategy.ADA);
 
     private StrategyRegistry() {

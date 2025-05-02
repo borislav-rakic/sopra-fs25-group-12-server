@@ -32,14 +32,6 @@ public class AiPlayingService {
 
         Random random = new Random();
 
-        // Handle WAVERING by picking a non-WAVERING strategy at random
-        if (strategy == Strategy.WAVERING) {
-            do {
-                strategy = Strategy.values()[random.nextInt(Strategy.values().length)];
-            } while (strategy == Strategy.WAVERING);
-            System.out.println("WAVERING resolved to: " + strategy);
-        }
-
         String[] legalCards = playableCardsString.split(",");
 
         System.out.println("Hi, I am an AI player, making a decision.");
@@ -48,9 +40,15 @@ public class AiPlayingService {
         String cardCode;
         switch (strategy) {
             case LEFTMOST -> cardCode = legalCards[0];
-            case RIGHTMOST -> cardCode = legalCards[legalCards.length - 1];
             case RANDOM -> cardCode = legalCards[random.nextInt(legalCards.length)];
-            default -> cardCode = legalCards[0]; // fallback
+            case DUMPHIGHESTFACEFIRST -> cardCode = legalCards[random.nextInt(legalCards.length)];
+            case GETRIDOFCLUBSTHENHEARTS -> cardCode = legalCards[random.nextInt(legalCards.length)];
+            case PREFERBLACK -> cardCode = legalCards[random.nextInt(legalCards.length)];
+            case VOIDSUIT -> cardCode = legalCards[random.nextInt(legalCards.length)];
+            case HYPATIA -> cardCode = legalCards[random.nextInt(legalCards.length)];
+            case GARY -> cardCode = legalCards[random.nextInt(legalCards.length)];
+            case ADA -> cardCode = legalCards[random.nextInt(legalCards.length)];
+            default -> cardCode = legalCards[0]; // fallback => RANDOM
         }
 
         System.out.println("I choose: " + cardCode);

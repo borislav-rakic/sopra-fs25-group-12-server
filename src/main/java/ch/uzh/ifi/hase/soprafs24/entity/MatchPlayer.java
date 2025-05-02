@@ -3,6 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.entity;
 import javax.persistence.*;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
+import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
 /**
@@ -47,6 +48,10 @@ public class MatchPlayer {
 
     @Column(nullable = false)
     private Boolean isAiPlayer = false;
+
+    @Column
+    @Enumerated(EnumType.STRING)
+    private Strategy strategy;
 
     // === Getter and Setter methods ===
 
@@ -136,6 +141,14 @@ public class MatchPlayer {
 
     public void setShotTheMoonCount(int shotTheMoonCount) {
         this.shotTheMoonCount = shotTheMoonCount;
+    }
+
+    public Strategy getStrategy() {
+        return strategy;
+    }
+
+    public void setStrategy(Strategy strategy) {
+        this.strategy = strategy;
     }
 
     // === Optional helpers ===

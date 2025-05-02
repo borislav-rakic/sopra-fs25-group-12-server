@@ -2,8 +2,10 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Random;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -15,11 +17,23 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
+import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 import ch.uzh.ifi.hase.soprafs24.util.StrategyRegistry;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+// Available Strategies
+// LEFTMOST, // Always take the leftmost card.
+// RANDOM, // Take any playable card.
+// DUMPHIGHESTFACEFIRST, // Try to get rid of QS,AH,KH,QH,JH,AS,AD,AC,KS, ... in that order.
+// GETRIDOFCLUBSTHENHEARTS, // Try to get rid of Clubs as quickly as possible, then hearts.
+// PREFERBLACK, // Try to keep black cards and discard red cards
+// VOIDSUIT, // Get rid of the suit with the fewest items first.
+// HYPATIA, // Think like Hypatia
+// GARY, // Think like Gary
+// ADA; // Think like Ada
 
 @Service
 @Qualifier("aiPassingService")
@@ -47,24 +61,41 @@ public class AiPassingService {
         }
         Strategy effectiveStrategy = strategy;
 
-        Random random = new Random();
-        if (strategy == Strategy.WAVERING) {
-            do {
-                effectiveStrategy = Strategy.values()[random.nextInt(Strategy.values().length)];
-            } while (effectiveStrategy == Strategy.WAVERING);
-            log.info("WAVERING strategy resolved to: {}", effectiveStrategy);
-        }
-
         List<String> cards = new ArrayList<>(List.of(cardsArray));
 
         switch (effectiveStrategy) {
             case LEFTMOST:
                 return cards.subList(0, 3);
 
-            case RIGHTMOST:
-                return cards.subList(cards.size() - 3, cards.size());
-
             case RANDOM:
+                Collections.shuffle(cards);
+                return cards.subList(0, 3);
+
+            case DUMPHIGHESTFACEFIRST:
+                Collections.shuffle(cards);
+                return cards.subList(0, 3);
+
+            case GETRIDOFCLUBSTHENHEARTS:
+                Collections.shuffle(cards);
+                return cards.subList(0, 3);
+
+            case PREFERBLACK:
+                Collections.shuffle(cards);
+                return cards.subList(0, 3);
+
+            case VOIDSUIT:
+                Collections.shuffle(cards);
+                return cards.subList(0, 3);
+
+            case HYPATIA:
+                Collections.shuffle(cards);
+                return cards.subList(0, 3);
+
+            case GARY:
+                Collections.shuffle(cards);
+                return cards.subList(0, 3);
+
+            case ADA:
                 Collections.shuffle(cards);
                 return cards.subList(0, 3);
 
@@ -104,5 +135,12 @@ public class AiPassingService {
                 }
             }
         }
+    }
+
+    public List<String> dumpHighestScoringFaceFirst(List<String> hand) {
+        return hand.stream()
+                .sorted(Comparator.comparingInt(CardUtils::calculateHighestScoreOrder).reversed()) // highest first
+                .limit(3)
+                .collect(Collectors.toList());
     }
 }
