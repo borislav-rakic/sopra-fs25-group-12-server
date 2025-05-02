@@ -758,12 +758,12 @@ public class MatchService {
         Match match = requireMatchByMatchId(matchId);
         Game game = requireActiveGameByMatch(match);
         MatchPlayer matchPlayer = match.requireMatchPlayerByToken(token);
-        int matchPlayerSlot = dto.getPlayerSlot() + 1; // 1 to account for 0-based frontend counting
-        if (matchPlayer.getMatchPlayerSlot() != matchPlayerSlot) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    String.format("Mismatch between token-derived slot %d and matchPlayerSlot %d.",
-                            matchPlayer.getMatchPlayerSlot(), matchPlayerSlot));
-        }
+//        int matchPlayerSlot = dto.getPlayerSlot() + 1; // 1 to account for 0-based frontend counting
+//        if (matchPlayer.getMatchPlayerSlot() != matchPlayerSlot) {
+//            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+//                    String.format("Mismatch between token-derived slot %d and matchPlayerSlot %d.",
+//                            matchPlayer.getMatchPlayerSlot(), matchPlayerSlot));
+//        }
         String cardCode = "";
         if (dto.getCard() == "XX") {
             cardCode = "XX";
