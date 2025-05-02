@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Random;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
@@ -21,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Service
+@Qualifier("aiPassingService")
 public class AiPassingService {
     private static final Logger log = LoggerFactory.getLogger(AiPassingService.class);
 

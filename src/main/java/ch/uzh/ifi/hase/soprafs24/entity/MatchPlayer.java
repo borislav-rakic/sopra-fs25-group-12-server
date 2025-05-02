@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.entity;
 
 import javax.persistence.*;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
 /**
@@ -11,8 +12,6 @@ import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 @Entity
 @Table(name = "MATCH_PLAYER")
 public class MatchPlayer {
-    private static final String CARD_PATTERN = "^([2-9AJKQ][CDHS])(,([2-9AJKQ][CDHS]))*$";
-
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long matchPlayerId;
@@ -241,7 +240,7 @@ public class MatchPlayer {
         if (hand == null || hand.isBlank()) {
             return true; // Empty hand is OK
         }
-        return hand.matches(CARD_PATTERN);
+        return hand.matches(GameConstants.CARD_CODE_REGEX);
     }
 
     public boolean hasNoDuplicateCards() {

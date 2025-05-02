@@ -7,10 +7,12 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
@@ -28,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @Service
+@Qualifier("cardPassingService")
 public class CardPassingService {
 
     private final AiPassingService aiPassingService;
@@ -264,7 +267,7 @@ public class CardPassingService {
     }
 
     private boolean isValidCardFormat(String cardCode) {
-        return cardCode != null && cardCode.matches("^[02-9JQKA][HDCS]$");
+        return cardCode != null && cardCode.matches(GameConstants.CARD_CODE_REGEX);
     }
 
     public int playerSlotToMatchPlayerSlot(int playerSlot) {

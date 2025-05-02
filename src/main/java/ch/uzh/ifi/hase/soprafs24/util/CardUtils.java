@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.util;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 
@@ -111,11 +112,11 @@ public class CardUtils {
     }
 
     public static boolean isValidCardFormat(String cardCode) {
-        return cardCode != null && cardCode.matches("^[02-9JQKA][HDCS]$");
+        return cardCode != null && cardCode.matches(GameConstants.CARD_CODE_REGEX);
     }
 
     public static String requireValidCardFormat(String cardCode) {
-        if (cardCode == null || !cardCode.matches("^[02-9JQKA][HDCS]$")) {
+        if (cardCode == null || !cardCode.matches(GameConstants.CARD_CODE_REGEX)) {
             IllegalArgumentException ex = new IllegalArgumentException("Received invalid cardCode: " + cardCode);
             log.error("Invalid card format `" + cardCode + "´", ex);
             throw ex;

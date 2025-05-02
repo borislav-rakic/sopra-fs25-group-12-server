@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
@@ -45,7 +46,9 @@ public class MatchService {
 
     private final GameRepository gameRepository;
     private final GameService gameService;
+    private final GameSetupService gameSetupService;
     private final MatchPlayerRepository matchPlayerRepository;
+    private final PollingService pollingService;
     private final UserRepository userRepository;
     private final UserService userService;
     private final MatchRepository matchRepository;
@@ -54,56 +57,30 @@ public class MatchService {
     public MatchService(
             @Qualifier("cardRulesService") CardRulesService cardRulesService,
             @Qualifier("gameRepository") GameRepository gameRepository,
+            @Qualifier("gameSetupService") GameSetupService gameSetupService,
             @Qualifier("gameService") GameService gameService,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
             @Qualifier("matchRepository") MatchRepository matchRepository,
+            @Qualifier("pollingService") PollingService pollingService,
             @Qualifier("userRepository") UserRepository userRepository,
             @Qualifier("userService") UserService userService) {
         this.gameRepository = gameRepository;
         this.gameService = gameService;
+        this.gameSetupService = gameSetupService;
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchRepository = matchRepository;
+        this.pollingService = pollingService;
         this.userRepository = userRepository;
         this.userService = userService;
 
     }
 
     /**
-     * Creates a new {@link Match} entity for the user associated with the provided
-     * token.
-     *
-     * <p>
-     * This method:
-     * <ul>
-     * <li>Validates the provided player token by retrieving the corresponding
-     * {@link User}.</li>
-     * <li>Creates a new {@link Match} and assigns the user as the host and
-     * player1.</li>
-     * <li>Initializes a list of {@link MatchPlayer} with the user.</li>
-     * <li>Saves the newly created match to the database.</li>
-     * </ul>
-     *
-     * <p>
-     * The returned {@link Match} will be transformed into a {@link MatchDTO}
-     * elsewhere, where the following fields are populated:
-     * </p>
-     * <ul>
-     * <li>{@code matchId} – Unique identifier of the match.</li>
-     * <li>{@code matchPlayerIds} – List of player IDs participating in the
-     * match.</li>
-     * <li>{@code hostId} – The User Id of the player who created the match.</li>
-     * <li>{@code matchGoal} – Default match goal (set to 100).</li>
-     * <li>{@code started} – Initially {@code false}, indicating the match hasn't
-     * begun.</li>
-     * <li>{@code player1Id} – The ID of the initiating player (same as the token
-     * owner).</li>
-     * </ul>
+     * "Creates a new Match entity for the user associated with the provided
+     * token."
      *
      * @param playerToken the authentication token of the player creating the match
-     * @return a newly created {@link Match} object that can be transformed into a
-     *         {@link MatchDTO}
-     * @throws ResponseStatusException if the token is invalid or the user cannot be
-     *                                 found
+     * @return a newly created Match object
      */
     public Match createNewMatch(String playerToken) {
         User user = userService.getUserByToken(playerToken);
@@ -758,12 +735,6 @@ public class MatchService {
         Match match = requireMatchByMatchId(matchId);
         Game game = requireActiveGameByMatch(match);
         MatchPlayer matchPlayer = match.requireMatchPlayerByToken(token);
-//        int matchPlayerSlot = dto.getPlayerSlot() + 1; // 1 to account for 0-based frontend counting
-//        if (matchPlayer.getMatchPlayerSlot() != matchPlayerSlot) {
-//            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-//                    String.format("Mismatch between token-derived slot %d and matchPlayerSlot %d.",
-//                            matchPlayer.getMatchPlayerSlot(), matchPlayerSlot));
-//        }
         String cardCode = "";
         if (dto.getCard() == "XX") {
             cardCode = "XX";
@@ -795,7 +766,9 @@ public class MatchService {
 
         match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
 
-        gameService.createAndStartGameForMatch(match, seed);
+        Game game = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, seed);
+
+        gameRepository.save(game);
     }
 
     public PollingDTO getPlayerPolling(String token, Long matchId) {
@@ -807,7 +780,7 @@ public class MatchService {
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
-        PollingDTO playerPolling = gameService.getPlayerPolling(user, match);
+        PollingDTO playerPolling = pollingService.getPlayerPolling(user, match, matchPlayerRepository);
         return playerPolling;
     }
 
@@ -865,12 +838,12 @@ public class MatchService {
             } else {
                 match.setPhase(MatchPhase.BETWEEN_GAMES);
                 Long seed = null;
-                String seed_prefix = ExternalApiClientService.SEED_PREFIX;
+                String seed_prefix = GameConstants.SEED_PREFIX;
                 if (game.getDeckId().startsWith(seed_prefix)) {
                     String numberPart = game.getDeckId().substring(seed_prefix.length());
                     seed = Long.parseLong(numberPart);
                 }
-                gameService.createAndStartGameForMatch(match, seed);
+                gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, seed);
                 match.setPhase(MatchPhase.BETWEEN_GAMES);
             }
 

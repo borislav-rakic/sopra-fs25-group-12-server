@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import java.util.Random;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
@@ -9,6 +10,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 
 @Service
+@Qualifier("aiPlayingService")
 public class AiPlayingService {
 
     private final CardRulesService cardRulesService;
