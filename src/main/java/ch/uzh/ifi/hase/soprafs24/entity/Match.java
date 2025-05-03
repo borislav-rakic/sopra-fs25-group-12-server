@@ -81,6 +81,9 @@ public class Match implements Serializable {
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<MatchMessage> messages = new ArrayList<>();
 
+    @Column(columnDefinition = "TEXT")
+    private String summary;
+
     public List<Game> getGames() {
         return games;
     }
@@ -264,6 +267,15 @@ public class Match implements Serializable {
 
     public void setReady(Boolean ready) {
         this.ready = ready;
+    }
+
+    // Getter and Setter
+    public String getSummary() {
+        return summary;
+    }
+
+    public void setSummary(String summary) {
+        this.summary = summary;
     }
 
     // ==== UTIL FUNCTIONS

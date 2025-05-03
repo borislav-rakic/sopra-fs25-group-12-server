@@ -48,6 +48,7 @@ public class MatchService {
     private final GameRepository gameRepository;
     private final GameService gameService;
     private final GameSetupService gameSetupService;
+    private final HtmlSummaryService htmlSummaryService;
     private final MatchPlayerRepository matchPlayerRepository;
     private final PollingService pollingService;
     private final UserRepository userRepository;
@@ -60,6 +61,7 @@ public class MatchService {
             @Qualifier("gameRepository") GameRepository gameRepository,
             @Qualifier("gameSetupService") GameSetupService gameSetupService,
             @Qualifier("gameService") GameService gameService,
+            @Qualifier("htmlSummaryService") HtmlSummaryService htmlSummaryService,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
             @Qualifier("matchRepository") MatchRepository matchRepository,
             @Qualifier("pollingService") PollingService pollingService,
@@ -68,6 +70,7 @@ public class MatchService {
         this.gameRepository = gameRepository;
         this.gameService = gameService;
         this.gameSetupService = gameSetupService;
+        this.htmlSummaryService = htmlSummaryService;
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchRepository = matchRepository;
         this.pollingService = pollingService;
@@ -745,12 +748,34 @@ public class MatchService {
         Game game = requireActiveGameByMatch(match);
         MatchPlayer matchPlayer = match.requireMatchPlayerByToken(token);
         String cardCode = "";
-        if (dto.getCard() == "XX") {
+        if ("XX".equals(dto.getCard())) {
             cardCode = "XX";
         } else {
             cardCode = CardUtils.requireValidCardFormat(dto.getCard());
         }
         gameService.playCardAsHuman(game, matchPlayer, cardCode);
+
+        // Step 6: Finalize game/match if this was the last card
+        if (isFinalCardOfGame(game)) {
+            handlePostGameMatchFlow(game.getMatch(), game);
+        }
+    }
+
+    public void playAiTurnsUntilHuman(Match match) {
+        Game game = requireActiveGameByMatch(match);
+
+        // Let GameService do the actual AI playing
+        gameService.playAiTurnsUntilHuman(game.getGameId());
+
+        // After AI turns, finalize if needed
+        if (isFinalCardOfGame(game)) {
+            handlePostGameMatchFlow(match, game);
+        }
+    }
+
+    private boolean isFinalCardOfGame(Game game) {
+        return game.getPhase() == GamePhase.FINALTRICK &&
+                game.getCurrentPlayOrder() >= GameConstants.FULL_DECK_CARD_COUNT;
     }
 
     public Match validateMatchReadyToStart(Long matchId) {
@@ -789,8 +814,23 @@ public class MatchService {
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
-        PollingDTO playerPolling = pollingService.getPlayerPolling(user, match, matchPlayerRepository);
-        return playerPolling;
+
+        Game game = match.getActiveGame();
+        if (game != null) {
+            User currentUser = match.requireUserBySlot(game.getCurrentMatchPlayerSlot());
+            MatchPlayer requestingPlayer = match.requireMatchPlayerByUser(user);
+
+            boolean isMatchOwnerPolling = requestingPlayer.getMatchPlayerSlot() == 1;
+            if (isMatchOwnerPolling &&
+                    currentUser != null &&
+                    Boolean.TRUE.equals(currentUser.getIsAiPlayer()) &&
+                    game.getPhase().inTrick()) {
+
+                playAiTurnsUntilHuman(match);
+            }
+        }
+
+        return pollingService.getPlayerPolling(user, match, matchPlayerRepository);
     }
 
     public Game requireActiveGameByMatch(Match match) {
@@ -799,6 +839,27 @@ public class MatchService {
             throw new IllegalStateException("No active game found for this match.");
         }
         return activeGame;
+    }
+
+    public void handlePostGameMatchFlow(Match match, Game finishedGame) {
+        // Mark game as finished
+        finishedGame.setPhase(GamePhase.FINISHED);
+        gameRepository.save(finishedGame);
+
+        // Determine if match should end
+        if (shouldEndMatch(match)) {
+            match.setPhase(MatchPhase.FINISHED);
+            // Optionally: generate a summary
+            match.setSummary(htmlSummaryService.buildMatchResultHtml(match, finishedGame));
+        } else {
+            match.setPhase(MatchPhase.BETWEEN_GAMES);
+
+            // Create and start the next game
+            gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
+        }
+
+        // Persist match state
+        matchRepository.save(match);
     }
 
     public void checkGameAndStartNextIfNeeded(Match match) {
@@ -839,24 +900,7 @@ public class MatchService {
                 .allMatch(mp -> mp.getIsReady());
 
         if (allHumansReady) {
-            game.setPhase(GamePhase.FINISHED);
-            gameRepository.save(game);
-
-            if (shouldEndMatch(match)) {
-                match.setPhase(MatchPhase.FINISHED);
-            } else {
-                match.setPhase(MatchPhase.BETWEEN_GAMES);
-                Long seed = null;
-                String seed_prefix = GameConstants.SEED_PREFIX;
-                if (game.getDeckId().startsWith(seed_prefix)) {
-                    String numberPart = game.getDeckId().substring(seed_prefix.length());
-                    seed = Long.parseLong(numberPart);
-                }
-                gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, seed);
-                match.setPhase(MatchPhase.BETWEEN_GAMES);
-            }
-
-            matchRepository.save(match);
+            handlePostGameMatchFlow(match, game);
         }
     }
 

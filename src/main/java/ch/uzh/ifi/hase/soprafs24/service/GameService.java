@@ -24,7 +24,6 @@ import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
-import ch.uzh.ifi.hase.soprafs24.util.StrategyRegistry;
 
 /**
  * Game Service
@@ -74,44 +73,38 @@ public class GameService {
     public void playAiTurnsUntilHuman(Long gameId) {
         while (true) {
             boolean played = playSingleAiTurn(gameId);
-            if (!played || !PLAY_ALL_AI_TURNS_AT_ONCE)
+            if (!played || !PLAY_ALL_AI_TURNS_AT_ONCE) {
                 break;
+            }
         }
     }
 
-    @Transactional
     public boolean playSingleAiTurn(Long gameId) {
         Game game = gameRepository.findByGameId(gameId);
         if (game == null) {
-            System.out.println(
-                    "Location: playAiTurns. Initiating an AiTurn, but the passed game argument is null.");
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
-                    String.format("Could not find game (playSingleAiTurn)."));
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Could not find game.");
         }
 
         Match match = game.getMatch();
-
         MatchPlayer aiPlayer = match.requireMatchPlayerBySlot(game.getCurrentMatchPlayerSlot());
 
-        // Stop if it's a human's turn or no AI player
         if (aiPlayer == null || !Boolean.TRUE.equals(aiPlayer.getIsAiPlayer())) {
             if (game.getCurrentPlayOrder() > GameConstants.FULL_DECK_CARD_COUNT) {
                 return false;
             }
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "No Player found a this slot.");
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "Not an AI turn.");
         }
-        Strategy strategy = StrategyRegistry.getStrategyForUserId(aiPlayer.getUser().getId());
-        // For now always play predictably the leftmost card.
-        strategy = Strategy.LEFTMOST;
-        String cardCode = aiPlayingService.selectCardToPlay(game, aiPlayer, strategy);
+
+        String cardCode = aiPlayingService.selectCardToPlay(game, aiPlayer, Strategy.LEFTMOST);
+
         try {
-            // Thread.sleep(300 + new Random().nextInt(400)); // fancy version
-            Thread.sleep(50); // short and simple
+            Thread.sleep(50); // simulate thinking time
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
         }
+
         playCardAsAi(game, aiPlayer, cardCode);
+
         return true;
     }
 
