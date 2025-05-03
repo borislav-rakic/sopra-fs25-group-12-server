@@ -36,15 +36,18 @@ public class PollingService {
     private final CardRulesService cardRulesService;
     private final GameService gameService;
     private final HtmlSummaryService htmlSummaryService;
+    private final MatchMessageService matchMessageService;
 
     @Autowired
     public PollingService(
             @Qualifier("cardRulesService") CardRulesService cardRulesService,
             @Qualifier("gameService") GameService gameService,
-            @Qualifier("htmlSummaryService") HtmlSummaryService htmlSummaryService) {
+            @Qualifier("htmlSummaryService") HtmlSummaryService htmlSummaryService,
+            @Qualifier("matchMessageService") MatchMessageService matchMessageService) {
         this.cardRulesService = cardRulesService;
         this.gameService = gameService;
         this.htmlSummaryService = htmlSummaryService;
+        this.matchMessageService = matchMessageService;
 
     }
 
@@ -221,7 +224,9 @@ public class PollingService {
             dto.setPreviousTrickWinnerMatchPlayerSlot(game.getPreviousTrickWinnerMatchPlayerSlot());
             dto.setPreviousTrickWinnerPlayerSlot(game.getPreviousTrickWinnerMatchPlayerSlot() - 1);
         }
-        dto.setPreviousTrickPoints(game.getPreviousTrickPoints()); // [18]
+        dto.setPreviousTrickPoints(game.getPreviousTrickPoints()); // [18a]
+
+        dto.setMessages(matchMessageService.messages(match, game, matchPlayer)); // [18c]
 
         // Info about the other players
         dto.setMatchPlayers(matchPlayers); // [21]

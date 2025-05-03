@@ -78,6 +78,9 @@ public class Match implements Serializable {
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<PassedCard> passedCards = new ArrayList<>();
 
+    @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<MatchMessage> messages = new ArrayList<>();
+
     public List<Game> getGames() {
         return games;
     }

@@ -30,6 +30,9 @@ public class GameServiceTest {
     private GameStatsService gameStatsService = Mockito.mock(GameStatsService.class);
 
     @Mock
+    private MatchMessageService matchMessageService = Mockito.mock(MatchMessageService.class);
+
+    @Mock
     private MatchRepository matchRepository = Mockito.mock(MatchRepository.class);
 
     @InjectMocks
@@ -40,6 +43,7 @@ public class GameServiceTest {
             cardRulesService,
             gameRepository,
             gameStatsService,
+            matchMessageService,
             matchRepository);
 
     private Match match;
