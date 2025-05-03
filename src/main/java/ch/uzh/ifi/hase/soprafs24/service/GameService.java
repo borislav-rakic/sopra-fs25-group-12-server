@@ -20,6 +20,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
@@ -123,7 +124,7 @@ public class GameService {
         int currentMatchPlayerSlot = game.getCurrentMatchPlayerSlot();
         int currentPlayerSlot = currentMatchPlayerSlot - 1;
         if (matchPlayerSlot != game.getCurrentMatchPlayerSlot()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+            throw new GameplayException(
                     String.format("Not your turn, playerSlot %d; currentPlayerSlot is %d.", playerSlot,
                             currentPlayerSlot));
         }

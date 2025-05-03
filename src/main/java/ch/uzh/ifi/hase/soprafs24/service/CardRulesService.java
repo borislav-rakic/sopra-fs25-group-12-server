@@ -64,6 +64,12 @@ public class CardRulesService {
             // playability of cards (passing must be over).
             return "";
         }
+
+        // Strict first-trick check: force 2C
+        if (game.getPhase() == GamePhase.FIRSTTRICK && matchPlayer.hasCardCodeInHand("2C")) {
+            return "2C";
+        }
+
         String leadingSuit = game.getSuitOfFirstCardInCurrentTrick();
 
         log.info("=== Which Cards are Playable? ===");
