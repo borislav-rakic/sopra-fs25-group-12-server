@@ -4,6 +4,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 
+import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -215,4 +216,52 @@ public class CardUtils {
         };
         return suitValue;
     }
+
+    public static List<String> requireSplitCardCodesAsListOfStrings(String cardCodes) {
+        if (cardCodes == null || cardCodes.isBlank()) {
+            return List.of(); // Empty hand or input
+        }
+
+        return Arrays.stream(cardCodes.split(","))
+                .map(String::trim)
+                .filter(code -> !code.isEmpty())
+                .peek(CardUtils::requireValidCardFormat) // Throws if invalid
+                .collect(Collectors.toList());
+    }
+
+    public static List<String> splitCardCodesAsListOfStrings(String cardCodes) {
+        if (cardCodes == null || cardCodes.isBlank()) {
+            return List.of();
+        }
+
+        return Arrays.stream(cardCodes.split(","))
+                .map(String::trim)
+                .filter(CardUtils::isValidCardFormat) // Filters invalid ones
+                .collect(Collectors.toList());
+    }
+
+    public static String joinValidatedCardCodes(List<String> codes) {
+        if (codes == null || codes.isEmpty()) {
+            return "";
+        }
+
+        return codes.stream()
+                .map(String::trim)
+                .peek(CardUtils::requireValidCardFormat) // Validate each card
+                .sorted(CardUtils::compareCards) // Sort by game order
+                .collect(Collectors.joining(","));
+    }
+
+    public static String joinCardCodesSkipSilently(List<String> codes) {
+        if (codes == null || codes.isEmpty()) {
+            return "";
+        }
+
+        return codes.stream()
+                .map(String::trim)
+                .filter(CardUtils::isValidCardFormat)
+                .sorted(CardUtils::compareCards)
+                .collect(Collectors.joining(","));
+    }
+
 }

@@ -326,4 +326,9 @@ public class MatchController {
         String token = authHeader.replace("Bearer ", "");
         matchService.confirmGameResult(token, matchId);
     }
+
+    @PostMapping("/matches/{matchId}/game/fastforward")
+    public void advanceGame(@PathVariable Long matchId) {
+        matchService.autoPlayToLastTrick(matchId);
+    }
 }

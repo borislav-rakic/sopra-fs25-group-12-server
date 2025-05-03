@@ -66,15 +66,29 @@ public class GameSetupService {
      **/
     public Game createAndStartGameForMatch(Match match, MatchRepository matchRepository, GameRepository gameRepository,
             Long seed) {
+
         if (match.getPhase() != MatchPhase.READY && match.getPhase() != MatchPhase.BETWEEN_GAMES) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     String.format("Game cannot be created if match is in phase %s.", match.getPhase()));
         }
+
+        // Enforce that there is no other active game
+        boolean hasActiveGame = match.getGames().stream()
+                .anyMatch(g -> g.getPhase() != GamePhase.FINISHED && g.getPhase() != GamePhase.ABORTED);
+
+        if (hasActiveGame) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT,
+                    String.format("Cannot create new game: match %d already has an active game.", match.getMatchId()));
+        }
+
         Game game = createNewGameInMatch(match, matchRepository, gameRepository);
         if (game == null) {
             throw new ResponseStatusException(HttpStatus.INTERNAL_SERVER_ERROR, "Game could not be created.");
         }
+
         game.setPhase(GamePhase.WAITING_FOR_EXTERNAL_API);
+        gameRepository.save(game);
+        gameRepository.flush(); // immediate DB write necessary, else the asynch might not find the game again.
 
         if (seed != null && seed != 0) {
             game.setDeckId(ExternalApiClientService.buildSeedString(seed));
@@ -82,6 +96,7 @@ public class GameSetupService {
         } else {
             fetchDeckAndDistributeCardsAsync(matchRepository, gameRepository, match.getMatchId());
         }
+
         return game;
     }
 

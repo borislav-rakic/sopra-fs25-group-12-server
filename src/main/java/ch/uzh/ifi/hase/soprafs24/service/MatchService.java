@@ -48,6 +48,7 @@ public class MatchService {
     private final GameRepository gameRepository;
     private final GameService gameService;
     private final GameSetupService gameSetupService;
+    private final GameSimulationService gameSimulationService;
     private final HtmlSummaryService htmlSummaryService;
     private final MatchPlayerRepository matchPlayerRepository;
     private final PollingService pollingService;
@@ -57,10 +58,10 @@ public class MatchService {
 
     @Autowired
     public MatchService(
-            @Qualifier("cardRulesService") CardRulesService cardRulesService,
             @Qualifier("gameRepository") GameRepository gameRepository,
-            @Qualifier("gameSetupService") GameSetupService gameSetupService,
             @Qualifier("gameService") GameService gameService,
+            @Qualifier("gameSetupService") GameSetupService gameSetupService,
+            @Qualifier("gameSimulationService") GameSimulationService gameSimulationService,
             @Qualifier("htmlSummaryService") HtmlSummaryService htmlSummaryService,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
             @Qualifier("matchRepository") MatchRepository matchRepository,
@@ -70,6 +71,7 @@ public class MatchService {
         this.gameRepository = gameRepository;
         this.gameService = gameService;
         this.gameSetupService = gameSetupService;
+        this.gameSimulationService = gameSimulationService;
         this.htmlSummaryService = htmlSummaryService;
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchRepository = matchRepository;
@@ -863,31 +865,24 @@ public class MatchService {
     }
 
     public void checkGameAndStartNextIfNeeded(Match match) {
-        Game game = requireActiveGameByMatch(match);
-        if (game != null) {
-            // There is no active game anymore!
-            // ###################### NOT FINISHED
+        Game activeGame = requireActiveGameByMatch(match);
+
+        if (activeGame != null) {
+            return; // There is still an active game
         }
+
         boolean matchOver = match.getMatchPlayers().stream()
                 .anyMatch(mp -> mp.getMatchScore() >= match.getMatchGoal());
 
-        if (!matchOver) {
-            Game nextGame = new Game();
-            nextGame.setMatch(match);
-            nextGame.setGameNumber(match.getGames().size() + 1);
-            nextGame.setPhase(GamePhase.PASSING);
-            nextGame.setCurrentMatchPlayerSlot(1);
-            nextGame.setTrickLeaderMatchPlayerSlot(1); // will have to be initialised only after passing
-            nextGame.setCurrentPlayOrder(1);
-            nextGame.setCurrentTrickNumber(1);
-            nextGame.setHeartsBroken(false);
-            gameRepository.save(nextGame);
-
-            match.getGames().add(nextGame);
-            matchRepository.save(match);
-        } else {
+        if (matchOver) {
             match.setPhase(MatchPhase.FINISHED);
             matchRepository.save(match);
+        } else {
+            match.setPhase(MatchPhase.BETWEEN_GAMES);
+            matchRepository.save(match); // Save transition before creating a new game
+
+            // Delegate to GameSetupService for game creation
+            gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
         }
     }
 
@@ -908,6 +903,12 @@ public class MatchService {
         int goal = match.getMatchGoal();
         return match.getMatchPlayers().stream()
                 .anyMatch(mp -> mp.getGameScore() >= goal);
+    }
+
+    public void autoPlayToLastTrick(Long matchId) {
+        Match match = requireMatchByMatchId(matchId);
+        Game game = requireActiveGameByMatch(match);
+        gameSimulationService.autoPlayToLastTrick(match, game);
     }
 
 }

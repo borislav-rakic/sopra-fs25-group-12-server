@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Random;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -62,46 +61,58 @@ public class AiPassingService {
         Strategy effectiveStrategy = strategy;
 
         List<String> cards = new ArrayList<>(List.of(cardsArray));
+        List<String> selectedCards = new ArrayList<>(List.of(cardsArray));
 
         switch (effectiveStrategy) {
             case LEFTMOST:
-                return cards.subList(0, 3);
+                selectedCards = cards.subList(0, 3);
+                break;
 
             case RANDOM:
                 Collections.shuffle(cards);
-                return cards.subList(0, 3);
+                selectedCards = cards.subList(0, 3);
+                break;
 
             case DUMPHIGHESTFACEFIRST:
                 Collections.shuffle(cards);
-                return cards.subList(0, 3);
+                selectedCards = cards.subList(0, 3);
+                break;
 
             case GETRIDOFCLUBSTHENHEARTS:
                 Collections.shuffle(cards);
-                return cards.subList(0, 3);
+                selectedCards = cards.subList(0, 3);
+                break;
 
             case PREFERBLACK:
                 Collections.shuffle(cards);
-                return cards.subList(0, 3);
+                selectedCards = cards.subList(0, 3);
+                break;
 
             case VOIDSUIT:
                 Collections.shuffle(cards);
-                return cards.subList(0, 3);
+                selectedCards = cards.subList(0, 3);
+                break;
 
             case HYPATIA:
                 Collections.shuffle(cards);
-                return cards.subList(0, 3);
+                selectedCards = cards.subList(0, 3);
+                break;
 
             case GARY:
                 Collections.shuffle(cards);
-                return cards.subList(0, 3);
+                selectedCards = cards.subList(0, 3);
+                break;
 
             case ADA:
                 Collections.shuffle(cards);
-                return cards.subList(0, 3);
+                selectedCards = cards.subList(0, 3);
+                break;
 
             default:
                 throw new IllegalArgumentException("Unsupported strategy: " + strategy);
         }
+        log.info("User has decided on three Cards to pass.");
+        return selectedCards;
     }
 
     public void passForAllAiPlayers(Game game) {
