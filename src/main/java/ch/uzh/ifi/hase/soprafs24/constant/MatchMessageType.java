@@ -5,7 +5,5 @@ public enum MatchMessageType {
     PLAYER_JOINED,
     HEARTS_BROKEN,
     GAME_STARTED,
-    CARD_PLAYED,
-    QUEEN_WARNING,
-    SCORE_UPDATED
+    QUEEN_WARNING
 }
