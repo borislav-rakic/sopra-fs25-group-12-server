@@ -30,8 +30,9 @@ public class PollingDTO {
     private String previousTrickAsString; // [16b]
     private Integer previousTrickWinnerMatchPlayerSlot; // [17a]
     private Integer previousTrickWinnerPlayerSlot; // [17b]
-    private int previousTrickPoints; // [18]
-    private String resultHtml; // [18a]
+    private int previousTrickPoints; // [18a]
+    private String resultHtml; // [18b]
+    private List<MatchMessageDTO> messages; // [18c]
 
     // Info about the other players
     private List<String> matchPlayers; // [21]
@@ -300,6 +301,14 @@ public class PollingDTO {
 
     public void setTrickInProgress(boolean trickInProgress) {
         this.trickInProgress = trickInProgress;
+    }
+
+    public List<MatchMessageDTO> getMessages() {
+        return messages;
+    }
+
+    public void setMessages(List<MatchMessageDTO> messages) {
+        this.messages = messages;
     }
 
 }

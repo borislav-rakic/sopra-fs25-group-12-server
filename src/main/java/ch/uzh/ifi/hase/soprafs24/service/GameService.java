@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.MatchMessageType;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
@@ -44,6 +45,7 @@ public class GameService {
     private final GameRepository gameRepository;
     private final GameStatsService gameStatsService;
     private final MatchRepository matchRepository;
+    private final MatchMessageService matchMessageService;
 
     // or via constructor injection
 
@@ -54,12 +56,14 @@ public class GameService {
             @Qualifier("cardRulesService") CardRulesService cardRulesService,
             @Qualifier("gameRepository") GameRepository gameRepository,
             @Qualifier("gameStatsService") GameStatsService gameStatsService,
+            @Qualifier("matchMessageService") MatchMessageService matchMessageService,
             @Qualifier("matchRepository") MatchRepository matchRepository) {
         this.aiPlayingService = aiPlayingService;
         this.cardPassingService = cardPassingService;
         this.cardRulesService = cardRulesService;
         this.gameRepository = gameRepository;
         this.gameStatsService = gameStatsService;
+        this.matchMessageService = matchMessageService;
         this.matchRepository = matchRepository;
 
     }
@@ -199,7 +203,12 @@ public class GameService {
 
         // Step 2: Add the card to the trick
         game.addCardCodeToCurrentTrick(cardCode);
-
+        if (cardCode == "QS") {
+            matchMessageService.addMessage(
+                    game.getMatch(),
+                    MatchMessageType.QUEEN_WARNING,
+                    matchMessageService.getFunMessage(MatchMessageType.QUEEN_WARNING));
+        }
         log.info("   | Card {} added to trick: {}. Hand now: {}", cardCode, game.getCurrentTrick(),
                 matchPlayer.getHand());
         game.setCurrentPlayOrder(game.getCurrentPlayOrder() + 1);
