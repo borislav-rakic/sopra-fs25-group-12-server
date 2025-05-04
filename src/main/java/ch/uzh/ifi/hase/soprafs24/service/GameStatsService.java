@@ -167,4 +167,24 @@ public class GameStatsService {
         gameStatsRepository.flush(); // good habit to flush when doing batch updates
     }
 
+    /**
+     * Updates the points_billed_to column in the respective entry in the GAME_STATS relation.
+     * @param game The given game.
+     * @param winnerMatchPlayerSlot The winner of the trick.
+     * @param rankSuit The card code of the card.
+     */
+    public void updateGameStatsPointsBilledTo(Game game, String rankSuit, int winnerMatchPlayerSlot) {
+        GameStats entry = gameStatsRepository.findByRankSuitAndGame(rankSuit, game);
+
+        if (entry == null) {
+            throw new IllegalStateException("GameStats entry not found for rank: " + rankSuit);
+        }
+
+        entry.setPointsBilledTo(winnerMatchPlayerSlot);
+        gameStatsRepository.save(entry);
+        gameStatsRepository.flush();
+
+        log.info(String.format(" Points from card with rank %s were billed to %s", rankSuit, winnerMatchPlayerSlot));
+    }
+
 }
