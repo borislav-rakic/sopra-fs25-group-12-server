@@ -11,6 +11,12 @@ public final class GameConstants {
 
     public static final String SEED_PREFIX = "seed--";
 
+    public static final boolean PLAY_ALL_AI_TURNS_AT_ONCE = false;
+
+    public static final int POLLING_INTERVAL = 1000;
+
+    public static final boolean PREVENT_OVERPOLLING = false;
+
     private GameConstants() {
         // Prevent instantiation
     }

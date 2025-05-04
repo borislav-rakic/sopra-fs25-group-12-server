@@ -1,5 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.List;
 
 import javax.persistence.EntityNotFoundException;
@@ -13,10 +15,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import ch.uzh.ifi.hase.soprafs24.constant.AiMatchPlayerState;
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchMessageType;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
+import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
@@ -69,12 +73,11 @@ public class GameService {
     }
 
     private static final Logger log = LoggerFactory.getLogger(GameService.class);
-    private static final Boolean PLAY_ALL_AI_TURNS_AT_ONCE = false;
 
     public void playAiTurnsUntilHuman(Long gameId) {
         while (true) {
             boolean played = playSingleAiTurn(gameId);
-            if (!played || !PLAY_ALL_AI_TURNS_AT_ONCE) {
+            if (!played || !GameConstants.PLAY_ALL_AI_TURNS_AT_ONCE) {
                 break;
             }
         }
@@ -95,14 +98,18 @@ public class GameService {
             }
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Not an AI turn.");
         }
+        if (!GameConstants.PLAY_ALL_AI_TURNS_AT_ONCE && aiPlayer.getAiMatchPlayerState() == AiMatchPlayerState.READY) {
+            // only delay until next polling if turns are not meant to be performed at once
+            aiPlayer.setAiMatchPlayerState(AiMatchPlayerState.THINKING);
+            log.info("  = The AI Player in Slot {} skips a turn to think.", aiPlayer.getMatchPlayerSlot());
+            return false;
+        } else {
+            aiPlayer.setAiMatchPlayerState(AiMatchPlayerState.READY);
+            log.info("  = The AI Player in Slot {} is done thinking and ready to perform their turn.",
+                    aiPlayer.getMatchPlayerSlot());
+        }
 
         String cardCode = aiPlayingService.selectCardToPlay(game, aiPlayer, Strategy.LEFTMOST);
-
-        try {
-            Thread.sleep(50); // simulate thinking time
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
 
         playCardAsAi(game, aiPlayer, cardCode);
 
@@ -112,7 +119,7 @@ public class GameService {
     public void playCardAsHuman(Game game, MatchPlayer matchPlayer, String cardCode) {
         log.info("=== PLAY CARD AS HUMAN ({}), CurrentSlot: {}.",
                 game.getCurrentPlayOrder(), game.getCurrentMatchPlayerSlot());
-        log.info("= HUMAN at matchPlayerSlot {} attempting to play card {}.", matchPlayer.getInfo(),
+        log.info("  = HUMAN at matchPlayerSlot {} attempting to play card {}.", matchPlayer.getInfo(),
                 cardCode);
         // Defensive checks
         if (game.getPhase().isNotActive()) {
@@ -136,7 +143,7 @@ public class GameService {
                 game.getTrickLeaderMatchPlayerSlot(), game.getCurrentTrick(), game.getCurrentPlayOrder(),
                 game.getCurrentTrickNumber());
 
-        if (cardCode == "XX") {
+        if ("XX".equals(cardCode)) {
             cardCode = aiPlayingService.selectCardToPlay(game, matchPlayer, Strategy.RANDOM);
         }
         cardRulesService.validateMatchPlayerCardCode(game, matchPlayer, cardCode);
@@ -197,7 +204,7 @@ public class GameService {
 
         // Step 2: Add the card to the trick
         game.addCardCodeToCurrentTrick(cardCode);
-        if (cardCode == "QS") {
+        if ("QS".equals(cardCode)) {
             matchMessageService.addMessage(
                     game.getMatch(),
                     MatchMessageType.QUEEN_WARNING,
@@ -209,6 +216,10 @@ public class GameService {
         log.info("CURRENTPLAYORDER {}", game.getCurrentPlayOrder());
         game.updateGamePhaseBasedOnPlayOrder();
 
+        if (game.getCurrentTrickSize() == 1) {
+            game.setTrickPhase(TrickPhase.RUNNING);
+            log.info("   | TrickPhase transitioned to RUNNING.");
+        }
         // Step 3: Advance the turn if trick is not complete
         if (game.getCurrentTrickSize() < 4) {
             int nextSlot = (game.getCurrentMatchPlayerSlot() % 4) + 1;
@@ -223,6 +234,36 @@ public class GameService {
         gameStatsService.recordCardPlay(game, matchPlayer, cardCode);
         log.info("   | Stats recorded for card {} by MatchPlayer {}", cardCode, matchPlayer.getInfo());
         log.info("   +--- executeValidatedCardPlay ---");
+    }
+
+    public void advanceTrickPhaseIfOwnerPolling(Game game) {
+        if (game.getTrickPhase() == TrickPhase.JUSTCOMPLETED &&
+                game.getTrickJustCompletedTime() != null &&
+                Duration.between(game.getTrickJustCompletedTime(), Instant.now())
+                        .toMillis() > GameConstants.POLLING_INTERVAL) {
+
+            // Step 1: Clear the current trick
+            game.clearCurrentTrick();
+            log.info("   | Current trick cleared.");
+
+            // Step 2: Set the next trick leader and transition phase
+            game.setTrickPhase(TrickPhase.READY);
+
+            // Determine the next trick leader dynamically
+            int nextTrickLeaderSlot = determineNextTrickLeader(game);
+            game.setCurrentMatchPlayerSlot(nextTrickLeaderSlot); // Set to next leader
+            log.info("   | TrickPhase set to READY. New matchPlayerSlot: {}", nextTrickLeaderSlot);
+
+            // Step 3: Persist the updated game state
+            gameRepository.save(game);
+        }
+    }
+
+    private int determineNextTrickLeader(Game game) {
+        // For now, the next leader will be the winner of the last trick
+        // You can modify this logic to follow your game rules
+        int winnerMatchPlayerSlot = game.getPreviousTrickWinnerMatchPlayerSlot();
+        return winnerMatchPlayerSlot; // Return the winner as the new leader
     }
 
     private void handlePotentialTrickCompletion(Game game) {
@@ -243,18 +284,22 @@ public class GameService {
         game.setPreviousTrickWinnerMatchPlayerSlot(winnerMatchPlayerSlot);
         game.setPreviousTrickPoints(points);
         game.setPreviousTrickLeaderMatchPlayerSlot(game.getTrickLeaderMatchPlayerSlot());
+        game.setTrickJustCompletedTime(Instant.now());
+        game.setTrickPhase(TrickPhase.JUSTCOMPLETED);
+        log.info(" & TrickPhase set to JUSTCOMPLETED at {}", game.getTrickJustCompletedTime());
 
         // Step 3: Prepare for the next trick
         game.updateGamePhaseBasedOnPlayOrder();
         game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
         game.clearCurrentTrick(); // also clears currentTrickMatchPlayerSlot internally
 
-        // Step 4: Set next trick leader — which resets trick matchPlayerSlots properly
-        game.setTrickLeaderMatchPlayerSlot(winnerMatchPlayerSlot); // internally sets new matchPlayerSlots order
-        game.setCurrentMatchPlayerSlot(winnerMatchPlayerSlot);
+        // Step 4: Set next trick leader dynamically — based on the winner
+        int nextTrickLeaderSlot = determineNextTrickLeader(game, winnerMatchPlayerSlot);
+        game.setTrickLeaderMatchPlayerSlot(nextTrickLeaderSlot); // Set new trick leader
+        game.setCurrentMatchPlayerSlot(nextTrickLeaderSlot); // Set the current match player slot to the next leader
 
         log.info(" & New trick lead is matchPlayerSlot {}. New trickMatchPlayerSlotOrder is: {}.",
-                winnerMatchPlayerSlot, game.getTrickMatchPlayerSlotOrderAsString());
+                nextTrickLeaderSlot, game.getTrickMatchPlayerSlotOrderAsString());
 
         // Step 5: Persist state
         gameRepository.save(game);
@@ -262,6 +307,13 @@ public class GameService {
         log.info(" & Trick transitioned. New currentMatchPlayerSlot: {}. Current trick #: {}.",
                 game.getCurrentMatchPlayerSlot(), game.getCurrentTrickNumber());
         log.info(" &&& TRICK COMPLETION CONCLUDED &&&");
+    }
+
+    private int determineNextTrickLeader(Game game, int winnerMatchPlayerSlot) {
+        // Calculate the next trick leader slot.
+        // For example, you can set the next trick leader as the winner of the last
+        // trick:
+        return winnerMatchPlayerSlot;
     }
 
     @Transactional

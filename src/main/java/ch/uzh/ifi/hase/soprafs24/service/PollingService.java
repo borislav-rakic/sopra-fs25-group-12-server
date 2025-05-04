@@ -1,5 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -14,6 +16,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
@@ -61,9 +64,6 @@ public class PollingService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "There is no active  game in this match.");
         }
 
-        // TRICK [12]
-        boolean isTrickInProgress = game.getCurrentTrickSize() > 0 && game.getCurrentTrickSize() < 4;
-
         // Current trick as List<Card> [14]
         List<Card> currentTrickAsCards = game.getCurrentTrick().stream()
                 .map(CardUtils::fromCode)
@@ -91,6 +91,19 @@ public class PollingService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Requesting Player does not appear to be part of this Match.");
         }
+
+        // Prevent "overpolling" no sooner than 25% last poll + poll duration.
+        // if (GameConstants.PREVENT_OVERPOLLING && !canPoll(requestingMatchPlayer)) {
+        // log.info("Detected overpolling by MatchPlayer in MatchPlayerSlot {}.",
+        // requestingMatchPlayer.getMatchPlayerSlot());
+        // throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "You are
+        // polling too frequently.");
+        // }
+
+        // log their visit in "lastHeardFrom"
+        requestingMatchPlayer.updateLastPollTime();
+        requestingMatchPlayer.incrementPollCounter();
+        int pollCounter = requestingMatchPlayer.getPollCounter();
 
         // OTHER PLAYERS
 
@@ -139,17 +152,21 @@ public class PollingService {
         /// Info about me
         // My cards in my hand
 
-        List<PlayerCardDTO> playerCardDTOList = new ArrayList<>();
-        String hand = CardUtils.normalizeCardCodeString(matchPlayer.getHand());
+        List<String> sortedHand = CardUtils.requireSplitCardCodesAsListOfStrings(
+                CardUtils.normalizeCardCodeString(matchPlayer.getHand()));
 
-        for (String cardCode : matchPlayer.getHandCardsArray()) {
-            PlayerCardDTO dtoCard = new PlayerCardDTO();
-            dtoCard.setCard(cardCode);
-            dtoCard.setGameId(game.getGameId());
-            dtoCard.setGameNumber(game.getGameNumber());
-            dtoCard.setPlayerId(user.getId());
-            playerCardDTOList.add(dtoCard);
-        }
+        List<PlayerCardDTO> playerCardDTOList = sortedHand.stream()
+                .map(cardCode -> {
+                    PlayerCardDTO dtoCard = new PlayerCardDTO();
+                    dtoCard.setCard(cardCode);
+                    dtoCard.setGameId(game.getGameId());
+                    dtoCard.setGameNumber(game.getGameNumber());
+                    dtoCard.setPlayerId(user.getId());
+                    return dtoCard;
+                })
+                .collect(Collectors.toList());
+
+        String hand = CardUtils.normalizeCardCodeString(matchPlayer.getHand());
 
         // Playable cards in my hand
         List<PlayerCardDTO> playableCardDTOList = new ArrayList<>();
@@ -178,6 +195,8 @@ public class PollingService {
 
         PollingDTO dto = new PollingDTO();
 
+        dto.setPollCounter(pollCounter);
+
         if (match.getPhase() == MatchPhase.FINISHED) {
             dto.setMatchPhase(MatchPhase.FINISHED);
 
@@ -195,8 +214,8 @@ public class PollingService {
         dto.setHostId(match.getHostId()); // [3]
         dto.setMatchPhase(match.getPhase()); // [4]
 
-        dto.setGamePhase(game.getPhase()); // [11]
-        dto.setTrickInProgress(isTrickInProgress); // [12]
+        dto.setGamePhase(game.getPhase()); // [11a]
+        dto.setTrickPhase(game.getTrickPhase()); // [12]
         dto.setHeartsBroken(game.getHeartsBroken()); // [13]
         dto.setCurrentTrick(currentTrickAsCards); // [14]
 
@@ -230,6 +249,38 @@ public class PollingService {
         dto.setPlayableCards(playableCardDTOList); // [34a]
         dto.setPlayableCardsAsString(playableCards); // [34b]
         return dto;
+    }
+
+    /**
+     * Checks if the matchPlayer can poll based on the polling interval.
+     * 
+     * @param matchPlayer the matchPlayer trying to poll
+     * @return true if the matchPlayer can poll, false if polling is too frequent
+     * @throws ResponseStatusException if the matchPlayer is polling too frequently
+     */
+    public static boolean canPoll(MatchPlayer matchPlayer) {
+        // Get current time and last poll time of the player
+        Instant now = Instant.now();
+        Instant lastPollTime = matchPlayer.getLastPollTime();
+
+        // Convert polling interval from milliseconds (int) to Duration
+        Duration pollingDuration = Duration.ofMillis(GameConstants.POLLING_INTERVAL);
+
+        // Calculate the minimum allowed time between polls (75% of polling interval)
+        Duration minimumPollInterval = pollingDuration.multipliedBy(1).dividedBy(4); // 25%
+
+        // Calculate the time passed since the last poll
+        Duration timeSinceLastPoll = Duration.between(lastPollTime, now);
+
+        // If the time passed since the last poll is less than the minimum required
+        // interval, reject the request
+        if (timeSinceLastPoll.compareTo(minimumPollInterval) < 0) {
+            // Reject polling request, too frequent
+            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "You are polling too frequently.");
+        }
+
+        // If enough time has passed, allow polling
+        return true;
     }
 
 }

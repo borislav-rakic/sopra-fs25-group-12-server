@@ -1,7 +1,10 @@
 package ch.uzh.ifi.hase.soprafs24.entity;
 
+import java.time.Instant;
+
 import javax.persistence.*;
 
+import ch.uzh.ifi.hase.soprafs24.constant.AiMatchPlayerState;
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
@@ -52,6 +55,16 @@ public class MatchPlayer {
     @Column
     @Enumerated(EnumType.STRING)
     private Strategy strategy;
+
+    @Column(nullable = false)
+    private Instant lastPollTime = Instant.now();
+
+    @Column(nullable = false)
+    private int pollCounter = 0;
+
+    @Column
+    @Enumerated(EnumType.STRING)
+    AiMatchPlayerState aiMatchPlayerState = AiMatchPlayerState.READY;
 
     // === Getter and Setter methods ===
 
@@ -149,6 +162,18 @@ public class MatchPlayer {
 
     public void setStrategy(Strategy strategy) {
         this.strategy = strategy;
+    }
+
+    public Instant getLastPollTime() {
+        return lastPollTime;
+    }
+
+    public void setLastPollTime(Instant lastPollTime) {
+        this.lastPollTime = lastPollTime;
+    }
+
+    public void updateLastPollTime() {
+        this.lastPollTime = Instant.now();
     }
 
     // === Optional helpers ===
@@ -332,6 +357,22 @@ public class MatchPlayer {
 
     public String getInfo() {
         return this.getMatch().getMatchId() + "/" + this.getMatchPlayerSlot();
+    }
+
+    public int getPollCounter() {
+        return pollCounter;
+    }
+
+    public void incrementPollCounter() {
+        this.pollCounter++;
+    }
+
+    public AiMatchPlayerState getAiMatchPlayerState() {
+        return aiMatchPlayerState;
+    }
+
+    public void setAiMatchPlayerState(AiMatchPlayerState aiMatchPlayerState) {
+        this.aiMatchPlayerState = aiMatchPlayerState;
     }
 
 }

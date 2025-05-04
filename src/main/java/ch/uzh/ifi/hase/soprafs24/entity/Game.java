@@ -1,6 +1,8 @@
 package ch.uzh.ifi.hase.soprafs24.entity;
 
 import javax.persistence.*;
+
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -8,6 +10,7 @@ import java.util.stream.Collectors;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,6 +45,10 @@ public class Game {
     @Column(nullable = false)
     private GamePhase phase = GamePhase.PRESTART;
 
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private TrickPhase trickPhase = TrickPhase.READY;
+
     @Column(name = "trick_leader_match_player_slot", nullable = false)
     private Integer trickLeaderMatchPlayerSlot = 0;
 
@@ -68,6 +75,9 @@ public class Game {
 
     @OneToMany(mappedBy = "game", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<GameStats> gameStats = new ArrayList<>();
+
+    @Column(name = "trick_just_completed_time")
+    private Instant trickJustCompletedTime = Instant.now();
 
     // === Getters and Setters ===
 
@@ -125,6 +135,22 @@ public class Game {
 
     public void setPhase(GamePhase phase) {
         this.phase = phase;
+    }
+
+    public TrickPhase getTrickPhase() {
+        return trickPhase;
+    }
+
+    public void setTrickPhase(TrickPhase trickPhase) {
+        this.trickPhase = trickPhase;
+    }
+
+    public Instant getTrickJustCompletedTime() {
+        return trickJustCompletedTime;
+    }
+
+    public void setTrickJustCompletedTime(Instant trickJustCompletedTime) {
+        this.trickJustCompletedTime = trickJustCompletedTime;
     }
 
     public Integer getTrickLeaderMatchPlayerSlot() {

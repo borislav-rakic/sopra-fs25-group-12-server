@@ -5,10 +5,12 @@ import java.util.Map;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 
 public class PollingDTO {
     // Info about the Match context
+    private int pollCounter; // [0]
     private Long matchId; // [1]
     private int matchGoal; // [2]
     private Long hostId; // [3]
@@ -16,7 +18,7 @@ public class PollingDTO {
 
     // Info about the game state
     private GamePhase gamePhase; // [11]
-    private boolean trickInProgress; // [12]
+    private TrickPhase trickPhase; // [12]
     private boolean heartsBroken; // [13]
 
     private List<Card> currentTrick; // [14a]
@@ -105,6 +107,14 @@ public class PollingDTO {
 
     public void setPlayerSlot(int playerSlot) {
         this.playerSlot = playerSlot;
+    }
+
+    public int getPollCounter() {
+        return pollCounter;
+    }
+
+    public void setPollCounter(int pollCounter) {
+        this.pollCounter = pollCounter;
     }
 
     public Integer getCurrentPlayerSlot() {
@@ -295,12 +305,12 @@ public class PollingDTO {
         this.avatarUrls = avatarUrls;
     }
 
-    public boolean isTrickInProgress() {
-        return trickInProgress;
+    public TrickPhase getTrickPhase() {
+        return trickPhase;
     }
 
-    public void setTrickInProgress(boolean trickInProgress) {
-        this.trickInProgress = trickInProgress;
+    public void setTrickPhase(TrickPhase trickPhase) {
+        this.trickPhase = trickPhase;
     }
 
     public List<MatchMessageDTO> getMessages() {
