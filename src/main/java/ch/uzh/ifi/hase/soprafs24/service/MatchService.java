@@ -22,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map.Entry;
-
 import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -823,6 +822,12 @@ public class MatchService {
             MatchPlayer requestingPlayer = match.requireMatchPlayerByUser(user);
 
             boolean isMatchOwnerPolling = requestingPlayer.getMatchPlayerSlot() == 1;
+
+            // Give each polling player a fair chance to grab TrickPhase.JUSTCOMPLETED at
+            // least once.
+            if (isMatchOwnerPolling) {
+                gameService.advanceTrickPhaseIfOwnerPolling(game);
+            }
             if (isMatchOwnerPolling &&
                     currentUser != null &&
                     Boolean.TRUE.equals(currentUser.getIsAiPlayer()) &&
