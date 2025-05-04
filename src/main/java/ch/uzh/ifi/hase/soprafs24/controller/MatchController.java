@@ -200,6 +200,7 @@ public class MatchController {
      * Retrieves the list of all join requests for a match.
      */
     @GetMapping("/matches/{matchId}/joinRequests")
+    @ResponseStatus(HttpStatus.OK)
     public List<JoinRequestDTO> getJoinRequests(@PathVariable Long matchId) {
         return matchService.getJoinRequests(matchId);
     }
@@ -322,8 +323,15 @@ public class MatchController {
     }
 
     @PostMapping("/matches/{matchId}/game/confirm")
+    @ResponseStatus(HttpStatus.OK)
     public void confirmGameResult(@PathVariable Long matchId, @RequestHeader("Authorization") String authHeader) {
         String token = authHeader.replace("Bearer ", "");
         matchService.confirmGameResult(token, matchId);
+    }
+
+    @PostMapping("/matches/{matchId}/game/fastforward")
+    @ResponseStatus(HttpStatus.OK)
+    public void advanceGame(@PathVariable Long matchId) {
+        matchService.autoPlayToLastTrick(matchId);
     }
 }

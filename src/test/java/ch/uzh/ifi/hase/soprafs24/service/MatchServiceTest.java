@@ -35,16 +35,19 @@ import static org.mockito.Mockito.verify;
 public class MatchServiceTest {
 
     @Mock
-    private CardRulesService cardRulesService = Mockito.mock(CardRulesService.class);
+    private GameRepository gameRepository = Mockito.mock(GameRepository.class);
 
     @Mock
-    private GameRepository gameRepository = Mockito.mock(GameRepository.class);
+    private GameService gameService = Mockito.mock(GameService.class);
+
+    @Mock
+    private GameSimulationService gameSimulationService = Mockito.mock(GameSimulationService.class);
 
     @Mock
     private GameSetupService gameSetupService = Mockito.mock(GameSetupService.class);
 
     @Mock
-    private GameService gameService = Mockito.mock(GameService.class);
+    private HtmlSummaryService htmlSummaryService = Mockito.mock(HtmlSummaryService.class);
 
     @Mock
     private MatchPlayerRepository matchPlayerRepository = Mockito.mock(MatchPlayerRepository.class);
@@ -63,10 +66,11 @@ public class MatchServiceTest {
 
     @InjectMocks
     private MatchService matchService = new MatchService(
-            cardRulesService,
             gameRepository,
-            gameSetupService,
             gameService,
+            gameSetupService,
+            gameSimulationService,
+            htmlSummaryService,
             matchPlayerRepository,
             matchRepository,
             pollingService,

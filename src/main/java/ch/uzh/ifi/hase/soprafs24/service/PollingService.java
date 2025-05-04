@@ -14,8 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
-import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
@@ -34,18 +32,15 @@ public class PollingService {
     // private final Logger log = LoggerFactory.getLogger(PollingService.class);
 
     private final CardRulesService cardRulesService;
-    private final GameService gameService;
     private final HtmlSummaryService htmlSummaryService;
     private final MatchMessageService matchMessageService;
 
     @Autowired
     public PollingService(
             @Qualifier("cardRulesService") CardRulesService cardRulesService,
-            @Qualifier("gameService") GameService gameService,
             @Qualifier("htmlSummaryService") HtmlSummaryService htmlSummaryService,
             @Qualifier("matchMessageService") MatchMessageService matchMessageService) {
         this.cardRulesService = cardRulesService;
-        this.gameService = gameService;
         this.htmlSummaryService = htmlSummaryService;
         this.matchMessageService = matchMessageService;
 
@@ -65,9 +60,6 @@ public class PollingService {
         if (game == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "There is no active  game in this match.");
         }
-        // determine if owner is polling
-        int currentSlot = game.getCurrentMatchPlayerSlot();
-        User currentSlotUser = match.requireUserBySlot(currentSlot);
 
         // TRICK [12]
         boolean isTrickInProgress = game.getCurrentTrickSize() > 0 && game.getCurrentTrickSize() < 4;
@@ -99,8 +91,6 @@ public class PollingService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "Requesting Player does not appear to be part of this Match.");
         }
-
-        boolean poolingMatchOwner = (requestingMatchPlayer.getMatchPlayerSlot() == 1);
 
         // OTHER PLAYERS
 
@@ -188,22 +178,16 @@ public class PollingService {
 
         PollingDTO dto = new PollingDTO();
 
-        if (poolingMatchOwner || match.getPhase() == MatchPhase.FINISHED) {
-            // Does match happen to be over?
-            if (match.getPhase() == MatchPhase.FINISHED) {
-                dto.setMatchPhase(MatchPhase.FINISHED);
-                dto.setResultHtml(htmlSummaryService.buildMatchResultHtml(match, game));
-                return dto;
-            }
-            // does game happen to be over?
-            if (game.getPhase() == GamePhase.FINALTRICK
-                    && game.getCurrentPlayOrder() >= GameConstants.FULL_DECK_CARD_COUNT) {
-                // set all MatchPlayers to NOT ready.
-                gameService.resetAllPlayersReady(match.getMatchId());
+        if (match.getPhase() == MatchPhase.FINISHED) {
+            dto.setMatchPhase(MatchPhase.FINISHED);
+
+            if (Boolean.TRUE.equals(matchPlayer.getIsReady())) {
+                dto.setResultHtml(match.getSummary());
+            } else {
                 dto.setResultHtml(htmlSummaryService.buildGameResultHtml(match, game));
-                dto.setGamePhase(GamePhase.RESULT);
-                return dto;
             }
+
+            return dto;
         }
 
         dto.setMatchId(match.getMatchId()); // [1]
@@ -245,22 +229,7 @@ public class PollingService {
         dto.setPlayerCardsAsString(hand); // [33b]
         dto.setPlayableCards(playableCardDTOList); // [34a]
         dto.setPlayableCardsAsString(playableCards); // [34b]
-
-        /// See if an AI PLAYER is up for their turn.
-        if (
-        // ... user 1, i.e. the match owner, happens to poll ...
-        poolingMatchOwner
-                // ... there is a user in current matchPlayerSlot ...
-                && currentSlotUser != null
-                // ... this user happens to be an ai player ...
-                && Boolean.TRUE.equals(currentSlotUser.getIsAiPlayer())
-                // ... we are in the middle of playing an actual trick
-                && (game.getPhase() == GamePhase.FIRSTTRICK || game.getPhase() == GamePhase.NORMALTRICK
-                        || game.getPhase() == GamePhase.FINALTRICK)) {
-            gameService.playAiTurnsUntilHuman(game.getGameId()); // do not inject matchPlayer (runs independent of game
-                                                                 // owner)
-        }
-        /// END: AI PLAYER
         return dto;
     }
+
 }

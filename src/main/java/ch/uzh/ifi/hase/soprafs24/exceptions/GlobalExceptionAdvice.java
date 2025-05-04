@@ -78,4 +78,15 @@ public class GlobalExceptionAdvice extends ResponseEntityExceptionHandler {
     Map<String, Object> body = buildErrorBody("Unexpected error", HttpStatus.INTERNAL_SERVER_ERROR, ex);
     return new ResponseEntity<>(body, HttpStatus.INTERNAL_SERVER_ERROR);
   }
+
+  @ExceptionHandler(GameplayException.class)
+  public ResponseEntity<Object> handleGameplayException(GameplayException ex) {
+    log.info("Gameplay rule rejection: {}", ex.getMessage());
+
+    Map<String, Object> body = Map.of(
+        "status", "rejected",
+        "reason", ex.getMessage());
+
+    return ResponseEntity.ok(body); // Not a failure — it's a game state response
+  }
 }
