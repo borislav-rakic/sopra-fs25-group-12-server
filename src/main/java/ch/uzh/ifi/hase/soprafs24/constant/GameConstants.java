@@ -17,6 +17,14 @@ public final class GameConstants {
 
     public static final boolean PREVENT_OVERPOLLING = false;
 
+    public static final int MAX_TRICK_SIZE = 4;
+
+    public static final int MAX_TRICK_NUMBER = 13;
+
+    public static final String TWO_OF_CLUBS = "2C";
+
+    public static final String QUEEN_OF_SPADES = "QS";
+
     private GameConstants() {
         // Prevent instantiation
     }

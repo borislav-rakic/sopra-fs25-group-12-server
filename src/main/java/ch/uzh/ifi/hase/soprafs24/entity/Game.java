@@ -53,10 +53,10 @@ public class Game {
     private Integer trickLeaderMatchPlayerSlot = 0;
 
     @Column(name = "current_trick", length = 32)
-    private String currentTrick; // e.g., "2C,3D,QH,AS"
+    private String currentTrick = ""; // e.g., "2C,3D,QH,AS"
 
     @Column(name = "previous_trick", length = 32)
-    private String previousTrick; // e.g., "2C,3D,QH,AS"
+    private String previousTrick = ""; // e.g., "2C,3D,QH,AS"
 
     @Column(nullable = false)
     private int currentTrickNumber = 0;

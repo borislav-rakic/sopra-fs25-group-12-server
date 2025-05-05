@@ -131,6 +131,20 @@ public class CardUtils {
             return "";
         }
 
+        return Arrays.stream(cardCodes.split(","))
+                .map(String::trim)
+                .filter(code -> !code.isEmpty())
+                .peek(CardUtils::isValidCardFormat) // Silently skips doubles.
+                .distinct() // Remove duplicates
+                .sorted(CardUtils::compareCards) // Sort by card order
+                .collect(Collectors.joining(","));
+    }
+
+    public static int sizeOfCardCodeString(String cardCodes) {
+        if (cardCodes == null || cardCodes.isBlank()) {
+            return 0;
+        }
+
         List<String> codes = List.of(cardCodes.split(","));
 
         // Validate all codes first
@@ -138,13 +152,8 @@ public class CardUtils {
             requireValidCardFormat(code.trim()); // throws if invalid
         }
 
-        // Sort and return
-        List<String> sorted = codes.stream()
-                .map(String::trim)
-                .sorted(CardUtils::compareCards)
-                .collect(Collectors.toList());
-
-        return String.join(",", sorted);
+        int numberOfItems = codes.size();
+        return numberOfItems;
     }
 
     /**
@@ -158,7 +167,7 @@ public class CardUtils {
 
         // Queen of Spades
         // QS = 999.
-        if (cardCode.equals("QS")) {
+        if (GameConstants.QUEEN_OF_SPADES.equals(cardCode)) {
             return 999;
         }
 
@@ -262,6 +271,137 @@ public class CardUtils {
                 .filter(CardUtils::isValidCardFormat)
                 .sorted(CardUtils::compareCards)
                 .collect(Collectors.joining(","));
+    }
+
+    public static boolean isCardCodeInHandAsString(String cardCode, String handAsString) {
+        if (cardCode == null || handAsString == null || cardCode.length() != 2) {
+            return false;
+        }
+
+        List<String> cardCodes = CardUtils.splitCardCodesAsListOfStrings(handAsString);
+        return cardCodes.contains(cardCode);
+    }
+
+    public static int numberOfHeartsCardInCardCodeString(String cardCodeString) {
+        if (cardCodeString == null || cardCodeString.isBlank()) {
+            return 0;
+        }
+
+        return (int) splitCardCodesAsListOfStrings(cardCodeString).stream()
+                .filter(code -> code.length() >= 2 && code.charAt(code.length() - 1) == 'H')
+                .count();
+    }
+
+    public static int numberOfNonHeartsCardsInCardCodeString(String cardCodeString) {
+        if (cardCodeString == null || cardCodeString.isBlank()) {
+            return 0;
+        }
+
+        return (int) splitCardCodesAsListOfStrings(cardCodeString).stream()
+                .filter(code -> code.length() >= 2 && code.charAt(code.length() - 1) != 'H')
+                .count();
+    }
+
+    public static String getSuitOfFirstCardInCardCodeString(String cardCodeString) {
+        if (cardCodeString == null || cardCodeString.isBlank()) {
+            return "";
+        }
+
+        return splitCardCodesAsListOfStrings(cardCodeString).stream()
+                .findFirst()
+                .map(code -> String.valueOf(code.charAt(code.length() - 1)))
+                .orElse("");
+    }
+
+    public static boolean isSuitInHand(String cardCodeString, String suit) {
+        if (cardCodeString == null || cardCodeString.isBlank()) {
+            return false;
+        }
+
+        if (suit == null || suit.isBlank()) {
+            return false;
+        }
+
+        List<String> cardCodes = splitCardCodesAsListOfStrings(cardCodeString);
+
+        return cardCodes.stream()
+                .anyMatch(code -> code.length() >= 2 &&
+                        String.valueOf(code.charAt(code.length() - 1)).equalsIgnoreCase(suit));
+    }
+
+    public static String cardCodesInSuit(String cardCodeString, String suit) {
+        if (cardCodeString == null || cardCodeString.isBlank()) {
+            return "";
+        }
+
+        List<String> matchingCards;
+
+        if (suit == null || suit.isBlank()) {
+            matchingCards = splitCardCodesAsListOfStrings(cardCodeString);
+        } else {
+            matchingCards = splitCardCodesAsListOfStrings(cardCodeString).stream()
+                    .filter(code -> code.length() >= 2 &&
+                            String.valueOf(code.charAt(code.length() - 1)).equalsIgnoreCase(suit))
+                    .collect(Collectors.toList());
+        }
+
+        if (matchingCards.isEmpty()) {
+            return "";
+        }
+
+        return matchingCards.stream()
+                .sorted(CardUtils::compareCards)
+                .collect(Collectors.joining(","));
+    }
+
+    public static String cardCodesNotInSuit(String cardCodeString, String suit) {
+        if (cardCodeString == null || cardCodeString.isBlank()) {
+            return "";
+        }
+
+        List<String> remainingCards;
+
+        if (suit == null || suit.isBlank()) {
+            remainingCards = splitCardCodesAsListOfStrings(cardCodeString);
+        } else {
+            remainingCards = splitCardCodesAsListOfStrings(cardCodeString).stream()
+                    .filter(code -> code.length() >= 2 &&
+                            !String.valueOf(code.charAt(code.length() - 1)).equalsIgnoreCase(suit))
+                    .collect(Collectors.toList());
+        }
+
+        if (remainingCards.isEmpty()) {
+            return "";
+        }
+
+        return remainingCards.stream()
+                .sorted(CardUtils::compareCards)
+                .collect(Collectors.joining(","));
+    }
+
+    public static String cardCodeStringMinusCardCode(String cardCodeString, String cardCodeToRemove) {
+        if (cardCodeString == null || cardCodeString.isBlank()) {
+            return "";
+        }
+
+        if (cardCodeToRemove == null || cardCodeToRemove.isBlank()) {
+            return normalizeCardCodeString(cardCodeString); // nothing to remove
+        }
+
+        String cardToRemove = cardCodeToRemove.trim();
+
+        List<String> remainingCards = splitCardCodesAsListOfStrings(cardCodeString).stream()
+                .map(String::trim)
+                .filter(code -> !code.equals(cardToRemove))
+                .distinct()
+                .sorted(CardUtils::compareCards)
+                .collect(Collectors.toList());
+
+        if (remainingCards.isEmpty()) {
+            return "";
+        }
+
+        return String.join(",", remainingCards);
     }
 
 }

@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
@@ -38,7 +39,7 @@ public class GameSimulationService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Game is not in PLAYING phase.");
         }
 
-        while (game.getCurrentPlayOrder() < 45) { // stop before last trick begins
+        while (game.getPhase() != GamePhase.FINALTRICK) { // stop before last trick begins
             try {
                 simulateNextCardPlay(match, game);
             } catch (IllegalStateException e) {

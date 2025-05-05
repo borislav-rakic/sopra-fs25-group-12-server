@@ -242,7 +242,8 @@ public class GameSetupService {
         Game game = new Game();
         game.setGameNumber(nextGameNumber);
         game.setPhase(GamePhase.PRESTART);
-        game.setCurrentPlayOrder(0);
+        game.setCurrentPlayOrder(0); // answers the question, how many cards have been added into the trick?
+        game.setCurrentTrickNumber(1);
 
         match.addGame(game);
 

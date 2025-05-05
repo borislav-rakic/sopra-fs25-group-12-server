@@ -154,7 +154,7 @@ public class CardPassingService {
 
         for (MatchPlayer player : match.getMatchPlayers()) {
             System.out.println(player.getMatchPlayerSlot() + " " + player.getHand());
-            if (player.hasCardCodeInHand("2C")) {
+            if (player.hasCardCodeInHand(GameConstants.TWO_OF_CLUBS)) {
                 game.setCurrentMatchPlayerSlot(player.getMatchPlayerSlot());
                 game.setTrickLeaderMatchPlayerSlot(player.getMatchPlayerSlot());
                 log.info(
@@ -259,6 +259,7 @@ public class CardPassingService {
             // Transition phase to FIRSTTRICK!
             game.setPhase(GamePhase.FIRSTTRICK);
             game.setCurrentTrickNumber(1);
+            game.setCurrentPlayOrder(0);
             gameRepository.save(game);
             log.info("/// READY TO PLAY FIRST TRICK ///");
 
