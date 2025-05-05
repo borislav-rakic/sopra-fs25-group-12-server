@@ -867,6 +867,8 @@ public class MatchService {
             match.setPhase(MatchPhase.FINISHED);
             // Optionally: generate a summary
             match.setSummary(htmlSummaryService.buildMatchResultHtml(match, finishedGame));
+
+            System.out.println("MATCHRESULT: " + match.getSummary());
         } else {
             match.setPhase(MatchPhase.BETWEEN_GAMES);
 

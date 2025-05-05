@@ -187,4 +187,22 @@ public class GameStatsService {
         log.info(String.format(" Points from card with rank %s were billed to %s", rankSuit, winnerMatchPlayerSlot));
     }
 
+    /**
+     * Returns the score of a given player in a given game.
+     * @param matchPlayerSlot The match player slot of the given player.
+     * @param game The given game.
+     * @return The score of the given player in the given game.
+     */
+    public int getPlayerScoreInGame(int matchPlayerSlot, Game game) {
+        int score = 0;
+
+        List<GameStats> gameStats = gameStatsRepository.findByGameAndPointsBilledTo(game, matchPlayerSlot);
+
+        for (GameStats gameStat : gameStats) {
+            score += gameStat.getPointsWorth();
+        }
+
+        return score;
+    }
+
 }
