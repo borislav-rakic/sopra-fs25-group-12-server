@@ -35,6 +35,9 @@ public class GameServiceTest {
     @Mock
     private MatchRepository matchRepository = Mockito.mock(MatchRepository.class);
 
+    @Mock
+    private MatchPlayerRepository matchPlayerRepository = Mockito.mock(MatchPlayerRepository.class);
+
     @InjectMocks
     private GameService gameService = new GameService(
 
@@ -44,7 +47,8 @@ public class GameServiceTest {
             gameRepository,
             gameStatsService,
             matchMessageService,
-            matchRepository);
+            matchRepository,
+            matchPlayerRepository);
 
     private Match match;
     private User user;

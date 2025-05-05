@@ -6,6 +6,8 @@ import java.util.List;
 
 import javax.persistence.EntityNotFoundException;
 
+import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -50,6 +52,7 @@ public class GameService {
     private final GameStatsService gameStatsService;
     private final MatchRepository matchRepository;
     private final MatchMessageService matchMessageService;
+    private final MatchPlayerRepository matchPlayerRepository;
 
     // or via constructor injection
 
@@ -61,7 +64,8 @@ public class GameService {
             @Qualifier("gameRepository") GameRepository gameRepository,
             @Qualifier("gameStatsService") GameStatsService gameStatsService,
             @Qualifier("matchMessageService") MatchMessageService matchMessageService,
-            @Qualifier("matchRepository") MatchRepository matchRepository) {
+            @Qualifier("matchRepository") MatchRepository matchRepository,
+            @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository) {
         this.aiPlayingService = aiPlayingService;
         this.cardPassingService = cardPassingService;
         this.cardRulesService = cardRulesService;
@@ -69,6 +73,7 @@ public class GameService {
         this.gameStatsService = gameStatsService;
         this.matchMessageService = matchMessageService;
         this.matchRepository = matchRepository;
+        this.matchPlayerRepository = matchPlayerRepository;
 
     }
 
@@ -275,7 +280,13 @@ public class GameService {
 
         // Step 1: Determine winner and points
         int winnerMatchPlayerSlot = cardRulesService.determineTrickWinner(game);
-        int points = cardRulesService.calculateTrickPoints(game.getCurrentTrick());
+        int points = cardRulesService.calculateTrickPoints(game, winnerMatchPlayerSlot);
+
+        // Adds the points to the correct entry in the MatchPlayer relation
+        MatchPlayer winnerMatchPlayer = matchPlayerRepository.findByMatchAndMatchPlayerSlot(game.getMatch(), winnerMatchPlayerSlot);
+        winnerMatchPlayer.setGameScore(winnerMatchPlayer.getGameScore() + points);
+        matchPlayerRepository.save(winnerMatchPlayer);
+        matchPlayerRepository.flush();
 
         log.info(" & Trick winnerMatchPlayerSlot {} ({} points)", winnerMatchPlayerSlot, points);
 

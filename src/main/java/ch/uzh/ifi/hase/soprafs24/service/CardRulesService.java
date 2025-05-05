@@ -27,6 +27,12 @@ public class CardRulesService {
 
     private final Logger log = LoggerFactory.getLogger(CardRulesService.class);
 
+    private final GameStatsService gameStatsService;
+
+    public CardRulesService(GameStatsService gameStatsService) {
+        this.gameStatsService = gameStatsService;
+    }
+
     /**
      * "Returns cards that the MatchPlayer could play."
      * 
@@ -277,10 +283,12 @@ public class CardRulesService {
     }
 
     /**
-     * Calculates the total points for a finished trick based on card codes.
+     * Calculates the total points for a finished trick based on card codes, and updates the GAME_STATS relation.
      * Hearts are 1 point each, Queen of Spades is 13 points.
      */
-    public int calculateTrickPoints(List<String> finishedTrick) {
+    public int calculateTrickPoints(Game game, int winnerMatchPlayerSlot) {
+        List<String> finishedTrick = game.getCurrentTrick();
+
         if (finishedTrick == null || finishedTrick.isEmpty()) {
             return 0;
         }
@@ -297,6 +305,9 @@ public class CardRulesService {
             } else if ("S".equals(suit) && "Q".equals(rank)) {
                 points += 13; // Queen of Spades is 13 points
             }
+
+            // Updates the points_billed_to column in the GAME_STATS relation
+            gameStatsService.updateGameStatsPointsBilledTo(game, cardCode, winnerMatchPlayerSlot);
         }
 
         return points;

@@ -853,6 +853,15 @@ public class MatchService {
         finishedGame.setPhase(GamePhase.FINISHED);
         gameRepository.save(finishedGame);
 
+        // Updates the total match score for each player
+        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
+        for (MatchPlayer matchPlayer : matchPlayers) {
+            matchPlayer.setMatchScore(matchPlayer.getMatchScore() + matchPlayer.getGameScore());
+            matchPlayer.setGameScore(0);
+            matchPlayerRepository.save(matchPlayer);
+            matchPlayerRepository.flush();
+        }
+
         // Determine if match should end
         if (shouldEndMatch(match)) {
             match.setPhase(MatchPhase.FINISHED);
