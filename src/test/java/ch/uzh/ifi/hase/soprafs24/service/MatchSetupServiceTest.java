@@ -35,7 +35,6 @@ import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.AIPlayerDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteRequestDTO;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteResponseDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.JoinRequestDTO;
 
 /**
