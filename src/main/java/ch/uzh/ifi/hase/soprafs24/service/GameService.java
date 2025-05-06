@@ -88,7 +88,7 @@ public class GameService {
     }
 
     public boolean playSingleAiTurn(Long gameId) {
-        Game game = gameRepository.findActiveGameByMatchId(gameId);
+        Game game = gameRepository.findGameByGameId(gameId);
         if (game == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Could not find game.");
         }
@@ -329,6 +329,7 @@ public class GameService {
 
         if (game.getPhase() == GamePhase.RESULT) {
             gameRepository.save(game);
+            resetNonAiPlayersReady(game);
             return;
         }
 
@@ -346,6 +347,21 @@ public class GameService {
         log.info(" & Trick transitioned. New currentMatchPlayerSlot: {}. Current trick #: {}.",
                 game.getCurrentMatchPlayerSlot(), game.getCurrentTrickNumber());
         log.info(" &&& TRICK COMPLETION CONCLUDED &&&");
+    }
+
+    public void resetNonAiPlayersReady(Game game) {
+        Match match = game.getMatch();
+
+        // Iterate through each match player in the match
+        for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
+            // Only reset readiness for non-AI players
+            if (!Boolean.TRUE.equals(matchPlayer.getIsAiPlayer())) {
+                matchPlayer.setReady(false);
+            }
+        }
+
+        // Save the match if changes were made (e.g., readiness reset)
+        matchRepository.save(match); // Ensure changes are persisted
     }
 
     private int determineNextTrickLeader(Game game, int winnerMatchPlayerSlot) {

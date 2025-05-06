@@ -234,7 +234,7 @@ public class GameServiceTest {
 
         match.getMatchPlayers().add(matchPlayerAI1);
 
-        given(gameRepository.findActiveGameByMatchId(Mockito.any())).willReturn(game);
+        given(gameRepository.findGameByGameId(Mockito.any())).willReturn(game);
         given(aiPlayingService.selectCardToPlay(Mockito.any(), Mockito.any(), Mockito.any())).willReturn("3C", "4C",
                 "5C");
 
@@ -244,7 +244,7 @@ public class GameServiceTest {
 
         gameService.playAiTurnsUntilHuman(game.getGameId());
 
-        verify(gameRepository).findActiveGameByMatchId(Mockito.any());
+        verify(gameRepository).findGameByGameId(Mockito.any());
         verify(aiPlayingService).selectCardToPlay(Mockito.any(), Mockito.any(), Mockito.any());
         verify(cardRulesService).validateMatchPlayerCardCode(Mockito.any(), Mockito.any(), Mockito.any());
         verify(gameStatsService).recordCardPlay(Mockito.any(), Mockito.any(), Mockito.any());

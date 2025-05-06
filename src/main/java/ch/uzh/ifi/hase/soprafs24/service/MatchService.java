@@ -351,6 +351,18 @@ public class MatchService {
     public void confirmGameResult(String token, Long matchId) {
         Match match = requireMatchByMatchId(matchId);
         Game game = requireActiveGameByMatch(match);
+        User user = userRepository.findUserByToken(token);
+        if (user == null) {
+
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+        }
+        MatchPlayer player = matchPlayerRepository.findByUserAndMatch(user, match);
+
+        if (player == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not found in match");
+        }
+        player.setReady(true);
+        matchPlayerRepository.save(player);
 
         boolean allHumansReady = match.getMatchPlayers().stream()
                 .filter(mp -> !Boolean.TRUE.equals(mp.getIsAiPlayer()))
@@ -358,18 +370,6 @@ public class MatchService {
 
         if (allHumansReady) {
             handleConfirmedGame(match, game);
-        }
-    }
-
-    public void __confirmMatchResult(String token, Long matchId) {
-        Match match = requireMatchByMatchId(matchId);
-
-        boolean allHumansReady = match.getMatchPlayers().stream()
-                .filter(mp -> !Boolean.TRUE.equals(mp.getUser().getIsAiPlayer()))
-                .allMatch(mp -> mp.getIsReady());
-
-        if (allHumansReady) {
-            handleConfirmedMatch(match);
         }
     }
 
