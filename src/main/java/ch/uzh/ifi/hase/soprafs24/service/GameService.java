@@ -6,7 +6,6 @@ import java.util.List;
 
 import javax.persistence.EntityNotFoundException;
 
-import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,6 +130,7 @@ public class GameService {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "Game is not active.");
         }
+        assertConsistentGameState(game);
         int matchPlayerSlot = matchPlayer.getMatchPlayerSlot();
         int playerSlot = matchPlayerSlot - 1;
         int currentMatchPlayerSlot = game.getCurrentMatchPlayerSlot();
@@ -175,7 +175,7 @@ public class GameService {
         }
 
         int matchPlayerSlot = aiPlayer.getMatchPlayerSlot();
-        if (matchPlayerSlot < 1 || matchPlayerSlot > 4) {
+        if (matchPlayerSlot < 1 || matchPlayerSlot > GameConstants.MAX_TRICK_SIZE) {
             int playerSlot = matchPlayerSlot - 1;
             throw new IllegalStateException(
                     "The AI player " + aiPlayer.getMatchPlayerId() + " is in an invalid playerSlot (" + playerSlot
@@ -209,7 +209,7 @@ public class GameService {
 
         // Step 2: Add the card to the trick
         game.addCardCodeToCurrentTrick(cardCode);
-        if ("QS".equals(cardCode)) {
+        if (GameConstants.QUEEN_OF_SPADES.equals(cardCode)) {
             matchMessageService.addMessage(
                     game.getMatch(),
                     MatchMessageType.QUEEN_WARNING,
@@ -226,8 +226,8 @@ public class GameService {
             log.info("   | TrickPhase transitioned to RUNNING.");
         }
         // Step 3: Advance the turn if trick is not complete
-        if (game.getCurrentTrickSize() < 4) {
-            int nextSlot = (game.getCurrentMatchPlayerSlot() % 4) + 1;
+        if (game.getCurrentTrickSize() < GameConstants.MAX_TRICK_SIZE) {
+            int nextSlot = (game.getCurrentMatchPlayerSlot() % GameConstants.MAX_TRICK_SIZE) + 1;
             game.setCurrentMatchPlayerSlot(nextSlot);
             log.info("   | Turn advanced to next matchPlayerSlot: {}", game.getCurrentMatchPlayerSlot());
         }
@@ -273,7 +273,7 @@ public class GameService {
 
     private void handlePotentialTrickCompletion(Game game) {
         log.info(" (No trick completion yet.)");
-        if (game.getCurrentTrickSize() != 4) {
+        if (game.getCurrentTrickSize() != GameConstants.MAX_TRICK_SIZE) {
             return; // Trick is not complete yet
         }
         log.info(" &&& TRICK COMPLETION: {}. &&&", game.getCurrentTrick());
@@ -283,7 +283,8 @@ public class GameService {
         int points = cardRulesService.calculateTrickPoints(game, winnerMatchPlayerSlot);
 
         // Adds the points to the correct entry in the MatchPlayer relation
-        MatchPlayer winnerMatchPlayer = matchPlayerRepository.findByMatchAndMatchPlayerSlot(game.getMatch(), winnerMatchPlayerSlot);
+        MatchPlayer winnerMatchPlayer = matchPlayerRepository.findByMatchAndMatchPlayerSlot(game.getMatch(),
+                winnerMatchPlayerSlot);
         winnerMatchPlayer.setGameScore(winnerMatchPlayer.getGameScore() + points);
         matchPlayerRepository.save(winnerMatchPlayer);
         matchPlayerRepository.flush();
@@ -299,10 +300,10 @@ public class GameService {
         game.setTrickPhase(TrickPhase.JUSTCOMPLETED);
         log.info(" & TrickPhase set to JUSTCOMPLETED at {}", game.getTrickJustCompletedTime());
 
-        // Step 3: Prepare for the next trick
+        // Step 3: Prepare for the next trick, trick is cleared and number increased.
         game.updateGamePhaseBasedOnPlayOrder();
-        game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
         game.clearCurrentTrick(); // also clears currentTrickMatchPlayerSlot internally
+        game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
 
         // Step 4: Set next trick leader dynamically — based on the winner
         int nextTrickLeaderSlot = determineNextTrickLeader(game, winnerMatchPlayerSlot);
@@ -358,12 +359,51 @@ public class GameService {
 
         List<MatchPlayer> players = match.getMatchPlayers();
 
-        if (players.size() != 4) {
+        if (players.size() != GameConstants.MAX_TRICK_SIZE) {
             throw new IllegalStateException("Expected 4 match players, but found " + players.size());
         }
 
         for (MatchPlayer player : players) {
             player.resetReady(); // Custom logic
+        }
+    }
+
+    @Transactional
+    public void assertConsistentGameState(Game game) {
+        Match match = game.getMatch();
+        if (match == null) {
+            throw new IllegalStateException("Game does not belong to match.");
+        }
+        // GamePhase vs. MatchPhase
+        if (game.getPhase().onGoing() && !match.getPhase().inGame()) {
+            throw new IllegalStateException(String.format(
+                    "Illegal Game State: game is in phase %s, but match in phase %s.",
+                    game.getPhase(),
+                    match.getPhase()));
+        }
+        // PlayOrder vs. TrickNumber
+        if (game.getCurrentPlayOrder() >= 0
+                && game.getCurrentPlayOrder() / GameConstants.MAX_TRICK_SIZE + 1 != game.getCurrentTrickNumber()) {
+
+            throw new IllegalStateException(String.format(
+                    "Illegal Game State: playOrder is %d, but trickNumber is %d.",
+                    game.getCurrentPlayOrder(),
+                    game.getCurrentTrickNumber()));
+        }
+        // PlayOrder vs. GamePhase
+        if (game.getPhase() == GamePhase.FIRSTTRICK
+                && (game.getCurrentPlayOrder() < 0
+                        || game.getCurrentPlayOrder() > GameConstants.MAX_TRICK_SIZE)
+                || (game.getPhase() == GamePhase.NORMALTRICK
+                        && (game.getCurrentPlayOrder() < 54
+                                || game.getCurrentPlayOrder() > 12 * GameConstants.MAX_TRICK_SIZE - 1))
+                || (game.getPhase() == GamePhase.FINALTRICK
+                        && (game.getCurrentPlayOrder() < 48
+                                || game.getCurrentPlayOrder() > GameConstants.FULL_DECK_CARD_COUNT))) {
+            throw new IllegalStateException(String.format(
+                    "Illegal Game State: GamePhase is %s, but trickNumber is %d.",
+                    game.getPhase(),
+                    game.getCurrentPlayOrder()));
         }
     }
 }
