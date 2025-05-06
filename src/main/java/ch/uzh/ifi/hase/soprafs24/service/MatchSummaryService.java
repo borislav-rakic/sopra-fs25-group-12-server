@@ -18,59 +18,36 @@ public class MatchSummaryService {
   }
 
   public String buildGameResultHtml(Match match, Game game) {
-    String html = """
-        <div className="modalMessage modalMessageGameResult">
-              <table>
-                <thead>
-                  <tr>
-                    <th>GAME</th>
-                    <th>1</th>
-                    <th>2</th>
-                    <th>3</th>
-                    <th>4</th>
-                    <th>| Match</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  <tr>
-                    <td>Jane</td>
-                    <td>7</td>
-                    <td>2</td>
-                    <td>26</td>
-                    <td>9</td>
-                    <td>44</td>
-                  </tr>
-                  <tr>
-                    <td>Peter</td>
-                    <td>14</td>
-                    <td>8</td>
-                    <td>26</td>
-                    <td>10</td>
-                    <td>32</td>
-                  </tr>
-                  <tr>
-                    <td>Lisa</td>
-                    <td>0</td>
-                    <td>6</td>
-                    <td>26</td>
-                    <td>0</td>
-                    <td>6</td>
-                  </tr>
-                  <tr>
-                    <td>AI Lee (medium)</td>
-                    <td>5</td>
-                    <td>10</td>
-                    <td>0</td>
-                    <td>7</td>
-                    <td>22</td>
-                  </tr>
-                </tbody>
-              </table>
-              <div>
-                In Game 4 nobody was able to shoot the moon, but Lisa scored a perfect game, congrats!
-              </div>
-            </div>
-            """;
+    String html = "<div className=\"modalMessage modalMessageGameResult\">";
+    html += "<table>";
+    List<Game> games = match.getGames();
+    List<MatchPlayer> mp = match.getMatchPlayers();
+    html += "<tr>";
+    html += "<th>Game</th>";
+    html += "<th>" + mp.get(0).getUser().getUsername() + "</th>";
+    html += "<th>" + mp.get(1).getUser().getUsername() + "</th>";
+    html += "<th>" + mp.get(2).getUser().getUsername() + "</th>";
+    html += "<th>" + mp.get(3).getUser().getUsername() + "</th>";
+    html += "</tr>";
+    for (int i = 0; i < games.size(); i++) {
+      Game someGame = games.get(i);
+      List<Integer> gameScores = someGame.getGameScoresList();
+      html += "<tr>";
+      html += "<td>" + i + "</td>";
+      for (int j = 0; j < gameScores.size(); j++) {
+        html += "<td>" + gameScores.get(i) + "</td>";
+      }
+      html += "</tr>";
+    }
+    html += "<tr>";
+    html += "<th>Total:</th>";
+    html += "<th>" + mp.get(0).getMatchScore() + "</th>";
+    html += "<th>" + mp.get(1).getMatchScore() + "</th>";
+    html += "<th>" + mp.get(2).getMatchScore() + "</th>";
+    html += "<th>" + mp.get(3).getMatchScore() + "</th>";
+    html += "</tr>";
+    html += "</table>";
+    html += "</div>";
     return html;
   }
 
