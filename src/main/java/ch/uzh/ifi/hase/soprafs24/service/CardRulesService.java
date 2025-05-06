@@ -69,7 +69,8 @@ public class CardRulesService {
         log.info("   ¦¦¦¦¦¦¦¦¦¦¦ REACHED getPlayableCardsForMatchPlayer ¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦");
 
         // Only players who are actually about to play get info on playability of cards.
-        if (!game.getPhase().inTrick() || game.getCurrentMatchPlayerSlot() != matchPlayer.getMatchPlayerSlot() || !game.getPhase().inPassing()) {
+        if (!game.getPhase().inTrick()
+                || game.getCurrentMatchPlayerSlot() != matchPlayer.getMatchPlayerSlot()) {
             // Only during actual ongoing games does it makes sense to investigate
             // playability of cards (passing must be over).
 

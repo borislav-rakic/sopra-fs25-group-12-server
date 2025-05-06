@@ -26,16 +26,20 @@ public class CardRulesServiceTest {
     public void testGetPlayableCards_FirstTrickWith2C() {
         Game game = mock(Game.class);
         MatchPlayer player = mock(MatchPlayer.class);
+        GameStatsService statsService = mock(GameStatsService.class);
+        CardRulesService cardRulesService = new CardRulesService(statsService);
 
         when(game.getPhase()).thenReturn(GamePhase.FIRSTTRICK);
         when(game.getCurrentMatchPlayerSlot()).thenReturn(1);
         when(player.getMatchPlayerSlot()).thenReturn(1);
-        when(player.getHand()).thenReturn("2C,5H,9D");
+        when(player.getHand()).thenReturn("2C,3C,4C,5C,6C,7C,8C,9C,5H,9D,0D,JD,QD");
         when(game.getCurrentPlayOrder()).thenReturn(0);
         when(game.getCurrentTrickAsString()).thenReturn("");
+        when(game.getCurrentTrickNumber()).thenReturn(1);
         when(game.getHeartsBroken()).thenReturn(false);
 
         String playable = cardRulesService.getPlayableCardsForMatchPlayer(game, player, false);
+        System.out.println("Playable cards: " + playable);
         assertEquals("2C", playable);
     }
 
