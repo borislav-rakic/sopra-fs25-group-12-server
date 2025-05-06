@@ -234,15 +234,17 @@ public class GameServiceTest {
 
         match.getMatchPlayers().add(matchPlayerAI1);
 
-        given(gameRepository.findByGameId(Mockito.any())).willReturn(game);
-        given(aiPlayingService.selectCardToPlay(Mockito.any(), Mockito.any(), Mockito.any())).willReturn("3C", "4C", "5C");
+        given(gameRepository.findActiveGameByMatchId(Mockito.any())).willReturn(game);
+        given(aiPlayingService.selectCardToPlay(Mockito.any(), Mockito.any(), Mockito.any())).willReturn("3C", "4C",
+                "5C");
 
-        Mockito.doNothing().when(cardRulesService).validateMatchPlayerCardCode(Mockito.any(), Mockito.any(), Mockito.any());
+        Mockito.doNothing().when(cardRulesService).validateMatchPlayerCardCode(Mockito.any(), Mockito.any(),
+                Mockito.any());
         Mockito.doNothing().when(gameStatsService).recordCardPlay(Mockito.any(), Mockito.any(), Mockito.any());
 
         gameService.playAiTurnsUntilHuman(game.getGameId());
 
-        verify(gameRepository).findByGameId(Mockito.any());
+        verify(gameRepository).findActiveGameByMatchId(Mockito.any());
         verify(aiPlayingService).selectCardToPlay(Mockito.any(), Mockito.any(), Mockito.any());
         verify(cardRulesService).validateMatchPlayerCardCode(Mockito.any(), Mockito.any(), Mockito.any());
         verify(gameStatsService).recordCardPlay(Mockito.any(), Mockito.any(), Mockito.any());
@@ -256,7 +258,8 @@ public class GameServiceTest {
         game.setCurrentPlayOrder(4);
         game.setCurrentTrickNumber(2);
 
-        Mockito.doNothing().when(cardRulesService).validateMatchPlayerCardCode(Mockito.any(), Mockito.any(), Mockito.any());
+        Mockito.doNothing().when(cardRulesService).validateMatchPlayerCardCode(Mockito.any(), Mockito.any(),
+                Mockito.any());
         Mockito.doNothing().when(gameStatsService).recordCardPlay(Mockito.any(), Mockito.any(), Mockito.any());
 
         gameService.playCardAsHuman(game, matchPlayer, "5C");

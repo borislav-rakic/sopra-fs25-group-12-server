@@ -88,7 +88,7 @@ public class GameService {
     }
 
     public boolean playSingleAiTurn(Long gameId) {
-        Game game = gameRepository.findByGameId(gameId);
+        Game game = gameRepository.findActiveGameByMatchId(gameId);
         if (game == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Could not find game.");
         }
@@ -382,8 +382,7 @@ public class GameService {
         }
 
         // Always fetch the Game from the database based on match and phase
-        Game game = gameRepository.findFirstByMatchAndPhaseNotIn(
-                match, List.of(GamePhase.FINISHED, GamePhase.ABORTED));
+        Game game = gameRepository.findActiveGameByMatchId(match.getMatchId());
 
         if (game == null) {
             throw new IllegalStateException("No active game found for this match");
@@ -436,7 +435,7 @@ public class GameService {
                         || game.getCurrentPlayOrder() > GameConstants.MAX_TRICK_SIZE)
                 || (game.getPhase() == GamePhase.NORMALTRICK
                         && (game.getCurrentPlayOrder() < 4
-                                || game.getCurrentPlayOrder() > 13 * GameConstants.MAX_TRICK_SIZE))
+                                || game.getCurrentPlayOrder() > 12 * GameConstants.MAX_TRICK_SIZE))
                 || (game.getPhase() == GamePhase.FINALTRICK
                         && (game.getCurrentPlayOrder() < 48
                                 || game.getCurrentPlayOrder() > GameConstants.FULL_DECK_CARD_COUNT))
