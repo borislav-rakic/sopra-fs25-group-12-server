@@ -4,6 +4,8 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 import ch.uzh.ifi.hase.soprafs24.service.MatchService;
+import ch.uzh.ifi.hase.soprafs24.service.MatchSetupService;
+
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
@@ -22,9 +24,11 @@ import java.util.Map;
 @RestController
 public class MatchController {
     private final MatchService matchService;
+    private final MatchSetupService matchSetupService;
 
-    MatchController(MatchService matchService) {
+    MatchController(MatchService matchService, MatchSetupService matchSetupService) {
         this.matchService = matchService;
+        this.matchSetupService = matchSetupService;
     }
 
     /**
@@ -45,7 +49,7 @@ public class MatchController {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
         }
 
-        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.createNewMatch(playerToken));
+        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchSetupService.createNewMatch(playerToken));
     }
 
     /**
@@ -87,7 +91,7 @@ public class MatchController {
             @RequestHeader("Authorization") String authHeader) {
         // remove "Bearer " prefix from token
         String token = authHeader.replace("Bearer ", "");
-        matchService.deleteMatchByHost(matchId, token);
+        matchSetupService.deleteMatchByHost(matchId, token);
     }
 
     /**
@@ -98,7 +102,7 @@ public class MatchController {
     public void invitePlayerToMatch(
             @PathVariable Long matchId,
             @RequestBody InviteRequestDTO request) {
-        matchService.invitePlayerToMatch(matchId, request);
+        matchSetupService.invitePlayerToMatch(matchId, request);
     }
 
     /**
@@ -107,7 +111,7 @@ public class MatchController {
     @DeleteMapping("/matches/{matchId}/invite/{playerSlot}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void cancelInvite(@PathVariable Long matchId, @PathVariable Integer playerSlot) {
-        matchService.cancelInvite(matchId, playerSlot);
+        matchSetupService.cancelInvite(matchId, playerSlot);
     }
 
     /**
@@ -124,16 +128,16 @@ public class MatchController {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Request body is missing or invalid");
         }
 
-        matchService.respondToInvite(matchId, authHeader, responseDTO);
+        matchSetupService.respondToInvite(matchId, authHeader, responseDTO);
     }
 
     /**
      * Remove a player from lobby.
      */
-    @DeleteMapping("matches/{matchId}/player/{playerSlot}")
+    @DeleteMapping("/matches/{matchId}/player/{playerSlot}")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void removePlayer(@PathVariable Long matchId, @PathVariable Integer playerSlot) {
-        matchService.removePlayer(matchId, playerSlot);
+        matchSetupService.removePlayer(matchId, playerSlot);
     }
 
     /**
@@ -144,7 +148,7 @@ public class MatchController {
     public void updateMatchGoal(
             @PathVariable Long matchId,
             @RequestBody Map<String, Integer> body) {
-        matchService.updateMatchGoal(matchId, body);
+        matchSetupService.updateMatchGoal(matchId, body);
     }
 
     /**
@@ -155,7 +159,7 @@ public class MatchController {
     public void addAiPlayer(
             @PathVariable Long matchId,
             @RequestBody AIPlayerDTO dto) {
-        matchService.addAiPlayer(matchId, dto);
+        matchSetupService.addAiPlayer(matchId, dto);
     }
 
     /**
@@ -166,7 +170,7 @@ public class MatchController {
     public void removeAiPlayerFromMatch(
             @PathVariable Long matchId,
             @RequestBody AIPlayerDTO dto) {
-        matchService.removeAiPlayer(matchId, dto);
+        matchSetupService.removeAiPlayer(matchId, dto);
     }
 
     /**
@@ -175,7 +179,7 @@ public class MatchController {
     @PostMapping("/matches/{matchId}/join")
     public void sendJoinRequest(@PathVariable Long matchId, @RequestBody JoinRequestDTO joinRequestDTO) {
         Long userId = joinRequestDTO.getUserId();
-        matchService.sendJoinRequest(matchId, userId);
+        matchSetupService.sendJoinRequest(matchId, userId);
     }
 
     /**
@@ -184,7 +188,7 @@ public class MatchController {
     @PostMapping("/matches/{matchId}/join/accept")
     public void acceptJoinRequest(@PathVariable Long matchId, @RequestBody JoinRequestDTO joinRequestDTO) {
         Long userId = joinRequestDTO.getUserId();
-        matchService.acceptJoinRequest(matchId, userId);
+        matchSetupService.acceptJoinRequest(matchId, userId);
     }
 
     /**
@@ -193,7 +197,7 @@ public class MatchController {
     @PostMapping("/matches/{matchId}/join/decline")
     public void declineJoinRequest(@PathVariable Long matchId, @RequestBody JoinRequestDTO joinRequestDTO) {
         Long userId = joinRequestDTO.getUserId();
-        matchService.declineJoinRequest(matchId, userId);
+        matchSetupService.declineJoinRequest(matchId, userId);
     }
 
     /**
@@ -202,7 +206,7 @@ public class MatchController {
     @GetMapping("/matches/{matchId}/joinRequests")
     @ResponseStatus(HttpStatus.OK)
     public List<JoinRequestDTO> getJoinRequests(@PathVariable Long matchId) {
-        return matchService.getJoinRequests(matchId);
+        return matchSetupService.getJoinRequests(matchId);
     }
 
     /**
@@ -223,7 +227,7 @@ public class MatchController {
             @PathVariable Long matchId,
             @RequestHeader("Authorization") String authHeader) {
         String token = authHeader.replace("Bearer ", "");
-        return matchService.getEligibleUsers(matchId, token);
+        return matchSetupService.getEligibleUsers(matchId, token);
     }
 
     @PostMapping("/matches/{matchId}/passing")
@@ -275,7 +279,7 @@ public class MatchController {
     @ResponseStatus(HttpStatus.OK)
     public void startMatch(@PathVariable Long matchId, @RequestHeader("Authorization") String authHeader) {
         String token = authHeader.replace("Bearer ", "");
-        matchService.startMatch(matchId, token, null);
+        matchSetupService.startMatch(matchId, token, null);
     }
 
     @PostMapping("/matches/{matchId}/start/{seed}")
@@ -291,16 +295,16 @@ public class MatchController {
         try {
             parsedSeed = Long.parseLong(seed);
         } catch (NumberFormatException e) {
-            matchService.startMatch(matchId, token, null);
+            matchSetupService.startMatch(matchId, token, null);
             return;
         }
 
         if (parsedSeed % 10000 != 9247) {
-            matchService.startMatch(matchId, token, null);
+            matchSetupService.startMatch(matchId, token, null);
             return;
         }
 
-        matchService.startMatch(matchId, token, parsedSeed);
+        matchSetupService.startMatch(matchId, token, parsedSeed);
     }
 
     @PostMapping("/matches/{matchId}/play")

@@ -12,14 +12,9 @@ import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 @Entity
 @Table(name = "GAME")
 public class Game {
-
-    private static final Logger log = LoggerFactory.getLogger(Game.class);
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -242,21 +237,6 @@ public class Game {
 
     public void setGameStats(List<GameStats> gameStats) {
         this.gameStats = gameStats;
-    }
-
-    /**
-     * "Sets the GamePhase by currentPlayOrder."
-     */
-    public void updateGamePhaseBasedOnPlayOrder() {
-        if (currentPlayOrder >= 48) {
-            this.phase = GamePhase.FINALTRICK;
-            log.info("GamePhase set to FINALTRICK (playOrder = {}).", currentPlayOrder);
-        } else if (currentPlayOrder >= 4) {
-            this.phase = GamePhase.NORMALTRICK;
-            log.info("GamePhase set to NORMALTRICK (playOrder = {}).", currentPlayOrder);
-        } else {
-            log.info("GamePhase remains unchanged (playOrder = {}).", currentPlayOrder);
-        }
     }
 
     /******************* CURRENT TRICK *******************************/

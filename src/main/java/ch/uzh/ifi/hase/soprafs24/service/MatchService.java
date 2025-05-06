@@ -2,11 +2,13 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.MatchMessageType;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchMessage;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
@@ -54,6 +56,7 @@ public class MatchService {
     private final UserRepository userRepository;
     private final UserService userService;
     private final MatchRepository matchRepository;
+    private final MatchSetupService matchSetupService;
 
     @Autowired
     public MatchService(
@@ -66,7 +69,8 @@ public class MatchService {
             @Qualifier("matchRepository") MatchRepository matchRepository,
             @Qualifier("pollingService") PollingService pollingService,
             @Qualifier("userRepository") UserRepository userRepository,
-            @Qualifier("userService") UserService userService) {
+            @Qualifier("userService") UserService userService,
+            @Qualifier("matchSetupService") MatchSetupService matchSetupService) {
         this.gameRepository = gameRepository;
         this.gameService = gameService;
         this.gameSetupService = gameSetupService;
@@ -77,6 +81,7 @@ public class MatchService {
         this.pollingService = pollingService;
         this.userRepository = userRepository;
         this.userService = userService;
+        this.matchSetupService = matchSetupService;
 
     }
 
@@ -87,7 +92,7 @@ public class MatchService {
      * @param playerToken the authentication token of the player creating the match
      * @return a newly created Match object
      */
-    public Match createNewMatch(String playerToken) {
+    public Match __createNewMatch(String playerToken) {
         User user = userService.getUserByToken(playerToken);
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
@@ -138,7 +143,7 @@ public class MatchService {
         return match;
     }
 
-    public void deleteMatchByHost(Long matchId, String token) {
+    public void __deleteMatchByHost(Long matchId, String token) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         User user = userRepository.findUserByToken(token);
 
@@ -158,7 +163,7 @@ public class MatchService {
         matchRepository.delete(match);
     }
 
-    public void invitePlayerToMatch(Long matchId, InviteRequestDTO request) {
+    public void __invitePlayerToMatch(Long matchId, InviteRequestDTO request) {
         Long userId = request.getUserId();
         Integer playerSlot = request.getPlayerSlot();
         int matchPlayerSlot = playerSlot + 1;
@@ -227,7 +232,7 @@ public class MatchService {
         matchRepository.save(match);
     }
 
-    public void cancelInvite(Long matchId, Integer matchPlayerSlot) {
+    public void __cancelInvite(Long matchId, Integer matchPlayerSlot) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
@@ -244,7 +249,7 @@ public class MatchService {
         matchRepository.save(match);
     }
 
-    public void respondToInvite(Long matchId, String authHeader, InviteResponseDTO responseDTO) {
+    public void __respondToInvite(Long matchId, String authHeader, InviteResponseDTO responseDTO) {
         String token = authHeader.replace("Bearer ", "");
         User user = userRepository.findUserByToken(token);
 
@@ -315,7 +320,7 @@ public class MatchService {
         matchRepository.save(match);
     }
 
-    public void updateMatchGoal(Long matchId, Map<String, Integer> body) {
+    public void __updateMatchGoal(Long matchId, Map<String, Integer> body) {
         Match match = matchRepository.findMatchByMatchId(matchId);
 
         if (match == null) {
@@ -338,7 +343,7 @@ public class MatchService {
         return (int) (i - 1);
     }
 
-    public void addAiPlayer(Long matchId, AIPlayerDTO dto) {
+    public void __addAiPlayer(Long matchId, AIPlayerDTO dto) {
         Match match = requireMatchByMatchId(matchId);
         int difficulty = Math.max(1, Math.min(dto.getDifficulty(), 3)); // Difficulty must be within [1,3]
         // Frontend uses playerSlot 1–3 (never 0), which maps to matchPlayerSlot 2–4
@@ -475,7 +480,7 @@ public class MatchService {
         matchRepository.save(match);
     }
 
-    public void removePlayer(Long matchId, int playerSlot) {
+    public void __removePlayer(Long matchId, int playerSlot) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
@@ -502,7 +507,7 @@ public class MatchService {
         matchRepository.save(match);
     }
 
-    public void sendJoinRequest(Long matchId, Long userId) {
+    public void __sendJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         User user = userRepository.findUserById(userId);
 
@@ -522,7 +527,7 @@ public class MatchService {
         }
     }
 
-    public void acceptJoinRequest(Long matchId, Long userId) {
+    public void __acceptJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
 
         if (match == null) {
@@ -558,7 +563,7 @@ public class MatchService {
         matchRepository.save(match);
     }
 
-    public void declineJoinRequest(Long matchId, Long userId) {
+    public void __declineJoinRequest(Long matchId, Long userId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
 
         if (match == null) {
@@ -575,7 +580,7 @@ public class MatchService {
                         HttpStatus.NOT_FOUND, "Match not found with id: " + matchId));
     }
 
-    public List<JoinRequestDTO> getJoinRequests(Long matchId) {
+    public List<JoinRequestDTO> __getJoinRequests(Long matchId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         List<JoinRequestDTO> joinRequestDTOs = new ArrayList<>();
         for (Entry<Long, String> entry : match.getJoinRequests().entrySet()) {
@@ -624,7 +629,7 @@ public class MatchService {
         matchRepository.save(match);
     }
 
-    public List<UserGetDTO> getEligibleUsers(Long matchId, String token) {
+    public List<UserGetDTO> __getEligibleUsers(Long matchId, String token) {
         User currentUser = userService.getUserByToken(token); // Get the current user
 
         Match match = getPolling(matchId); // Assuming this method exists
@@ -667,7 +672,7 @@ public class MatchService {
      * @param match The match to be started.
      * @param user  The owner of the match.
      */
-    private void isMatchStartable(Match match, User user) {
+    private void __isMatchStartable(Match match, User user) {
         // Is the match in a startable MathPhase?
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
@@ -758,8 +763,9 @@ public class MatchService {
 
         // Step 6: Finalize game/match if this was the last card
         if (isFinalCardOfGame(game)) {
-            handlePostGameMatchFlow(game.getMatch(), game);
+            handleGameScoringAndConfirmation(game.getMatch(), game);
         }
+
     }
 
     public void playAiTurnsUntilHuman(Match match) {
@@ -768,10 +774,11 @@ public class MatchService {
         // Let GameService do the actual AI playing
         gameService.playAiTurnsUntilHuman(game.getGameId());
 
-        // After AI turns, finalize if needed
+        // Step 6: Finalize game/match if this was the last card
         if (isFinalCardOfGame(game)) {
-            handlePostGameMatchFlow(match, game);
+            handleGameScoringAndConfirmation(game.getMatch(), game);
         }
+
     }
 
     private boolean isFinalCardOfGame(Game game) {
@@ -797,7 +804,7 @@ public class MatchService {
     public void startMatch(Long matchId, String token, Long seed) {
         User user = userService.requireUserByToken(token);
         Match match = requireMatchByMatchId(matchId);
-        isMatchStartable(match, user);
+        matchSetupService.isMatchStartable(match, user);
 
         match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
 
@@ -848,36 +855,84 @@ public class MatchService {
         return activeGame;
     }
 
-    public void handlePostGameMatchFlow(Match match, Game finishedGame) {
+    public void handleGameScoringAndConfirmation(Match match, Game finishedGame) {
         // Mark game as finished
         finishedGame.setPhase(GamePhase.FINISHED);
         gameRepository.save(finishedGame);
 
-        // Updates the total match score for each player
-        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
-        for (MatchPlayer matchPlayer : matchPlayers) {
-            matchPlayer.setMatchScore(matchPlayer.getMatchScore() + matchPlayer.getGameScore());
-            matchPlayer.setGameScore(0);
-            matchPlayerRepository.save(matchPlayer);
-            matchPlayerRepository.flush();
+        // Update match scores and reset game scores
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            int updatedMatchScore = mp.getMatchScore() + mp.getGameScore();
+            mp.setMatchScore(updatedMatchScore);
+            mp.setGameScore(0);
+
+            // Reset ready status only for human players (e.g., user != null)
+            if (mp.getUser() != null) {
+                mp.setReady(false);
+            }
+
+            matchPlayerRepository.save(mp);
         }
 
-        // Determine if match should end
-        if (shouldEndMatch(match)) {
-            match.setPhase(MatchPhase.FINISHED);
-            // Optionally: generate a summary
-            match.setSummary(htmlSummaryService.buildMatchResultHtml(match, finishedGame));
+        // Generate HTML summary for the game results
+        String summary = htmlSummaryService.buildMatchResultHtml(match, finishedGame);
+        match.setSummary(summary);
 
-            System.out.println("MATCHRESULT: " + match.getSummary());
+        // Add match message (ensure you have helper)
+        MatchMessage message = new MatchMessage();
+        message.setType(MatchMessageType.GAME_ENDED);
+        message.setContent("Game finished! Please confirm to continue.");
+        match.addMessage(message); // You need addMessage method here
+
+        // Set match phase
+        match.setPhase(MatchPhase.BETWEEN_GAMES);
+        matchRepository.save(match);
+    }
+
+    public void handleConfirmedGame(Match match, Game finishedGame) {
+        // Ensure all human players have confirmed
+        boolean allHumansReady = match.getMatchPlayers().stream()
+                .filter(mp -> !Boolean.TRUE.equals(mp.getIsAiPlayer()))
+                .allMatch(MatchPlayer::getIsReady);
+
+        if (!allHumansReady) {
+            log.info("Waiting for all players to confirm...");
+            return;
+        }
+
+        if (shouldEndMatch(match)) {
+            match.setPhase(MatchPhase.RESULT);
+            matchRepository.save(match);
         } else {
             match.setPhase(MatchPhase.BETWEEN_GAMES);
-
-            // Create and start the next game
+            matchRepository.save(match);
             gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
         }
+    }
 
-        // Persist match state
-        matchRepository.save(match);
+    /**
+     * Handles completed Match and deletes all dependencies (games, matchPlayers,
+     * messages, passedCards) while keeping the Match itself.
+     *
+     * @param match the match to shut down
+     */
+    public void handleConfirmedMatch(Match match) {
+        // Mark game as finished
+        match.setPhase(MatchPhase.FINISHED);
+        log.info("MatchPhase is set to FINISHED.");
+
+        // Clear dependencies manually to trigger orphan removal
+        match.getGames().clear();
+        match.getMatchPlayers().clear();
+        match.getMessages().clear();
+
+        // Optionally clear auxiliary maps/lists
+        match.getInvites().clear();
+        match.getJoinRequests().clear();
+        match.getAiPlayers().clear();
+
+        // Save match with cleared children — children will be deleted
+        matchRepository.saveAndFlush(match);
     }
 
     public void checkGameAndStartNextIfNeeded(Match match) {
@@ -907,18 +962,30 @@ public class MatchService {
         Game game = requireActiveGameByMatch(match);
 
         boolean allHumansReady = match.getMatchPlayers().stream()
+                .filter(mp -> !Boolean.TRUE.equals(mp.getIsAiPlayer()))
+                .allMatch(MatchPlayer::getIsReady);
+
+        if (allHumansReady) {
+            handleConfirmedGame(match, game);
+        }
+    }
+
+    public void __confirmMatchResult(String token, Long matchId) {
+        Match match = requireMatchByMatchId(matchId);
+
+        boolean allHumansReady = match.getMatchPlayers().stream()
                 .filter(mp -> !Boolean.TRUE.equals(mp.getUser().getIsAiPlayer()))
                 .allMatch(mp -> mp.getIsReady());
 
         if (allHumansReady) {
-            handlePostGameMatchFlow(match, game);
+            handleConfirmedMatch(match);
         }
     }
 
     public boolean shouldEndMatch(Match match) {
         int goal = match.getMatchGoal();
         return match.getMatchPlayers().stream()
-                .anyMatch(mp -> mp.getGameScore() >= goal);
+                .anyMatch(mp -> mp.getMatchScore() >= goal);
     }
 
     public void autoPlayToLastTrick(Long matchId) {

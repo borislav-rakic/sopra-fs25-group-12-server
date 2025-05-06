@@ -219,7 +219,6 @@ public class GameService {
                 matchPlayer.getHand());
         game.setCurrentPlayOrder(game.getCurrentPlayOrder() + 1);
         log.info("CURRENTPLAYORDER {}", game.getCurrentPlayOrder());
-        game.updateGamePhaseBasedOnPlayOrder();
 
         if (game.getCurrentTrickSize() == 1) {
             game.setTrickPhase(TrickPhase.RUNNING);
@@ -239,6 +238,29 @@ public class GameService {
         gameStatsService.recordCardPlay(game, matchPlayer, cardCode);
         log.info("   | Stats recorded for card {} by MatchPlayer {}", cardCode, matchPlayer.getInfo());
         log.info("   +--- executeValidatedCardPlay ---");
+
+    }
+
+    public void updateGamePhaseBasedOnPlayOrder(Game game) {
+        GamePhase before = game.getPhase();
+        int currentPlayOrder = game.getCurrentPlayOrder();
+        if (before == GamePhase.FINALTRICK
+                && currentPlayOrder >= GameConstants.FULL_DECK_CARD_COUNT) {
+            game.setPhase(GamePhase.RESULT);
+        } else if (before == GamePhase.NORMALTRICK
+                && currentPlayOrder >= (GameConstants.FULL_DECK_CARD_COUNT - 4)) {
+            game.setPhase(GamePhase.FINALTRICK);
+        } else if (before == GamePhase.FIRSTTRICK
+                && currentPlayOrder >= GameConstants.MAX_TRICK_SIZE) {
+            game.setPhase(GamePhase.NORMALTRICK);
+        } else if (before == GamePhase.PASSING
+                && currentPlayOrder == 0) {
+            game.setPhase(GamePhase.FIRSTTRICK);
+        }
+        GamePhase after = game.getPhase();
+        if (before != after) {
+            log.info("GamePhase set to {} (playOrder = {}).", after, game.getCurrentPlayOrder());
+        }
     }
 
     public void advanceTrickPhaseIfOwnerPolling(Game game) {
@@ -301,9 +323,14 @@ public class GameService {
         log.info(" & TrickPhase set to JUSTCOMPLETED at {}", game.getTrickJustCompletedTime());
 
         // Step 3: Prepare for the next trick, trick is cleared and number increased.
-        game.updateGamePhaseBasedOnPlayOrder();
+        updateGamePhaseBasedOnPlayOrder(game);
         game.clearCurrentTrick(); // also clears currentTrickMatchPlayerSlot internally
         game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
+
+        if (game.getPhase() == GamePhase.RESULT) {
+            gameRepository.save(game);
+            return;
+        }
 
         // Step 4: Set next trick leader dynamically — based on the winner
         int nextTrickLeaderSlot = determineNextTrickLeader(game, winnerMatchPlayerSlot);
@@ -331,7 +358,20 @@ public class GameService {
     @Transactional
     public void passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO,
             Boolean pickRandomly) {
-        cardPassingService.passingAcceptCards(game, matchPlayer, passingDTO, pickRandomly);
+        int passedCount = cardPassingService.passingAcceptCards(game, matchPlayer, passingDTO, pickRandomly);
+
+        // If all 12 cards passed, proceed to collect
+        if (passedCount == 12) {
+            cardPassingService.collectPassedCards(game);
+            log.info("°°° PASSING CONCLUDED °°°");
+            // Transition phase to FIRSTTRICK!
+            game.setCurrentTrickNumber(1);
+            game.setCurrentPlayOrder(0);
+            updateGamePhaseBasedOnPlayOrder(game);
+            gameRepository.save(game);
+            log.info("/// READY TO PLAY FIRST TRICK ///");
+
+        }
         gameRepository.saveAndFlush(game);
     }
 
@@ -396,10 +436,14 @@ public class GameService {
                         || game.getCurrentPlayOrder() > GameConstants.MAX_TRICK_SIZE)
                 || (game.getPhase() == GamePhase.NORMALTRICK
                         && (game.getCurrentPlayOrder() < 4
-                                || game.getCurrentPlayOrder() > 13 * GameConstants.MAX_TRICK_SIZE))
+                                || game.getCurrentPlayOrder() > 12 * GameConstants.MAX_TRICK_SIZE))
                 || (game.getPhase() == GamePhase.FINALTRICK
                         && (game.getCurrentPlayOrder() < 48
-                                || game.getCurrentPlayOrder() > GameConstants.FULL_DECK_CARD_COUNT))) {
+                                || game.getCurrentPlayOrder() > GameConstants.FULL_DECK_CARD_COUNT))
+                || (game.getPhase() == GamePhase.RESULT
+                        && (game.getCurrentPlayOrder() < GameConstants.FULL_DECK_CARD_COUNT))
+                || (game.getPhase() == GamePhase.PASSING
+                        && (game.getCurrentPlayOrder() > 0))) {
             throw new IllegalStateException(String.format(
                     "Illegal Game State: GamePhase is %s, but trickNumber is %d.",
                     game.getPhase(),
