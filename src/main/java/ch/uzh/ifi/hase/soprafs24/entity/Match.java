@@ -208,6 +208,15 @@ public class Match implements Serializable {
         this.passedCards = passedCards;
     }
 
+    public List<MatchMessage> getMessages() {
+        return messages;
+    }
+
+    public void addMessage(MatchMessage message) {
+        this.messages.add(message);
+        message.setMatch(this); // ensures both sides of the relationship are in sync
+    }
+
     // ======== SOME HELPERS =========== //
 
     public int getSlotByPlayerId(Long playerId) {

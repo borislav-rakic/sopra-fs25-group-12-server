@@ -13,7 +13,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
-import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
@@ -181,7 +180,7 @@ public class CardPassingService {
                 .orElseThrow(() -> new IllegalStateException("No MatchPlayer found for playerSlot " + playerSlot));
     }
 
-    public void passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO,
+    public int passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO,
             Boolean pickRandomly) {
         List<String> cardsToPass;
         if (pickRandomly) {
@@ -236,7 +235,7 @@ public class CardPassingService {
                 passingDTO.getCardsAsString(), matchPlayer.getHand(),
                 cardRulesService.describePassingDirection(game.getGameNumber(), matchPlayer.getMatchPlayerSlot()));
         // Count how many cards have been passed in total
-        long passedCount = passedCardRepository.countByGame(game);
+        int passedCount = passedCardRepository.countByGame(game);
 
         // If not all 12 passed yet, check if AI players need to pass
         if (passedCount < 12) {
@@ -251,19 +250,7 @@ public class CardPassingService {
                 passedCount = passedCardRepository.countByGame(game);
             }
         }
-
-        // If all 12 cards passed, proceed to collect
-        if (passedCount == 12) {
-            collectPassedCards(game);
-            log.info("°°° PASSING CONCLUDED °°°");
-            // Transition phase to FIRSTTRICK!
-            game.setPhase(GamePhase.FIRSTTRICK);
-            game.setCurrentTrickNumber(1);
-            game.setCurrentPlayOrder(0);
-            gameRepository.save(game);
-            log.info("/// READY TO PLAY FIRST TRICK ///");
-
-        }
+        return passedCount;
 
     }
 

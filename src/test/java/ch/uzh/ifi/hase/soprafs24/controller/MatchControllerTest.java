@@ -5,6 +5,8 @@ import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
 import ch.uzh.ifi.hase.soprafs24.service.MatchService;
+import ch.uzh.ifi.hase.soprafs24.service.MatchSetupService;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
@@ -46,6 +48,9 @@ public class MatchControllerTest {
         @MockBean
         private MatchService matchService;
 
+        @MockBean
+        private MatchSetupService matchSetupService;
+
         @Test
         public void testCreateMatch() throws Exception {
                 Match match = new Match();
@@ -69,7 +74,7 @@ public class MatchControllerTest {
                 matchPlayerIds.add(match.getMatchPlayers().get(0).getMatchPlayerId());
 
                 // mock the service to return the expected match
-                given(matchService.createNewMatch(Mockito.any())).willReturn(match);
+                given(matchSetupService.createNewMatch(Mockito.any())).willReturn(match);
 
                 MockHttpServletRequestBuilder postRequest = post("/matches")
                                 .header("Authorization", "Bearer 1234");
@@ -179,7 +184,7 @@ public class MatchControllerTest {
                 InviteResponseDTO inviteResponseDTO = new InviteResponseDTO();
                 inviteResponseDTO.setAccepted(true);
 
-                doNothing().when(matchService).respondToInvite(Mockito.any(), Mockito.any(), Mockito.any());
+                doNothing().when(matchSetupService).respondToInvite(Mockito.any(), Mockito.any(), Mockito.any());
 
                 MockHttpServletRequestBuilder postRequest = post("/matches/1/invite/respond")
                                 .header("Authorization", "Bearer 1234")
@@ -195,7 +200,7 @@ public class MatchControllerTest {
                 Map<String, Integer> body = new HashMap<>();
                 body.put("matchGoal", 150);
 
-                doNothing().when(matchService).updateMatchGoal(Mockito.any(), Mockito.any());
+                doNothing().when(matchSetupService).updateMatchGoal(Mockito.any(), Mockito.any());
 
                 MockHttpServletRequestBuilder postRequest = post("/matches/1/matchGoal")
                                 .header("Authorization", "Bearer 1234")
@@ -211,7 +216,7 @@ public class MatchControllerTest {
                 AIPlayerDTO aiPlayerDTO = new AIPlayerDTO();
                 aiPlayerDTO.setDifficulty(1);
 
-                doNothing().when(matchService).addAiPlayer(Mockito.any(), Mockito.any());
+                doNothing().when(matchSetupService).addAiPlayer(Mockito.any(), Mockito.any());
 
                 MockHttpServletRequestBuilder postRequest = post("/matches/1/ai")
                                 .header("Authorization", "Bearer 1234")
@@ -227,7 +232,7 @@ public class MatchControllerTest {
                 JoinRequestDTO joinRequestDTO = new JoinRequestDTO();
                 joinRequestDTO.setUserId(1L);
 
-                doNothing().when(matchService).sendJoinRequest(Mockito.any(), Mockito.any());
+                doNothing().when(matchSetupService).sendJoinRequest(Mockito.any(), Mockito.any());
 
                 MockHttpServletRequestBuilder postRequest = post("/matches/1/join")
                                 .header("Authorization", "Bearer 1234")
@@ -243,7 +248,7 @@ public class MatchControllerTest {
                 JoinRequestDTO joinRequestDTO = new JoinRequestDTO();
                 joinRequestDTO.setUserId(1L);
 
-                doNothing().when(matchService).acceptJoinRequest(Mockito.any(), Mockito.any());
+                doNothing().when(matchSetupService).acceptJoinRequest(Mockito.any(), Mockito.any());
 
                 MockHttpServletRequestBuilder postRequest = post("/matches/1/join/accept")
                                 .header("Authorization", "Bearer 1234")
@@ -259,7 +264,7 @@ public class MatchControllerTest {
                 JoinRequestDTO joinRequestDTO = new JoinRequestDTO();
                 joinRequestDTO.setUserId(1L);
 
-                doNothing().when(matchService).declineJoinRequest(Mockito.any(), Mockito.any());
+                doNothing().when(matchSetupService).declineJoinRequest(Mockito.any(), Mockito.any());
 
                 MockHttpServletRequestBuilder postRequest = post("/matches/1/join/decline")
                                 .header("Authorization", "Bearer 1234")
@@ -279,7 +284,7 @@ public class MatchControllerTest {
                 List<JoinRequestDTO> joinRequestDTOs = new ArrayList<>();
                 joinRequestDTOs.add(joinRequestDTO);
 
-                given(matchService.getJoinRequests(Mockito.any())).willReturn(joinRequestDTOs);
+                given(matchSetupService.getJoinRequests(Mockito.any())).willReturn(joinRequestDTOs);
 
                 MockHttpServletRequestBuilder getRequest = get("/matches/1/joinRequests")
                                 .header("Authorization", "Bearer 1234");

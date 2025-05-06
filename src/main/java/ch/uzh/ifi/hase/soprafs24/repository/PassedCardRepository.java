@@ -18,5 +18,5 @@ public interface PassedCardRepository extends JpaRepository<PassedCard, Long> {
     // Check if anyone passed a specific card
     boolean existsByGameAndRankSuit(Game game, String rankSuit);
 
-    long countByGame(Game game);
+    int countByGame(Game game);
 }
