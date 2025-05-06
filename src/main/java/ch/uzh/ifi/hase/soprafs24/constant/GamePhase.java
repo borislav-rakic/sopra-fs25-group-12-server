@@ -28,4 +28,7 @@ public enum GamePhase {
     public boolean inTrick() {
         return this == FIRSTTRICK || this == NORMALTRICK || this == FINALTRICK;
     }
+
+    public boolean inPassing(){ return this == PASSING; }
 }
+
