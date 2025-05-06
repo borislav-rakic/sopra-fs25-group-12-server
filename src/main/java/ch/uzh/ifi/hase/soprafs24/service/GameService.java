@@ -395,8 +395,8 @@ public class GameService {
                 && (game.getCurrentPlayOrder() < 0
                         || game.getCurrentPlayOrder() > GameConstants.MAX_TRICK_SIZE)
                 || (game.getPhase() == GamePhase.NORMALTRICK
-                        && (game.getCurrentPlayOrder() < 54
-                                || game.getCurrentPlayOrder() > 12 * GameConstants.MAX_TRICK_SIZE - 1))
+                        && (game.getCurrentPlayOrder() < 4
+                                || game.getCurrentPlayOrder() > 13 * GameConstants.MAX_TRICK_SIZE))
                 || (game.getPhase() == GamePhase.FINALTRICK
                         && (game.getCurrentPlayOrder() < 48
                                 || game.getCurrentPlayOrder() > GameConstants.FULL_DECK_CARD_COUNT))) {
