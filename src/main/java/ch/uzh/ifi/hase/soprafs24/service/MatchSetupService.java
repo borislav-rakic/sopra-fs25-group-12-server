@@ -6,10 +6,12 @@ import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchSummaryRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.AIPlayerDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteRequestDTO;
@@ -43,6 +45,7 @@ public class MatchSetupService {
     GameSetupService gameSetupService;
     MatchPlayerRepository matchPlayerRepository;
     MatchRepository matchRepository;
+    MatchSummaryRepository matchSummaryRepository;
     UserRepository userRepository;
     UserService userService;
 
@@ -52,12 +55,14 @@ public class MatchSetupService {
             GameSetupService gameSetupService,
             MatchPlayerRepository matchPlayerRepository,
             MatchRepository matchRepository,
+            MatchSummaryRepository matchSummaryRepository,
             UserRepository userRepository,
             UserService userService) {
         this.gameRepository = gameRepository;
         this.gameSetupService = gameSetupService;
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchRepository = matchRepository;
+        this.matchSummaryRepository = matchSummaryRepository;
         this.userRepository = userRepository;
         this.userService = userService;
     }
@@ -80,6 +85,9 @@ public class MatchSetupService {
                     "User is already hosting a match. Match ID: " + activeMatch.getMatchId());
         }
 
+        // Create a MatchSummary
+        MatchSummary matchSummary = new MatchSummary();
+
         Match match = new Match();
         MatchPlayer hostPlayer = new MatchPlayer();
         hostPlayer.setUser(user);
@@ -87,6 +95,7 @@ public class MatchSetupService {
         hostPlayer.setMatchPlayerSlot(1);
 
         match.setMatchPlayers(List.of(hostPlayer));
+        match.setMatchSummary(matchSummary);
         match.setHostId(user.getId());
         match.setHostUsername(user.getUsername());
         match.setMatchGoal(100);

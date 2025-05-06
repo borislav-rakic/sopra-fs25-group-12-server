@@ -16,12 +16,12 @@ import java.util.List;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.BDDMockito.given;
 
-public class HtmlSummaryServiceTest {
+public class MatchSummaryServiceTest {
     @Mock
     private GameStatsService gameStatsService = Mockito.mock(GameStatsService.class);
 
     @InjectMocks
-    private HtmlSummaryService htmlSummaryService = new HtmlSummaryService(gameStatsService);
+    private MatchSummaryService matchSummaryService = new MatchSummaryService(gameStatsService);
 
     Match match;
     Game game1;
@@ -166,6 +166,6 @@ public class HtmlSummaryServiceTest {
                 </div>
                 """;
 
-        assertEquals(expected, htmlSummaryService.buildMatchResultHtml(match, game4));
+        assertEquals(expected, matchSummaryService.buildMatchResultHtml(match, game4));
     }
 }

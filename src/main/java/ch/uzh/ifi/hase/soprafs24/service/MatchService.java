@@ -8,6 +8,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchMessage;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
@@ -44,7 +45,7 @@ public class MatchService {
     private final GameService gameService;
     private final GameSetupService gameSetupService;
     private final GameSimulationService gameSimulationService;
-    private final HtmlSummaryService htmlSummaryService;
+    private final MatchSummaryService matchSummaryService;
     private final MatchPlayerRepository matchPlayerRepository;
     private final PollingService pollingService;
     private final UserRepository userRepository;
@@ -58,7 +59,7 @@ public class MatchService {
             @Qualifier("gameService") GameService gameService,
             @Qualifier("gameSetupService") GameSetupService gameSetupService,
             @Qualifier("gameSimulationService") GameSimulationService gameSimulationService,
-            @Qualifier("htmlSummaryService") HtmlSummaryService htmlSummaryService,
+            @Qualifier("matchSummaryService") MatchSummaryService matchSummaryService,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
             @Qualifier("matchRepository") MatchRepository matchRepository,
             @Qualifier("pollingService") PollingService pollingService,
@@ -69,7 +70,7 @@ public class MatchService {
         this.gameService = gameService;
         this.gameSetupService = gameSetupService;
         this.gameSimulationService = gameSimulationService;
-        this.htmlSummaryService = htmlSummaryService;
+        this.matchSummaryService = matchSummaryService;
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchRepository = matchRepository;
         this.pollingService = pollingService;
@@ -288,8 +289,8 @@ public class MatchService {
         log.info("MatchService: handleGameScoringAndConfirmation. Scores saved in Matchplayer.");
 
         // Generate HTML summary and message
-        String summary = htmlSummaryService.buildMatchResultHtml(match, finishedGame);
-        match.setSummary(summary);
+        String summary = matchSummaryService.buildMatchResultHtml(match, finishedGame);
+        setExistingMatchSummaryOrCreateIt(match, summary);
 
         MatchMessage message = new MatchMessage();
         message.setType(MatchMessageType.GAME_ENDED);
@@ -432,6 +433,22 @@ public class MatchService {
         matchPlayerRepository.saveAll(match.getMatchPlayers());
 
         log.info("Auto-play to last trick finished for match {}", matchId);
+    }
+
+    public void setExistingMatchSummaryOrCreateIt(Match match, String matchSummaryHtml) {
+        MatchSummary matchSummary = match.getMatchSummary();
+
+        if (matchSummary == null) {
+            matchSummary = new MatchSummary();
+            match.setMatchSummary(matchSummary); // Ensure bidirectional consistency
+        }
+
+        if (matchSummaryHtml != null) {
+            matchSummary.setMatchSummaryHtml(matchSummaryHtml);
+        }
+
+        // Persist the match (and MatchSummary if cascade is enabled)
+        matchRepository.save(match);
     }
 
 }

@@ -1,5 +1,13 @@
 package ch.uzh.ifi.hase.soprafs24.entity;
 
+import javax.persistence.Entity;
+import javax.persistence.Id;
+import javax.persistence.OneToOne;
+import javax.persistence.JoinColumn;
+import javax.persistence.CascadeType;
+
+import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
+
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -81,8 +89,9 @@ public class Match implements Serializable {
     @OneToMany(mappedBy = "match", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
     private List<MatchMessage> messages = new ArrayList<>();
 
-    @Column(columnDefinition = "TEXT")
-    private String summary;
+    @OneToOne(cascade = CascadeType.PERSIST) // Automatically persist MatchSummary when saving Match
+    @JoinColumn(name = "match_summary_id")
+    private MatchSummary matchSummary;
 
     public List<Game> getGames() {
         return games;
@@ -278,13 +287,12 @@ public class Match implements Serializable {
         this.ready = ready;
     }
 
-    // Getter and Setter
-    public String getSummary() {
-        return summary;
+    public MatchSummary getMatchSummary() {
+        return matchSummary;
     }
 
-    public void setSummary(String summary) {
-        this.summary = summary;
+    public void setMatchSummary(MatchSummary matchSummary) {
+        this.matchSummary = matchSummary;
     }
 
     // ==== UTIL FUNCTIONS

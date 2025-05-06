@@ -37,16 +37,16 @@ public class PollingService {
     // private final Logger log = LoggerFactory.getLogger(PollingService.class);
 
     private final CardRulesService cardRulesService;
-    private final HtmlSummaryService htmlSummaryService;
+    private final MatchSummaryService matchSummaryService;
     private final MatchMessageService matchMessageService;
 
     @Autowired
     public PollingService(
             @Qualifier("cardRulesService") CardRulesService cardRulesService,
-            @Qualifier("htmlSummaryService") HtmlSummaryService htmlSummaryService,
+            @Qualifier("matchSummaryService") MatchSummaryService matchSummaryService,
             @Qualifier("matchMessageService") MatchMessageService matchMessageService) {
         this.cardRulesService = cardRulesService;
-        this.htmlSummaryService = htmlSummaryService;
+        this.matchSummaryService = matchSummaryService;
         this.matchMessageService = matchMessageService;
 
     }
@@ -207,18 +207,6 @@ public class PollingService {
 
         dto.setPollCounter(pollCounter);
 
-        if (match.getPhase() == MatchPhase.FINISHED) {
-            dto.setMatchPhase(MatchPhase.FINISHED);
-
-            if (Boolean.TRUE.equals(matchPlayer.getIsReady())) {
-                dto.setResultHtml(match.getSummary());
-            } else {
-                dto.setResultHtml(htmlSummaryService.buildGameResultHtml(match, game));
-            }
-
-            return dto;
-        }
-
         dto.setMatchId(match.getMatchId()); // [1]
         dto.setMatchGoal(match.getMatchGoal()); // [2]
         dto.setHostId(match.getHostId()); // [3]
@@ -295,7 +283,12 @@ public class PollingService {
 
     private PollingDTO matchResultMessage(Match match) {
         PollingDTO dto = new PollingDTO();
-        dto.setResultHtml("<div>This match is in the result phase.</div>");
+        if (match.getMatchSummary() != null) {
+            dto.setResultHtml(match.getMatchSummary().getMatchSummaryHtml());
+        } else {
+            dto.setResultHtml("<div>This match is over.</div>");
+        }
+        dto.setGamePhase(GamePhase.FINISHED);
         dto.setGamePhase(GamePhase.FINISHED);
         dto.setMatchPhase(MatchPhase.RESULT);
         return dto;
@@ -303,7 +296,11 @@ public class PollingService {
 
     private PollingDTO matchFinishedMessage(Match match) {
         PollingDTO dto = new PollingDTO();
-        dto.setResultHtml("<div>This match was finished.</div>");
+        if (match.getMatchSummary() != null) {
+            dto.setResultHtml(match.getMatchSummary().getMatchSummaryHtml());
+        } else {
+            dto.setResultHtml("<div>This match is over.</div>");
+        }
         dto.setGamePhase(GamePhase.FINISHED);
         dto.setMatchPhase(MatchPhase.FINISHED);
         return dto;
@@ -311,7 +308,11 @@ public class PollingService {
 
     private PollingDTO matchAbortedMessage(Match match) {
         PollingDTO dto = new PollingDTO();
-        dto.setResultHtml("<div>This match was aborted before it was concluded.</div>");
+        if (match.getMatchSummary() != null) {
+            dto.setResultHtml(match.getMatchSummary().getMatchSummaryHtml());
+        } else {
+            dto.setResultHtml("<div>This match is over.</div>");
+        }
         dto.setGamePhase(GamePhase.FINISHED);
         dto.setMatchPhase(MatchPhase.ABORTED);
         return dto;

@@ -39,7 +39,7 @@ public class MatchServiceTest {
     private GameSetupService gameSetupService = Mockito.mock(GameSetupService.class);
 
     @Mock
-    private HtmlSummaryService htmlSummaryService = Mockito.mock(HtmlSummaryService.class);
+    private MatchSummaryService matchSummaryService = Mockito.mock(MatchSummaryService.class);
 
     @Mock
     private MatchPlayerRepository matchPlayerRepository = Mockito.mock(MatchPlayerRepository.class);
@@ -65,7 +65,7 @@ public class MatchServiceTest {
             gameService,
             gameSetupService,
             gameSimulationService,
-            htmlSummaryService,
+            matchSummaryService,
             matchPlayerRepository,
             matchRepository,
             pollingService,

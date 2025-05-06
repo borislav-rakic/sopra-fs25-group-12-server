@@ -25,6 +25,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
@@ -52,6 +53,7 @@ public class GameService {
     private final MatchRepository matchRepository;
     private final MatchMessageService matchMessageService;
     private final MatchPlayerRepository matchPlayerRepository;
+    private final MatchSummaryService matchSummaryService;
 
     // or via constructor injection
 
@@ -64,7 +66,8 @@ public class GameService {
             @Qualifier("gameStatsService") GameStatsService gameStatsService,
             @Qualifier("matchMessageService") MatchMessageService matchMessageService,
             @Qualifier("matchRepository") MatchRepository matchRepository,
-            @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository) {
+            @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
+            @Qualifier("matchSummaryService") MatchSummaryService matchSummaryService) {
         this.aiPlayingService = aiPlayingService;
         this.cardPassingService = cardPassingService;
         this.cardRulesService = cardRulesService;
@@ -73,6 +76,7 @@ public class GameService {
         this.matchMessageService = matchMessageService;
         this.matchRepository = matchRepository;
         this.matchPlayerRepository = matchPlayerRepository;
+        this.matchSummaryService = matchSummaryService;
 
     }
 
@@ -328,7 +332,11 @@ public class GameService {
         game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
 
         if (game.getPhase() == GamePhase.RESULT) {
+            Match match = game.getMatch();
+            String summary = matchSummaryService.buildGameResultHtml(match, game);
+            setExistingGameSummaryOrCreateIt(match, summary);
             gameRepository.save(game);
+            matchRepository.save(match);
             resetNonAiPlayersReady(game);
             return;
         }
@@ -467,5 +475,21 @@ public class GameService {
                     game.getPhase(),
                     game.getCurrentPlayOrder()));
         }
+    }
+
+    public void setExistingGameSummaryOrCreateIt(Match match, String gameSummaryHtml) {
+        MatchSummary matchSummary = match.getMatchSummary();
+
+        if (matchSummary == null) {
+            matchSummary = new MatchSummary();
+            match.setMatchSummary(matchSummary); // Ensure bidirectional consistency
+        }
+
+        if (gameSummaryHtml != null) {
+            matchSummary.setGameSummaryHtml(gameSummaryHtml);
+        }
+
+        // Persist the match (and MatchSummary if cascade is enabled)
+        matchRepository.save(match);
     }
 }
