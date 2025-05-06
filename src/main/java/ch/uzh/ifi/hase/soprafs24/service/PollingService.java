@@ -24,6 +24,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
@@ -56,12 +57,14 @@ public class PollingService {
      * @param matchId The id of the match the user is in
      * @return Information specific to a player (e.g. their current cards)
      */
-    public PollingDTO getPlayerPolling(User user, Match match, MatchPlayerRepository matchPlayerRepository) {
+    public PollingDTO getPlayerPolling(User user, Match match, GameRepository gameRepository,
+            MatchPlayerRepository matchPlayerRepository) {
         // MATCH [1], [2], [3], [4]
         // GAME [11], [12]
-        Game game = match.getActiveGame();
+        Game game = gameRepository.findActiveGameByMatchId(match.getMatchId());
         if (game == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "There is no active  game in this match.");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+                    "There is no active  game in this match (Polling).");
         }
 
         // Current trick as List<Card> [14]

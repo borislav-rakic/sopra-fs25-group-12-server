@@ -112,25 +112,19 @@ public class GameStatsService {
         if (match == null) {
             throw new IllegalStateException("Match Player does not belong to any match.");
         }
-        // Get active game safely
-        Game activeGame = match.getActiveGameOrThrow();
-
-        if (!game.getCurrentTrick().contains(cardCode)) {
-            log.warn("Recording play of card {} that was not added to trick — suspicious!", cardCode);
-        }
 
         // Record stats
-        GameStats gameStats = gameStatsRepository.findByGameAndRankSuit(activeGame, cardCode);
+        GameStats gameStats = gameStatsRepository.findByGameAndRankSuit(game, cardCode);
         // who dealt it?
         gameStats.setPlayedBy(matchPlayer.getMatchPlayerSlot()); // or getUser().getId(), depending on your entity
         // the how-many-eth card was it in this game?
-        gameStats.setPlayOrder(activeGame.getCurrentPlayOrder()); // explained below
+        gameStats.setPlayOrder(game.getCurrentPlayOrder()); // explained below
         //
         gameStats.setOnlyPossibleHolder(matchPlayer.getMatchPlayerSlot()); // now we know exactly who had the card
 
-        gameStats.setTrickNumber(activeGame.getCurrentTrickNumber());
+        gameStats.setTrickNumber(game.getCurrentTrickNumber());
 
-        gameStats.setTrickLeadBySlot(activeGame.getTrickLeaderMatchPlayerSlot());
+        gameStats.setTrickLeadBySlot(game.getTrickLeaderMatchPlayerSlot());
 
     }
 
@@ -168,10 +162,12 @@ public class GameStatsService {
     }
 
     /**
-     * Updates the points_billed_to column in the respective entry in the GAME_STATS relation.
-     * @param game The given game.
+     * Updates the points_billed_to column in the respective entry in the GAME_STATS
+     * relation.
+     * 
+     * @param game                  The given game.
      * @param winnerMatchPlayerSlot The winner of the trick.
-     * @param rankSuit The card code of the card.
+     * @param rankSuit              The card code of the card.
      */
     public void updateGameStatsPointsBilledTo(Game game, String rankSuit, int winnerMatchPlayerSlot) {
         GameStats entry = gameStatsRepository.findByRankSuitAndGame(rankSuit, game);
@@ -189,8 +185,9 @@ public class GameStatsService {
 
     /**
      * Returns the score of a given player in a given game.
+     * 
      * @param matchPlayerSlot The match player slot of the given player.
-     * @param game The given game.
+     * @param game            The given game.
      * @return The score of the given player in the given game.
      */
     public int getPlayerScoreInGame(int matchPlayerSlot, Game game) {

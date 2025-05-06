@@ -138,19 +138,10 @@ public class MatchService {
         matchRepository.save(match);
     }
 
-    private void checkAndUpdateMatchPhaseIfReady(Match match) {
-        if (match.getPlayer1() != null &&
-                match.getPlayer2() != null &&
-                match.getPlayer3() != null &&
-                match.getPlayer4() != null) {
-            match.setPhase(MatchPhase.READY);
-        }
-    }
-
     public void passingAcceptCards(Long matchId, GamePassingDTO passingDTO, String token, Boolean pickRandomly) {
         Match match = requireMatchByMatchId(matchId);
         User user = userService.requireUserByToken(token);
-        Game game = requireActiveGameByMatch(match);
+        Game game = gameRepository.findActiveGameByMatchId(match.getMatchId());
         MatchPlayer matchPlayer = match.requireMatchPlayerByUser(user);
         System.out.println("matchService.passingAcceptCards reached");
         gameService.passingAcceptCards(game, matchPlayer, passingDTO, pickRandomly);
@@ -200,26 +191,12 @@ public class MatchService {
                 game.getCurrentPlayOrder() >= GameConstants.FULL_DECK_CARD_COUNT;
     }
 
-    public Match validateMatchReadyToStart(Long matchId) {
-        Match match = matchRepository.findMatchByMatchId(matchId);
-        if (match == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
-        } else if (match.getPhase() == MatchPhase.SETUP) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Match is not ready to start.");
-        } else if (match.getPhase().inGame()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Match is already in progress.");
-        } else if (match.getPhase().over()) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Match is already over.");
-        }
-        return match;
-    }
-
     @Transactional
     public void startMatch(Long matchId, String token, Long seed) {
         User user = userService.requireUserByToken(token);
         Match match = requireMatchByMatchId(matchId);
         matchSetupService.isMatchStartable(match, user);
-
+        log.info("Match is being started (seed=`{}´)", seed);
         match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
 
         Game game = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, seed);
@@ -258,29 +235,29 @@ public class MatchService {
             }
         }
 
-        return pollingService.getPlayerPolling(user, match, matchPlayerRepository);
+        return pollingService.getPlayerPolling(user, match, gameRepository, matchPlayerRepository);
     }
 
     public Game requireActiveGameByMatch(Match match) {
-        Game activeGame = match.getActiveGame();
+        Game activeGame = gameRepository.findActiveGameByMatchId(match.getMatchId());
         if (activeGame == null) {
-            throw new IllegalStateException("No active game found for this match.");
+            throw new IllegalStateException("No active game found for this match (MatchService).");
         }
         return activeGame;
     }
 
     public void handleGameScoringAndConfirmation(Match match, Game finishedGame) {
-        // Mark game as finished
-        finishedGame.setPhase(GamePhase.FINISHED);
-        gameRepository.save(finishedGame);
+        // Defensive check (optional)
+        if (finishedGame.getPhase() != GamePhase.FINISHED) {
+            throw new IllegalStateException("Trying to confirm a game that isn't finished.");
+        }
 
-        // Update match scores and reset game scores
+        // Apply game score → match score
         for (MatchPlayer mp : match.getMatchPlayers()) {
             int updatedMatchScore = mp.getMatchScore() + mp.getGameScore();
             mp.setMatchScore(updatedMatchScore);
-            mp.setGameScore(0);
+            mp.setGameScore(0); // Reset game-specific score
 
-            // Reset ready status only for human players (e.g., user != null)
             if (mp.getUser() != null) {
                 mp.setReady(false);
             }
@@ -288,17 +265,15 @@ public class MatchService {
             matchPlayerRepository.save(mp);
         }
 
-        // Generate HTML summary for the game results
+        // Generate HTML summary and message
         String summary = htmlSummaryService.buildMatchResultHtml(match, finishedGame);
         match.setSummary(summary);
 
-        // Add match message (ensure you have helper)
         MatchMessage message = new MatchMessage();
         message.setType(MatchMessageType.GAME_ENDED);
         message.setContent("Game finished! Please confirm to continue.");
-        match.addMessage(message); // You need addMessage method here
+        match.addMessage(message);
 
-        // Set match phase
         match.setPhase(MatchPhase.BETWEEN_GAMES);
         matchRepository.save(match);
     }
@@ -314,6 +289,9 @@ public class MatchService {
             return;
         }
 
+        // Now that all humans have confirmed, the game is set to finished!
+        finishedGame.setPhase(GamePhase.FINISHED);
+        gameRepository.save(finishedGame);
         if (shouldEndMatch(match)) {
             match.setPhase(MatchPhase.RESULT);
             matchRepository.save(match);
@@ -351,7 +329,6 @@ public class MatchService {
 
     public void checkGameAndStartNextIfNeeded(Match match) {
         Game activeGame = requireActiveGameByMatch(match);
-
         if (activeGame != null) {
             return; // There is still an active game
         }

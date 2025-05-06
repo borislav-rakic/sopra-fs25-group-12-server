@@ -309,7 +309,7 @@ public class Match implements Serializable {
         return this.getGames().stream()
                 .filter(game -> game.getPhase() != GamePhase.FINISHED && game.getPhase() != GamePhase.ABORTED)
                 .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No active game found for this match"));
+                .orElseThrow(() -> new IllegalStateException("No active game found for this match (Match)."));
     }
 
     public Game getActiveGame() {

@@ -48,6 +48,7 @@ public class GameSetupService {
      * @return game The new Game instance.
      */
     public int determineNextGameNumber(Match match) {
+        log.info("  🦑 GameSetupService determineNextGameNumber.");
         return match.getGames().stream()
                 .mapToInt(Game::getGameNumber)
                 .max()
@@ -87,13 +88,16 @@ public class GameSetupService {
         }
 
         game.setPhase(GamePhase.WAITING_FOR_EXTERNAL_API);
+        log.info("  🦑 GameSetupService: GamePhase is set to WAITING_FOR_EXTERNAL_API.");
         gameRepository.save(game);
         gameRepository.flush(); // immediate DB write necessary, else the asynch might not find the game again.
 
         if (seed != null && seed != 0) {
+            log.info("  🦑 GameSetupService: Cards are determined internally.");
             game.setDeckId(ExternalApiClientService.buildSeedString(seed));
             distributeCards(match, game, matchRepository, gameRepository, seed);
         } else {
+            log.info("  🦑 GameSetupService: Cards are fetched from remote API.");
             fetchDeckAndDistributeCardsAsync(matchRepository, gameRepository, match.getMatchId());
         }
 
@@ -113,6 +117,7 @@ public class GameSetupService {
      **/
     public void fetchDeckAndDistributeCardsAsync(MatchRepository matchRepository, GameRepository gameRepository,
             Long matchId) {
+        log.info("  🦑 GameSetupService fetchDeckAndDistributeCardsAsync");
         Mono<NewDeckResponse> newDeckResponseMono = externalApiClientService.createNewDeck();
 
         newDeckResponseMono.subscribe(response -> {
@@ -120,15 +125,16 @@ public class GameSetupService {
             if (match == null) {
                 throw new EntityNotFoundException("Match not found");
             }
-            List<Game> games = gameRepository.findByMatchMatchIdAndPhase(matchId, GamePhase.WAITING_FOR_EXTERNAL_API);
+            List<Game> games = gameRepository.findWaitingGameByMatchid(matchId);
             if (games.size() != 1) {
                 throw new IllegalStateException(
                         "Expected one game in WAITING_FOR_EXTERNAL_API, found: " + games.size());
             }
 
             Game game = games.get(0);
-
+            log.info("  🦑 GameSetupService: Deck ID was set to {}.", response.getDeck_id());
             game.setDeckId(response.getDeck_id());
+            gameRepository.save(game);
             matchRepository.save(match);
 
             distributeCards(match, game, matchRepository, gameRepository, null);
@@ -153,6 +159,7 @@ public class GameSetupService {
 
     public void distributeCards(Match match, Game game, MatchRepository matchRepository, GameRepository gameRepository,
             Long seed) {
+        log.info("  🦑 GameSetupService distributeCards (seed=`{}´)", seed);
         if (seed != null && seed % 10000 == 9247) {
             List<CardResponse> deterministicDeck = ExternalApiClientService
                     .generateDeterministicDeck(GameConstants.FULL_DECK_CARD_COUNT, seed);
@@ -167,10 +174,12 @@ public class GameSetupService {
             // Manually draw fresh game object from DB.
             Game refreshedGame = gameRepository.findById(gameId)
                     .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + gameId));
+            log.info("  🦑 GameSetupService: Drew refreshedGame from gameRepository inside subscribe block.");
             // Manually draw fresh match object from DB:
             Match refreshedMatch = matchRepository.findById(matchId)
                     .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + matchId));
             List<CardResponse> responseCards = response.getCards();
+            log.info("  🦑 GameSetupService: About to distributeFullDeckToPlayers");
             distributeFullDeckToPlayers(refreshedMatch, refreshedGame, matchRepository, gameRepository, responseCards);
         });
     }
@@ -215,12 +224,17 @@ public class GameSetupService {
             }
 
             matchPlayer.setHand(handBuilder.toString());
+            log.info("  🦑 GameSetupService: Dealing hand [{}] to MatchPlayer.id={} in slot={}.",
+                    matchPlayer.getHand(),
+                    matchPlayer.getUser().getId(),
+                    matchPlayer.getMatchPlayerSlot());
+
         }
 
         match.setPhase(MatchPhase.IN_PROGRESS);
         game.setPhase(GamePhase.PASSING);
         // gameRepository.flush();
-        log.info("°°° PASSING COMMENCES °°°");
+        log.info("  🦑 GameSetupService: °°° PASSING COMMENCES °°°");
 
         // Save updated game + match
         gameRepository.save(game);
@@ -238,7 +252,7 @@ public class GameSetupService {
      */
     private Game createNewGameInMatch(Match match, MatchRepository matchRepository, GameRepository gameRepository) {
         int nextGameNumber = determineNextGameNumber(match);
-
+        log.info("  🦑 GameSetupService createNewGameInMatch nextGameNumber={}.", nextGameNumber);
         Game game = new Game();
         game.setGameNumber(nextGameNumber);
         game.setPhase(GamePhase.PRESTART);
@@ -253,7 +267,8 @@ public class GameSetupService {
         match.setStarted(true);
         matchRepository.save(match);
         gameStatsService.initializeGameStats(match, game);
-        log.info("Created new game {} (gamePhase={}) for match {} (matchPhase={}).", game.getGameId(),
+        log.info("  🦑 GameSetupService: Created new game {} (gamePhase={}) for match {} (matchPhase={}).",
+                game.getGameId(),
                 match.getMatchId(), game.getPhase(), match.getPhase());
         return game;
     }

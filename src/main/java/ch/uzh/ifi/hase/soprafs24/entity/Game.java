@@ -74,6 +74,9 @@ public class Game {
     @Column(name = "trick_just_completed_time")
     private Instant trickJustCompletedTime = Instant.now();
 
+    @Column(name = "game_scores_csv")
+    private String gameScoresCsv = "0,0,0,0"; // Example: "4,5,3,13"
+
     // === Getters and Setters ===
 
     public Long getGameId() {
@@ -322,6 +325,31 @@ public class Game {
 
     public void setPreviousTrick(List<String> cards) {
         this.previousTrick = String.join(",", cards);
+    }
+
+    @Transient
+    public List<Integer> getGameScoresList() {
+        if (gameScoresCsv == null || gameScoresCsv.isBlank()) {
+            return new ArrayList<>();
+        }
+        return Arrays.stream(gameScoresCsv.split(","))
+                .map(String::trim)
+                .map(Integer::parseInt)
+                .collect(Collectors.toList());
+    }
+
+    public void setGameScoresList(List<Integer> scores) {
+        this.gameScoresCsv = scores.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+    }
+
+    public int getScoreForSlot(int matchPlayerSlot) {
+        List<Integer> scores = getGameScoresList();
+        if (matchPlayerSlot < 1 || matchPlayerSlot > scores.size()) {
+            throw new IllegalArgumentException("Invalid player slot: " + matchPlayerSlot);
+        }
+        return scores.get(matchPlayerSlot - 1);
     }
 
 }
