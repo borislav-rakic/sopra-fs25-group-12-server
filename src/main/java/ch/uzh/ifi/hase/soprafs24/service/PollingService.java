@@ -17,6 +17,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
@@ -61,6 +62,13 @@ public class PollingService {
             MatchPlayerRepository matchPlayerRepository) {
         // MATCH [1], [2], [3], [4]
         // GAME [11], [12]
+        if (match.getPhase() == MatchPhase.RESULT) {
+            return matchResultMessage(match);
+        } else if (match.getPhase() == MatchPhase.FINISHED) {
+            return matchFinishedMessage(match);
+        } else if (match.getPhase() == MatchPhase.ABORTED) {
+            return matchAbortedMessage(match);
+        }
         Game game = gameRepository.findActiveGameByMatchId(match.getMatchId());
         if (game == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
@@ -129,15 +137,14 @@ public class PollingService {
 
         /// Number of cards in hand
         Map<Integer, Integer> handCounts = new HashMap<>();
-
         for (MatchPlayer mp : match.getMatchPlayers()) {
             int count = mp.getHandCardsArray().length;
-            handCounts.put(mp.getMatchPlayerSlot(), count);
+            handCounts.put(mp.getMatchPlayerSlot() - 1, count);
         }
         //// Points per player
         Map<Integer, Integer> pointsOfPlayers = new HashMap<>();
         for (MatchPlayer mp : match.getMatchPlayers()) {
-            pointsOfPlayers.put(mp.getMatchPlayerSlot(), mp.getMatchScore());
+            pointsOfPlayers.put(mp.getMatchPlayerSlot() - 1, mp.getMatchScore());
         }
 
         List<String> matchPlayers = new ArrayList<>();
@@ -284,6 +291,30 @@ public class PollingService {
 
         // If enough time has passed, allow polling
         return true;
+    }
+
+    private PollingDTO matchResultMessage(Match match) {
+        PollingDTO dto = new PollingDTO();
+        dto.setResultHtml("<div>This match is in the result phase.</div>");
+        dto.setGamePhase(GamePhase.FINISHED);
+        dto.setMatchPhase(MatchPhase.RESULT);
+        return dto;
+    }
+
+    private PollingDTO matchFinishedMessage(Match match) {
+        PollingDTO dto = new PollingDTO();
+        dto.setResultHtml("<div>This match was finished.</div>");
+        dto.setGamePhase(GamePhase.FINISHED);
+        dto.setMatchPhase(MatchPhase.FINISHED);
+        return dto;
+    }
+
+    private PollingDTO matchAbortedMessage(Match match) {
+        PollingDTO dto = new PollingDTO();
+        dto.setResultHtml("<div>This match was aborted before it was concluded.</div>");
+        dto.setGamePhase(GamePhase.FINISHED);
+        dto.setMatchPhase(MatchPhase.ABORTED);
+        return dto;
     }
 
 }

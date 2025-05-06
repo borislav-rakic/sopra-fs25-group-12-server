@@ -27,12 +27,17 @@ import java.util.*;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Service handling all setup operations for a Match before it starts.
  */
 @Service
 @Transactional
 public class MatchSetupService {
+
+    private final Logger log = LoggerFactory.getLogger(MatchSetupService.class);
 
     GameRepository gameRepository;
     GameSetupService gameSetupService;
@@ -370,6 +375,7 @@ public class MatchSetupService {
         if (match.getPlayer1() != null && match.getPlayer2() != null &&
                 match.getPlayer3() != null && match.getPlayer4() != null) {
             match.setPhase(MatchPhase.READY);
+            log.info("💄 MatchPhase is set to READY.");
         }
     }
 

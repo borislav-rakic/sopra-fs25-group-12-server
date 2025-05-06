@@ -88,7 +88,7 @@ public class GameSetupService {
         }
 
         game.setPhase(GamePhase.WAITING_FOR_EXTERNAL_API);
-        log.info("  🦑 GameSetupService: GamePhase is set to WAITING_FOR_EXTERNAL_API.");
+        log.info("💄 🦑 GameSetupService: GamePhase is set to WAITING_FOR_EXTERNAL_API.");
         gameRepository.save(game);
         gameRepository.flush(); // immediate DB write necessary, else the asynch might not find the game again.
 
@@ -232,7 +232,9 @@ public class GameSetupService {
         }
 
         match.setPhase(MatchPhase.IN_PROGRESS);
+        log.info("💄 MatchPhase is set to IN_PROGRESS");
         game.setPhase(GamePhase.PASSING);
+        log.info("💄 GameState is set to PASSING");
         // gameRepository.flush();
         log.info("  🦑 GameSetupService: °°° PASSING COMMENCES °°°");
 
@@ -256,6 +258,7 @@ public class GameSetupService {
         Game game = new Game();
         game.setGameNumber(nextGameNumber);
         game.setPhase(GamePhase.PRESTART);
+        log.info("💄 GamePhase is set to PRESTART");
         game.setCurrentPlayOrder(0); // answers the question, how many cards have been added into the trick?
         game.setCurrentTrickNumber(1);
 

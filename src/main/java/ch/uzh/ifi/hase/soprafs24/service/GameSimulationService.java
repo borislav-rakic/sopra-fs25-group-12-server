@@ -48,6 +48,11 @@ public class GameSimulationService {
             }
         }
 
+        int limit = match.getMatchGoal();
+        for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
+            matchPlayer.setMatchScore(limit - 10);
+        }
+
         log.info("Auto-played up to the final trick for game {} in match {}", game.getGameId(), match.getMatchId());
     }
 

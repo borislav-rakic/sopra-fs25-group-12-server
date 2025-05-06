@@ -259,7 +259,7 @@ public class GameService {
         }
         GamePhase after = game.getPhase();
         if (before != after) {
-            log.info("GamePhase set to {} (playOrder = {}).", after, game.getCurrentPlayOrder());
+            log.info("💄 GamePhase set to {} (playOrder = {}).", after, game.getCurrentPlayOrder());
         }
     }
 
@@ -357,6 +357,9 @@ public class GameService {
             // Only reset readiness for non-AI players
             if (!Boolean.TRUE.equals(matchPlayer.getIsAiPlayer())) {
                 matchPlayer.setReady(false);
+                log.info("    🫡 MatchPlayer id={} in slot={} was set to ready=false.",
+                        matchPlayer.getUser().getId(),
+                        matchPlayer.getMatchPlayerSlot());
             }
         }
 

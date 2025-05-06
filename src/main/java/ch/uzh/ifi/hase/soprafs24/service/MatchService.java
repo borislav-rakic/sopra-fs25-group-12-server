@@ -165,6 +165,7 @@ public class MatchService {
             cardCode = CardUtils.requireValidCardFormat(dto.getCard());
         }
         gameService.playCardAsHuman(game, matchPlayer, cardCode);
+        log.info("MatchService: playCardAsHuman. Now checking if isFinalCardOfGame.");
 
         // Step 6: Finalize game/match if this was the last card
         if (isFinalCardOfGame(game)) {
@@ -179,6 +180,7 @@ public class MatchService {
         // Let GameService do the actual AI playing
         gameService.playAiTurnsUntilHuman(game.getGameId());
 
+        log.info("MatchService: playAiTurnsUntilHuman. Now checking if isFinalCardOfGame.");
         // Step 6: Finalize game/match if this was the last card
         if (isFinalCardOfGame(game)) {
             handleGameScoringAndConfirmation(game.getMatch(), game);
@@ -187,7 +189,10 @@ public class MatchService {
     }
 
     private boolean isFinalCardOfGame(Game game) {
-        return game.getPhase() == GamePhase.FINALTRICK &&
+        log.info(
+                "MatchService: Now checking if isFinalCardOfGame. GamePhase={}, currentPlayOrder={}.",
+                game.getPhase(), game.getCurrentPlayOrder());
+        return game.getPhase() == GamePhase.RESULT &&
                 game.getCurrentPlayOrder() >= GameConstants.FULL_DECK_CARD_COUNT;
     }
 
@@ -247,23 +252,40 @@ public class MatchService {
     }
 
     public void handleGameScoringAndConfirmation(Match match, Game finishedGame) {
+        log.info("MatchService: handleGameScoringAndConfirmation, gamePhase={}.", finishedGame.getPhase());
         // Defensive check (optional)
-        if (finishedGame.getPhase() != GamePhase.FINISHED) {
+        if (finishedGame.getPhase() != GamePhase.RESULT) {
             throw new IllegalStateException("Trying to confirm a game that isn't finished.");
         }
-
+        log.info("MatchService: handleGameScoringAndConfirmation.");
         // Apply game score → match score
         for (MatchPlayer mp : match.getMatchPlayers()) {
+            // Calculate the updated match score
             int updatedMatchScore = mp.getMatchScore() + mp.getGameScore();
             mp.setMatchScore(updatedMatchScore);
-            mp.setGameScore(0); // Reset game-specific score
+            log.info("MatchService: handleGameScoringAndConfirmation.");
+            log.info("MatchPlayer Id={}, slot={} had his MatchScore updated to {}.", mp.getUser().getId(),
+                    mp.getMatchPlayerSlot(), updatedMatchScore);
+
+            // Reset game score to 0 after applying it
+            mp.setGameScore(0);
 
             if (mp.getUser() != null) {
-                mp.setReady(false);
+                mp.setReady(false); // Set the player as not ready
+
+                // Log for debugging
+                log.info("    🫡 MatchPlayer id={} in slot={} was set to ready=false.",
+                        mp.getUser().getId(),
+                        mp.getMatchPlayerSlot());
             }
 
+            // Save updated MatchPlayer
             matchPlayerRepository.save(mp);
         }
+
+        // Save the updated match after applying the scores
+        matchRepository.save(match); // Ensure match is saved with updated matchPlayer scores
+        log.info("MatchService: handleGameScoringAndConfirmation. Scores saved in Matchplayer.");
 
         // Generate HTML summary and message
         String summary = htmlSummaryService.buildMatchResultHtml(match, finishedGame);
@@ -275,6 +297,7 @@ public class MatchService {
         match.addMessage(message);
 
         match.setPhase(MatchPhase.BETWEEN_GAMES);
+        log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
         matchRepository.save(match);
     }
 
@@ -291,12 +314,16 @@ public class MatchService {
 
         // Now that all humans have confirmed, the game is set to finished!
         finishedGame.setPhase(GamePhase.FINISHED);
+        log.info("💄 GamePhase is set to FINISHED.");
         gameRepository.save(finishedGame);
         if (shouldEndMatch(match)) {
             match.setPhase(MatchPhase.RESULT);
+            log.info("💄 MatchPhase is set to RESULT.");
             matchRepository.save(match);
         } else {
             match.setPhase(MatchPhase.BETWEEN_GAMES);
+
+            log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
             matchRepository.save(match);
             gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
         }
@@ -338,9 +365,12 @@ public class MatchService {
 
         if (matchOver) {
             match.setPhase(MatchPhase.FINISHED);
+            log.info("💄 MatchPhase is set to FINISHED.");
             matchRepository.save(match);
         } else {
             match.setPhase(MatchPhase.BETWEEN_GAMES);
+
+            log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
             matchRepository.save(match); // Save transition before creating a new game
 
             // Delegate to GameSetupService for game creation
@@ -362,6 +392,10 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not found in match");
         }
         player.setReady(true);
+
+        log.info("    🫡 MatchPlayer id={} in slot={} was set to ready=true.",
+                player.getUser().getId(),
+                player.getMatchPlayerSlot());
         matchPlayerRepository.save(player);
 
         boolean allHumansReady = match.getMatchPlayers().stream()
@@ -369,6 +403,7 @@ public class MatchService {
                 .allMatch(MatchPlayer::getIsReady);
 
         if (allHumansReady) {
+            log.info("    🫡 All human MatchPlayers are Ready!");
             handleConfirmedGame(match, game);
         }
     }
@@ -379,10 +414,24 @@ public class MatchService {
                 .anyMatch(mp -> mp.getMatchScore() >= goal);
     }
 
+    @Transactional
     public void autoPlayToLastTrick(Long matchId) {
         Match match = requireMatchByMatchId(matchId);
         Game game = requireActiveGameByMatch(match);
+
+        // Call the simulation service to play the game until the last trick
         gameSimulationService.autoPlayToLastTrick(match, game);
+
+        // Log matchPlayer scores before saving
+        match.getMatchPlayers().forEach(player -> {
+            log.info("MatchPlayer id={}, slot={}, matchScore={}",
+                    player.getUser().getId(), player.getMatchPlayerSlot(), player.getMatchScore());
+        });
+
+        // Save all match players with the updated scores
+        matchPlayerRepository.saveAll(match.getMatchPlayers());
+
+        log.info("Auto-play to last trick finished for match {}", matchId);
     }
 
 }
