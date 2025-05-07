@@ -51,9 +51,7 @@ public class LeaderboardController {
     public ResponseEntity<Void> populateLeaderboardIfEmpty() {
         if (userService.getUserCount() <= 10) {// there are nine ai players plus one SuperUser.
             userService.populateUsersFromSQL();
-        } else {
-            log.error("Could not populate db, sorry.");
         }
-        return ResponseEntity.noContent().build();
+        return ResponseEntity.ok().build();
     }
 }

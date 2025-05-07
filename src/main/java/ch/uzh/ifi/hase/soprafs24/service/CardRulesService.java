@@ -66,7 +66,7 @@ public class CardRulesService {
      **/
     public String getPlayableCardsForMatchPlayer(Game game, MatchPlayer matchPlayer, boolean isPlaying) {
         // Game state is assumed to be perfectly consistent!
-        log.info("   ¦¦¦¦¦¦¦¦¦¦¦ REACHED getPlayableCardsForMatchPlayer ¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦");
+        log.info("   ¦¦¦ REACHED getPlayableCardsForMatchPlayer ¦¦¦");
 
         // Only players who are actually about to play get info on playability of cards.
         if (!game.getPhase().inTrick()
@@ -74,73 +74,72 @@ public class CardRulesService {
             // Only during actual ongoing games does it makes sense to investigate
             // playability of cards (passing must be over).
 
-            log.info("   ¦ VERDICT: Out of turn.");
+            // log.info(" ¦ VERDICT: Out of turn.");
             return "";
         }
         // A. Player's Hand
         String hand = CardUtils.normalizeCardCodeString(matchPlayer.getHand());
-        log.info("   ¦ hand: {}.", hand);
+        // log.info(" ¦ hand: {}.", hand);
         int handSize = CardUtils.sizeOfCardCodeString(hand);
-        log.info("   ¦ handSize: {}.", handSize);
+        // log.info(" ¦ handSize: {}.", handSize);
 
         boolean handHas2C = CardUtils.isCardCodeInHandAsString(GameConstants.TWO_OF_CLUBS, hand);
-        log.info("   ¦ handHas2C: {}.", handHas2C);
+        // log.info(" ¦ handHas2C: {}.", handHas2C);
         String handHearts = CardUtils.cardCodesInSuit(hand, "H");
-        log.info("   ¦ heartsCards: {}.", handHearts);
-        int handHeartsSize = CardUtils.sizeOfCardCodeString(handHearts);
-        log.info("   ¦ handHeartsSize: {}.", handHeartsSize);
+        // log.info(" ¦ heartsCards: {}.", handHearts);
         String handNonHearts = CardUtils.cardCodesNotInSuit(hand, "H");
-        log.info("   ¦ handNonHearts: {}.", handNonHearts);
+        // log.info(" ¦ handNonHearts: {}.", handNonHearts);
         int handNonHeartsSize = CardUtils.sizeOfCardCodeString(handNonHearts);
-        log.info("   ¦ handNonHeartsSize: {}.", handNonHeartsSize);
+        // log.info(" ¦ handNonHeartsSize: {}.", handNonHeartsSize);
 
         // B. The Trick so far
         String trick = game.getCurrentTrickAsString();
-        log.info("   ¦ trick: {}.", trick);
+        // log.info(" ¦ trick: {}.", trick);
         int trickSize = CardUtils.sizeOfCardCodeString(trick);
-        log.info("   ¦ trickSize: {}.", trickSize);
+        // log.info(" ¦ trickSize: {}.", trickSize);
         String leadingSuit = CardUtils.getSuitOfFirstCardInCardCodeString(trick);
-        log.info("   ¦ leadingSuit: {}.", leadingSuit);
+        // log.info(" ¦ leadingSuit: {}.", leadingSuit);
 
         boolean handHasLeadingSuit = CardUtils.isSuitInHand(hand, leadingSuit);
-        log.info("   ¦ handHasLeadingSuit: {}.", handHasLeadingSuit);
+        // log.info(" ¦ handHasLeadingSuit: {}.", handHasLeadingSuit);
         String handLeadingSuit = CardUtils.cardCodesInSuit(hand, leadingSuit);
-        log.info("   ¦ handLeadingSuit: {}.", handLeadingSuit);
+        // log.info(" ¦ handLeadingSuit: {}.", handLeadingSuit);
         int handLeadingSuitSize = CardUtils.sizeOfCardCodeString(handLeadingSuit);
-        log.info("   ¦ handLeadingSuitSize: {}.", handLeadingSuitSize);
+        // log.info(" ¦ handLeadingSuitSize: {}.", handLeadingSuitSize);
 
         String handLeadingSuitNonQS = CardUtils.cardCodeStringMinusCardCode(handLeadingSuit,
                 GameConstants.QUEEN_OF_SPADES);
-        log.info("   ¦ handLeadingSuitNonQS: {}.", handLeadingSuitNonQS);
+        // log.info(" ¦ handLeadingSuitNonQS: {}.", handLeadingSuitNonQS);
 
         String handNonHeartsNonQS = CardUtils.cardCodeStringMinusCardCode(handNonHearts,
                 GameConstants.QUEEN_OF_SPADES);
         int handNonHeartsNonQSSize = CardUtils.sizeOfCardCodeString(handNonHeartsNonQS);
-        log.info("   ¦ handNonHeartsNonQSSize: {}.", handNonHeartsNonQSSize);
+        // log.info(" ¦ handNonHeartsNonQSSize: {}.", handNonHeartsNonQSSize);
 
         // C. The Game state
         boolean heartsBroken = game.getHeartsBroken();
-        log.info("   ¦ heartsBroken: {}.", heartsBroken);
+        // log.info(" ¦ heartsBroken: {}.", heartsBroken);
         int playOrder = game.getCurrentPlayOrder();
-        log.info("   ¦ playOrder: {}.", playOrder);
+        // log.info(" ¦ playOrder: {}.", playOrder);
         int trickNumber = game.getCurrentTrickNumber();
-        log.info("   ¦ trickNumber: {}.", trickNumber);
+        // log.info(" ¦ trickNumber: {}.", trickNumber);
         GamePhase gamePhase = game.getPhase();
-        log.info("   ¦ gamePhase: {}.", gamePhase);
+        // log.info(" ¦ gamePhase: {}.", gamePhase);
 
         log.info("   ¦ Which Cards are Playable?");
-        log.info(
-                "   ¦ MatchPlayer {} in matchPlayerSlot {}, playing in trick #{}.",
-                matchPlayer.getInfo(),
-                matchPlayer.getMatchPlayerSlot(),
-                trickNumber);
-        log.info("Trick so far: {}. Leading suit: {}. Phase: {}. Hearts {} broken. Current play order: {}.",
-                trick,
-                leadingSuit,
-                gamePhase,
-                heartsBroken ? "is" : "is not yet",
-                playOrder,
-                hand);
+        // log.info(
+        // " ¦ MatchPlayer {} in matchPlayerSlot {}, playing in trick #{}.",
+        // matchPlayer.getInfo(),
+        // matchPlayer.getMatchPlayerSlot(),
+        // trickNumber);
+        // log.info("Trick so far: {}. Leading suit: {}. Phase: {}. Hearts {} broken.
+        // Current play order: {}.",
+        // trick,
+        // leadingSuit,
+        // gamePhase,
+        // heartsBroken ? "is" : "is not yet",
+        // playOrder,
+        // hand);
 
         // ### FACTS ESTABLISHED
 
@@ -148,7 +147,7 @@ public class CardRulesService {
         // Here goes...
         // Case 0. There are no cards in the player's hand
         if (handSize == 0) {
-            log.info("   ¦ Case0.");
+            // log.info(" ¦ Case 0.");
             throw new IllegalStateException(
                     String.format(
                             "Player has no cards in his hands: %s.",
@@ -157,13 +156,13 @@ public class CardRulesService {
         // ESTABLISHED: There are cards in the player's hands
         // Case 1a. It is the first card of the firsttrick and handHas 2C.
         else if (gamePhase == GamePhase.FIRSTTRICK && playOrder == 0 && handHas2C) {
-            log.info("   ¦ Case1a.");
+            // log.info(" ¦ Case 1a.");
             playableCards = GameConstants.TWO_OF_CLUBS;
         }
         // Case 1b. It is NOT the first card of the firsttrick and handHas 2C => Illegal
         // state.
         else if (playOrder != 0 && handHas2C) {
-            log.info("   ¦ Case1b.");
+            // log.info(" ¦ Case 1b.");
             throw new IllegalStateException(
                     String.format(
                             "Player holds card 2C (hand=%s), even though currenPlayOrder is %d.",
@@ -175,8 +174,7 @@ public class CardRulesService {
         // Case 2a. It is the first trick, but the leading suit is Hearts => illegal
         // state.
         else if (gamePhase == GamePhase.FIRSTTRICK && "H".equals(leadingSuit)) {
-
-            log.info("   ¦ Case2a.");
+            // log.info(" ¦ Case 2a.");
             throw new IllegalStateException(
                     String.format(
                             "In the first trick, the leading suit must not be Hearts."));
@@ -184,7 +182,7 @@ public class CardRulesService {
         // Case 2b. Player has the leading suit of the first round (no QS!)
         else if (gamePhase == GamePhase.FIRSTTRICK && trickSize > 1 && handLeadingSuitSize > 0) {
             // The Queen of Spades is illegal in the first trick
-            log.info("   ¦ Case2b.");
+            // log.info(" ¦ Case2 b.");
             playableCards = handLeadingSuitNonQS;
         }
         // Case 2c. Player does not have the leading suit of the first trick,
@@ -194,7 +192,7 @@ public class CardRulesService {
                 && handLeadingSuitSize == 0
                 && handNonHeartsNonQSSize > 0) {
             // The Queen of Spades is illegal in the first trick
-            log.info("   ¦ Case2c.");
+            // log.info(" ¦ Case 2c.");
             playableCards = handNonHeartsNonQS;
         }
         // Case 2d. Player does not have the leading suit of the first trick,
@@ -205,38 +203,38 @@ public class CardRulesService {
                 && handLeadingSuitSize == 0
                 && handNonHeartsNonQSSize == 0) {
             // The Queen of Spades is illegal in the first trick
-            log.info("   ¦ Case2d.");
+            // log.info(" ¦ Case 2d.");
             playableCards = handHearts;
         }
         // ESTABLISHED: It is NOT the first round.
         // Case 3a. The trick is empty, but Hearts is not yet broken, but player only
         // has Hearts cards.
         else if (trickSize == 0 && !heartsBroken && handNonHeartsSize == 0) {
-            log.info("   ¦ Case3a.");
+            // log.info(" ¦ Case 3a.");
             playableCards = handHearts;
         }
         // Case 3b. The trick is empty, but Hearts is not yet broken.
         else if (trickSize == 0 && !heartsBroken) {
-            log.info("   ¦ Case3b.");
+            // log.info(" ¦ Case 3b.");
             playableCards = handNonHearts;
         }
         // Case 3c. The trick is empty, but Hearts IS broken.
         else if (trickSize == 0 && heartsBroken) {
-            log.info("   ¦ Case3c.");
+            // log.info(" ¦ Case 3c.");
             playableCards = hand;
         }
         // ESTABLISHED: The Trick is NOT empty.
         // Case 4a. The trick is NOT empty and player has cards in leading suit.
         else if (trickSize > 0 && handHasLeadingSuit) {
-            log.info("   ¦ Case4a.");
+            // log.info(" ¦ Case 4a.");
             playableCards = handLeadingSuit;
         }
         // Case 4b. The trick is NOT empty and player has no cards in leading suit.
         else if (trickSize > 0 && !handHasLeadingSuit) {
-            log.info("   ¦ Case4b.");
+            // log.info(" ¦ Case 4b.");
             playableCards = hand;
         } else {
-            log.info("   ¦ Case9.");
+            // log.info(" ¦ Case 9.");
             throw new IllegalStateException(
                     String.format(
                             "Player's cards did not fit any category, really."));
@@ -247,8 +245,7 @@ public class CardRulesService {
                 hand, handHas2C ? "" : "not ", trickNumber, trickSize, trick,
                 leadingSuit.isEmpty() ? "no leading suit" : "leading suit:" + leadingSuit, heartsBroken ? "" : "not ",
                 playableCards);
-        log.info("   ¦ VERDICT: {}.", playableCards);
-        log.info("   ¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦¦");
+        log.info("   ¦¦¦ VERDICT: {}.", playableCards);
         return CardUtils.normalizeCardCodeString(playableCards);
 
     }

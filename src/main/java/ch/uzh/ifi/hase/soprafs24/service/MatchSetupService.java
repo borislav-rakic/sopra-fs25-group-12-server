@@ -79,10 +79,10 @@ public class MatchSetupService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
 
-        Match activeMatch = matchRepository.findByHostIdAndStarted(user.getId(), false);
-        if (activeMatch != null) {
+        List<Match> activeMatches = matchRepository.findActiveMatchesByHostId(user.getId());
+        if (!activeMatches.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "User is already hosting a match. Match ID: " + activeMatch.getMatchId());
+                    "User is already hosting a match. Match ID: " + activeMatches.get(0).getMatchId());
         }
 
         // Create a MatchSummary

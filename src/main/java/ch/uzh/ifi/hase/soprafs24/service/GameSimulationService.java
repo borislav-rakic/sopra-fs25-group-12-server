@@ -114,8 +114,10 @@ public class GameSimulationService {
         List<String> legalCards = CardUtils.requireSplitCardCodesAsListOfStrings(playableCardsString);
         String cardCode = legalCards.get(random.nextInt(legalCards.size()));
 
-        log.info("I am MatchPlayer {} in simulation and I decided to play {}.", matchPlayer.getUser().getUsername(),
-                cardCode);
+        log.info("I am MatchPlayer {} in simulation and I decided to play {} (playOrder={}).",
+                matchPlayer.getUser().getUsername(),
+                cardCode,
+                game.getCurrentPlayOrder() + 1);
 
         gameService.executeValidatedCardPlay(game, matchPlayer, cardCode);
     }

@@ -110,7 +110,7 @@ public class MatchSetupServiceTest {
     public void testCreateMatch() {
         // Arrange
         when(userService.getUserByToken("1234")).thenReturn(user);
-        when(matchRepository.findByHostIdAndStarted(user.getId(), false)).thenReturn(null);
+        when(matchRepository.findActiveMatchesByHostId(user.getId())).thenReturn(null);
         when(matchRepository.saveAndFlush(Mockito.any())).thenReturn(match);
 
         // Act
