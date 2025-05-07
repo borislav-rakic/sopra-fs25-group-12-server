@@ -158,32 +158,45 @@ public class MatchService {
     }
 
     public void playCardAsHuman(String token, Long matchId, PlayedCardDTO dto) {
-        // SANITIZE
         Match match = requireMatchByMatchId(matchId);
         Game game = requireActiveGameByMatch(match);
         MatchPlayer matchPlayer = match.requireMatchPlayerByToken(token);
-        String cardCode = "";
-        if ("XX".equals(dto.getCard())) {
-            cardCode = "XX";
-        } else {
-            cardCode = CardUtils.requireValidCardFormat(dto.getCard());
-        }
+
+        String cardCode = "XX".equals(dto.getCard()) ? "XX" : CardUtils.requireValidCardFormat(dto.getCard());
         gameService.playCardAsHuman(game, matchPlayer, cardCode);
+
         log.info("MatchService: playCardAsHuman. Now checking if isFinalCardOfGame.");
-
-        // Step 6: Finalize game/match if this was the last card
-        if (isFinalCardOfGame(game)) {
-            handleGameScoringAndConfirmation(game.getMatch(), game);
+        if (gameService.finalizeGameIfComplete(game)) {
+            wrapUpCompletedGame(game);
         }
+    }
 
+    private void wrapUpCompletedGame(Game game) {
+        Match match = game.getMatch();
+
+        // Create summary
+        String summary = matchSummaryService.buildMatchResultHtml(match, game);
+        setExistingMatchSummaryOrCreateIt(match, summary);
+
+        // Add message
+        MatchMessage message = new MatchMessage();
+        message.setType(MatchMessageType.GAME_ENDED);
+        message.setContent("Game finished! Please confirm to continue.");
+        match.addMessage(message);
+
+        // Update phase
+        match.setPhase(MatchPhase.BETWEEN_GAMES);
+        log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
+        matchRepository.save(match);
     }
 
     private boolean isFinalCardOfGame(Game game) {
-        log.info(
-                "MatchService: Now checking if isFinalCardOfGame. GamePhase={}, currentPlayOrder={}.",
-                game.getPhase(), game.getCurrentPlayOrder());
-        return game.getPhase() == GamePhase.RESULT &&
+        boolean verdict = game.getPhase() == GamePhase.RESULT &&
                 game.getCurrentPlayOrder() >= GameConstants.FULL_DECK_CARD_COUNT;
+        log.info(
+                "MatchService: Now checking if isFinalCardOfGame. GamePhase={}, currentPlayOrder={}. Verdict={}.",
+                game.getPhase(), game.getCurrentPlayOrder(), verdict);
+        return verdict;
     }
 
     @Transactional
@@ -260,8 +273,8 @@ public class MatchService {
                     gameService.playSingleAiTurn(match, game, currentPlayer);
 
                     // Having done that, let us check if the game is perhaps over.
-                    if (isFinalCardOfGame(game)) {
-                        handleGameScoringAndConfirmation(game.getMatch(), game);
+                    if (gameService.finalizeGameIfComplete(game)) {
+                        wrapUpCompletedGame(game); // Already defined in MatchService
                     }
                 }
             }
@@ -276,86 +289,6 @@ public class MatchService {
             throw new IllegalStateException("No active game found for this match (MatchService).");
         }
         return activeGame;
-    }
-
-    public void handleGameScoringAndConfirmation(Match match, Game finishedGame) {
-        log.info("MatchService: handleGameScoringAndConfirmation, gamePhase={}.", finishedGame.getPhase());
-        // Defensive check (optional)
-        if (finishedGame.getPhase() != GamePhase.RESULT) {
-            throw new IllegalStateException("Trying to confirm a game that isn't finished.");
-        }
-
-        int totalGameScore = 0;
-        for (MatchPlayer mp : match.getMatchPlayers()) {
-            totalGameScore += mp.getGameScore();
-        }
-        if (totalGameScore != 26 && totalGameScore != 78) {
-            throw new IllegalStateException("At the end of a game there were not exactly 26 points scored.");
-        }
-
-        List<MatchPlayer> players = match.getMatchPlayers();
-        Integer moonShooterSlot = null;
-        for (int i = 0; i < players.size(); i++) {
-            if (players.get(i).getGameScore() == 26) {
-                moonShooterSlot = i;
-                break;
-            }
-        }
-        if (moonShooterSlot != null) {
-            for (int i = 0; i < players.size(); i++) {
-                MatchPlayer mp = players.get(i);
-                if (i == moonShooterSlot) {
-                    mp.setGameScore(0);
-                    mp.setShotTheMoonCount(mp.getShotTheMoonCount() + 1);
-                } else if (mp.getGameScore() == 0) {
-                    mp.setGameScore(26);
-                }
-                matchPlayerRepository.save(mp);
-            }
-        }
-
-        log.info("MatchService: handleGameScoringAndConfirmation.");
-        // Apply game score → match score
-        for (MatchPlayer mp : match.getMatchPlayers()) {
-            // Calculate the updated match score
-            int updatedMatchScore = mp.getMatchScore() + mp.getGameScore();
-            mp.setMatchScore(updatedMatchScore);
-            log.info("MatchService: handleGameScoringAndConfirmation.");
-            log.info("MatchPlayer Id={}, slot={} had his MatchScore updated to {}.", mp.getUser().getId(),
-                    mp.getMatchPlayerSlot(), updatedMatchScore);
-
-            // Reset game score to 0 after applying it
-            mp.setGameScore(0);
-
-            if (mp.getUser() != null) {
-                mp.setReady(false); // Set the player as not ready
-
-                // Log for debugging
-                log.info("    🫡 MatchPlayer id={} in slot={} was set to ready=false.",
-                        mp.getUser().getId(),
-                        mp.getMatchPlayerSlot());
-            }
-
-            // Save updated MatchPlayer
-            matchPlayerRepository.save(mp);
-        }
-
-        // Save the updated match after applying the scores
-        matchRepository.save(match); // Ensure match is saved with updated matchPlayer scores
-        log.info("MatchService: handleGameScoringAndConfirmation. Scores saved in Matchplayer.");
-
-        // Generate HTML summary and message
-        String summary = matchSummaryService.buildMatchResultHtml(match, finishedGame);
-        setExistingMatchSummaryOrCreateIt(match, summary);
-
-        MatchMessage message = new MatchMessage();
-        message.setType(MatchMessageType.GAME_ENDED);
-        message.setContent("Game finished! Please confirm to continue.");
-        match.addMessage(message);
-
-        match.setPhase(MatchPhase.BETWEEN_GAMES);
-        log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
-        matchRepository.save(match);
     }
 
     public void handleConfirmedGame(Match match, Game finishedGame) {

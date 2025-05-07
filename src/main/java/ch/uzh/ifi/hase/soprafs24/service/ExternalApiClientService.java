@@ -49,9 +49,10 @@ public class ExternalApiClientService {
      * @return The drawn cards.
      */
     public Mono<DrawCardResponse> drawCard(String deckId, int cardAmount) {
-        log.info("   🧬 externalApiClientService: calling GET /draw/?deck_count={}} to external API.", cardAmount);
+        String uri = "/" + deckId + "/draw/?count=" + cardAmount;
+        log.info("   🧬 externalApiClientService: calling {} to external API.", uri);
         return externalApiClient.get()
-                .uri("/" + deckId + "/draw/?count=" + cardAmount)
+                .uri(uri)
                 .retrieve()
                 .bodyToMono(DrawCardResponse.class);
     }

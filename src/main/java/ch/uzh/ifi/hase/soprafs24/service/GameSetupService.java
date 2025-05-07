@@ -140,7 +140,6 @@ public class GameSetupService {
 
             distributeCards(match, game, matchRepository, gameRepository, null);
         }, error -> {
-            // Good practice: catch errors inside subscribe!
             log.error("Failed to fetch deck from external API", error);
         });
     }
@@ -164,11 +163,18 @@ public class GameSetupService {
         if (seed != null && seed % 10000 == 9247) {
             List<CardResponse> deterministicDeck = ExternalApiClientService
                     .generateDeterministicDeck(GameConstants.FULL_DECK_CARD_COUNT, seed);
+            log.info("  🦑 GameSetupService distributeCards. Drew Cards internally");
             distributeFullDeckToPlayers(match, game, matchRepository, gameRepository, deterministicDeck);
             return;
         }
         Long gameId = game.getGameId();
         Long matchId = match.getMatchId();
+        if (game.getDeckId().isEmpty()) {
+            log.info("GAMEGETDECKIDISEMPTY: {}.", game.getDeckId());
+        } else {
+
+            log.info("GAMEGETDECKIDIS NOT EMPTY: {}.", game.getDeckId());
+        }
         Mono<DrawCardResponse> drawCardResponseMono = externalApiClientService.drawCard(game.getDeckId(),
                 GameConstants.FULL_DECK_CARD_COUNT);
         drawCardResponseMono.subscribe(response -> {

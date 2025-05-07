@@ -74,20 +74,15 @@ public class GameSimulationService {
             throw new ResponseStatusException(HttpStatus.CONFLICT, "Game is not in PLAYING phase.");
         }
 
-        while (game.getPhase() != GamePhase.FINALTRICK) { // stop before last trick begins
-            try {
-                simulateNextCardPlay(match, game);
-            } catch (IllegalStateException e) {
-                log.warn("Card play failed: {}", e.getMessage());
-                break;
+        try {
+            while (game.getPhase() != GamePhase.FINALTRICK) {
+                simulateNextCardPlay(match, game); // May throw unchecked exception
             }
+        } catch (IllegalStateException e) {
+            log.warn("Card play failed: {}", e.getMessage());
+            // Rethrow to allow Spring to rollback properly
+            throw e;
         }
-
-        // // fast forward match, too
-        // int limit = match.getMatchGoal();
-        // for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
-        // matchPlayer.setMatchScore(limit - 10);
-        // }
 
         log.info("Auto-played up to the final trick for game {} in match {}", game.getGameId(), match.getMatchId());
     }
@@ -124,23 +119,20 @@ public class GameSimulationService {
 
     @Transactional
     public void simulateMatchToLastTrick(Match match, Game game) {
+        simulateGameToLastTrick(match, game); // This may throw, which is fine
 
-        simulateGameToLastTrick(match, game);
         log.info("SIM. SimulateGameToLastTrick done");
         Game originalGame = game;
 
         int loopCounter = 1;
         List<MatchPlayer> matchPlayers = match.getMatchPlayers();
 
-        log.info("SIM. Entering loop...");
-
         while (getMaxScore(match, game) < match.getMatchGoal() - 10) {
-
             log.info("     SIM. Loop #{}", loopCounter);
-            log.info("     SIM. getMaxScore={}", getMaxScore(match, game));
 
             Game newGame = new Game(game);
             match.addGame(newGame);
+
             game.setHeartsBroken(true);
             game.setCurrentPlayOrder(52);
             game.setPhase(GamePhase.FINISHED);
@@ -149,40 +141,32 @@ public class GameSimulationService {
             newGame.setMatch(match);
 
             List<Integer> randomScores = generateRandomScores();
-            String scoreString = randomScores.stream()
-                    .map(String::valueOf)
-                    .collect(Collectors.joining(","));
-            log.info("     SIM. Generated scoreString: {}", scoreString);
+            log.info("     SIM. Generated scoreString: {}", randomScores);
 
             game.setGameScoresList(randomScores);
             gameRepository.save(game);
             gameRepository.save(newGame);
-            log.info("     SIM. New Game saved with scores and phase FINISHED");
 
             for (int i = 0; i < matchPlayers.size(); i++) {
                 MatchPlayer tmp = matchPlayers.get(i);
                 tmp.addToMatchScore(randomScores.get(i));
-                log.info("     SIM. Added {} to MatchPlayer {}, now {}",
-                        randomScores.get(i),
-                        tmp.getInfo(),
-                        tmp.getMatchScore());
                 matchPlayerRepository.save(tmp);
             }
 
-            game = newGame; // Advance to next game in simulation
-            if (loopCounter > 15) {
-                // If it has not stopped by now, it may as well run forever.
+            game = newGame;
+
+            if (loopCounter++ > 15) {
+                log.warn("Simulation loop exited after reaching limit.");
                 break;
             }
-            loopCounter++;
         }
 
+        // Move stats to latest game
         List<GameStats> statsToUpdate = gameStatsRepository.findAllByGame(originalGame);
         for (GameStats stats : statsToUpdate) {
             stats.setGame(game);
             gameStatsRepository.save(stats);
         }
-
     }
 
     public static List<Integer> generateRandomScores() {

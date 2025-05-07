@@ -20,10 +20,12 @@ import ch.uzh.ifi.hase.soprafs24.constant.AiMatchPlayerState;
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchMessageType;
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchMessage;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
@@ -155,6 +157,7 @@ public class GameService {
                 "= About to executeValidatedCardPlay");
         executeValidatedCardPlay(game, matchPlayer, cardCode);
         log.info("=== PLAY CARD AS HUMAN CONCLUDED ({}) ===", game.getCurrentPlayOrder());
+
     }
 
     @Transactional
@@ -322,38 +325,26 @@ public class GameService {
 
     @Transactional
     public void advanceTrickPhaseIfOwnerPolling(Game game) {
-        if (
-        // TrickPhase is still frozen in TRICKJUSTCOMPLETED
-        game.getTrickPhase() == TrickPhase.TRICKJUSTCOMPLETED
-                // A TrickJustCompletedTime is available
+        if (game.getTrickPhase() == TrickPhase.TRICKJUSTCOMPLETED
                 && game.getTrickJustCompletedTime() != null
-                // more than TRICK_DELAY_MS have passed since.
                 && Duration.between(game.getTrickJustCompletedTime(), Instant.now())
                         .toMillis() > GameConstants.TRICK_DELAY_MS) {
 
-            // Step B1: Mark as READY, but don't clear yet
             game.setTrickPhase(TrickPhase.PROCESSINGTRICK);
             gameRepository.save(game);
             log.info("Trick marked READY for clearing on next poll.");
             return;
         }
+
         if (game.getTrickPhase() == TrickPhase.PROCESSINGTRICK) {
-            // Step C1: Actually clear the trick
             updateGamePhaseBasedOnPlayOrder(game);
             game.clearCurrentTrick();
             game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
-            // ready for new cards.
 
-            if (game.getPhase() == GamePhase.RESULT) {
-                Match match = game.getMatch();
-                String summary = matchSummaryService.buildGameResultHtml(match, game);
-                setExistingGameSummaryOrCreateIt(match, summary);
-                gameRepository.save(game);
-                matchRepository.save(match);
-                resetNonAiPlayersReady(game);
-                return;
+            if (finalizeGameIfComplete(game)) {
+                return; // Already handled
             }
-            // Reset phase and persist
+
             game.setTrickPhase(TrickPhase.READYFORFIRSTCARD);
             gameRepository.save(game);
 
@@ -361,6 +352,73 @@ public class GameService {
                     game.getCurrentTrickNumber(),
                     game.getTrickLeaderMatchPlayerSlot());
         }
+    }
+
+    @Transactional
+    public boolean finalizeGameIfComplete(Game game) {
+        if (game.getPhase() != GamePhase.RESULT) {
+            return false;
+        }
+
+        // Defensive: Only run once
+        if (game.getCurrentPlayOrder() != GameConstants.FULL_DECK_CARD_COUNT) {
+            return false;
+        }
+
+        // Optional: you could also check if match scores already include the game's
+        // points
+
+        finalizeGameScores(game);
+        return true;
+    }
+
+    @Transactional
+    public void finalizeGameScores(Game game) {
+        Match match = game.getMatch();
+        List<MatchPlayer> players = matchPlayerRepository.findByMatch(match);
+        int totalGameScore = players.stream()
+                .mapToInt(MatchPlayer::getGameScore)
+                .sum();
+
+        log.info("MatchPlayers at finalize: {}",
+                match.getMatchPlayers().stream()
+                        .map(mp -> mp.getUser().getUsername() + ": " + mp.getGameScore())
+                        .toList());
+
+        if (totalGameScore != 26 && totalGameScore != 78) {
+            throw new IllegalStateException(
+                    String.format("Expected 26 or 78 points at end of game, but encountered %s.",
+                            totalGameScore));
+        }
+
+        // Handle moon shot
+        boolean moonShot = false;
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            if (mp.getGameScore() == 26) {
+                moonShot = true;
+                mp.setGameScore(0);
+                mp.setShotTheMoonCount(mp.getShotTheMoonCount() + 1);
+            }
+        }
+
+        if (moonShot) {
+            for (MatchPlayer mp : match.getMatchPlayers()) {
+                if (mp.getGameScore() == 0) {
+                    mp.setGameScore(26);
+                }
+            }
+        }
+
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            mp.setMatchScore(mp.getMatchScore() + mp.getGameScore());
+            mp.setGameScore(0);
+            if (mp.getUser() != null && !mp.getIsAiPlayer()) {
+                mp.setReady(false);
+            }
+            matchPlayerRepository.save(mp);
+        }
+
+        matchRepository.save(match);
     }
 
     @Transactional
