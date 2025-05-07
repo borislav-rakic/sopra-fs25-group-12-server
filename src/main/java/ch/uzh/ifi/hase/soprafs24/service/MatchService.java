@@ -258,6 +258,36 @@ public class MatchService {
         if (finishedGame.getPhase() != GamePhase.RESULT) {
             throw new IllegalStateException("Trying to confirm a game that isn't finished.");
         }
+
+        int totalGameScore = 0;
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            totalGameScore += mp.getGameScore();
+        }
+        if (totalGameScore != 26) {
+            throw new IllegalStateException("At the end of a game there were not exactly 26 points scored.");
+        }
+
+        List<MatchPlayer> players = match.getMatchPlayers();
+        Integer moonShooterSlot = null;
+        for (int i = 0; i < players.size(); i++) {
+            if (players.get(i).getGameScore() == 26) {
+                moonShooterSlot = i;
+                break;
+            }
+        }
+        if (moonShooterSlot != null) {
+            for (int i = 0; i < players.size(); i++) {
+                MatchPlayer mp = players.get(i);
+                if (i == moonShooterSlot) {
+                    mp.setGameScore(0);
+                    mp.setShotTheMoonCount(mp.getShotTheMoonCount() + 1);
+                } else if (mp.getGameScore() == 0) {
+                    mp.setGameScore(26);
+                }
+                matchPlayerRepository.save(mp);
+            }
+        }
+
         log.info("MatchService: handleGameScoringAndConfirmation.");
         // Apply game score → match score
         for (MatchPlayer mp : match.getMatchPlayers()) {
@@ -416,12 +446,32 @@ public class MatchService {
     }
 
     @Transactional
-    public void autoPlayToLastTrick(Long matchId) {
+    public void autoPlayGame(Long matchId) {
         Match match = requireMatchByMatchId(matchId);
         Game game = requireActiveGameByMatch(match);
 
         // Call the simulation service to play the game until the last trick
-        gameSimulationService.autoPlayToLastTrick(match, game);
+        gameSimulationService.simulateGameToLastTrick(match, game);
+
+        // Log matchPlayer scores before saving
+        match.getMatchPlayers().forEach(player -> {
+            log.info("MatchPlayer id={}, slot={}, matchScore={}",
+                    player.getUser().getId(), player.getMatchPlayerSlot(), player.getMatchScore());
+        });
+
+        // Save all match players with the updated scores
+        matchPlayerRepository.saveAll(match.getMatchPlayers());
+
+        log.info("Auto-play to last trick finished for match {}", matchId);
+    }
+
+    @Transactional
+    public void autoPlayMatch(Long matchId) {
+        Match match = requireMatchByMatchId(matchId);
+        Game game = requireActiveGameByMatch(match);
+
+        // Call the simulation service to play the game until the last trick
+        gameSimulationService.simulateMatchToLastTrick(match, game);
 
         // Log matchPlayer scores before saving
         match.getMatchPlayers().forEach(player -> {

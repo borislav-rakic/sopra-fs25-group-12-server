@@ -333,9 +333,15 @@ public class MatchController {
         matchService.confirmGameResult(token, matchId);
     }
 
-    @PostMapping("/matches/{matchId}/game/fastforward")
+    @PostMapping("/matches/{matchId}/game/sim/game")
     @ResponseStatus(HttpStatus.OK)
     public void advanceGame(@PathVariable Long matchId) {
-        matchService.autoPlayToLastTrick(matchId);
+        matchService.autoPlayGame(matchId);
+    }
+
+    @PostMapping("/matches/{matchId}/game/sim/match")
+    @ResponseStatus(HttpStatus.OK)
+    public void advanceMatch(@PathVariable Long matchId) {
+        matchService.autoPlayMatch(matchId);
     }
 }

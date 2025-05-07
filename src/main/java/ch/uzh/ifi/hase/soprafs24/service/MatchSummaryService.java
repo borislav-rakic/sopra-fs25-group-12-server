@@ -35,7 +35,7 @@ public class MatchSummaryService {
       html += "<tr>";
       html += "<td>" + i + "</td>";
       for (int j = 0; j < gameScores.size(); j++) {
-        html += "<td>" + gameScores.get(i) + "</td>";
+        html += "<td>" + gameScores.get(j) + "</td>";
       }
       html += "</tr>";
     }

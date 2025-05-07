@@ -16,6 +16,11 @@ import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 @Table(name = "GAME")
 public class Game {
 
+    // Required by JPA (always keep this)
+    public Game() {
+        // Default constructor (to distinguish from copy constructor, see below)
+    }
+
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long gameId;
@@ -350,6 +355,27 @@ public class Game {
             throw new IllegalArgumentException("Invalid player slot: " + matchPlayerSlot);
         }
         return scores.get(matchPlayerSlot - 1);
+    }
+
+    // Making a Copy
+
+    public Game(Game source) {
+        this.currentMatchPlayerSlot = source.currentMatchPlayerSlot;
+        this.gameNumber = source.gameNumber + 1;
+        this.deckId = source.deckId;
+        this.isHeartsBroken = source.isHeartsBroken;
+        this.phase = source.phase;
+        this.trickPhase = source.trickPhase;
+        this.trickLeaderMatchPlayerSlot = source.trickLeaderMatchPlayerSlot;
+        this.currentTrick = source.currentTrick;
+        this.previousTrick = source.previousTrick;
+        this.currentTrickNumber = source.currentTrickNumber;
+        this.currentPlayOrder = source.currentPlayOrder;
+        this.previousTrickLeaderMatchPlayerSlot = source.previousTrickLeaderMatchPlayerSlot;
+        this.previousTrickWinnerMatchPlayerSlot = source.previousTrickWinnerMatchPlayerSlot;
+        this.previousTrickPoints = source.previousTrickPoints;
+        this.trickJustCompletedTime = source.trickJustCompletedTime;
+        this.gameScoresCsv = source.gameScoresCsv;
     }
 
 }
