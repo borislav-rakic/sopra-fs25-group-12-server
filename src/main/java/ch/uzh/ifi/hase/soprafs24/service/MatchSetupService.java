@@ -93,6 +93,7 @@ public class MatchSetupService {
         hostPlayer.setUser(user);
         hostPlayer.setMatch(match);
         hostPlayer.setMatchPlayerSlot(1);
+        hostPlayer.setIsHost(true);
 
         match.setMatchPlayers(List.of(hostPlayer));
         match.setMatchSummary(matchSummary);
@@ -279,6 +280,7 @@ public class MatchSetupService {
             matchPlayer.setUser(user);
             matchPlayer.setMatch(match);
             matchPlayer.setMatchPlayerSlot(matchPlayerSlot);
+            matchPlayer.setIsHost(false);
 
             match.getMatchPlayers().add(matchPlayer);
             assignUserToSlot(match, user, matchPlayerSlot);
@@ -433,6 +435,7 @@ public class MatchSetupService {
         aiPlayer.setUser(aiUser);
         aiPlayer.setMatchPlayerSlot(matchPlayerSlot);
         aiPlayer.setIsAiPlayer(true);
+        aiPlayer.setIsHost(false);
 
         int strategyIndex = (aiUser.getId() != null)
                 ? Math.floorMod(aiUser.getId(), Strategy.values().length)
@@ -617,6 +620,7 @@ public class MatchSetupService {
         newPlayer.setMatch(match);
         newPlayer.setUser(user);
         newPlayer.setMatchPlayerSlot(availableSlot);
+        newPlayer.setIsHost(false);
 
         // Add to match
         match.getMatchPlayers().add(newPlayer);

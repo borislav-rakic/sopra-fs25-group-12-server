@@ -77,8 +77,8 @@ public class MatchController {
      */
     @GetMapping("/matches/{matchId}")
     @ResponseStatus(HttpStatus.OK)
-    public MatchDTO getPolling(@PathVariable Long matchId) {
-        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.getPolling(matchId));
+    public MatchDTO getMatchDTO(@PathVariable Long matchId) {
+        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.getMatchDTO(matchId));
     }
 
     /**

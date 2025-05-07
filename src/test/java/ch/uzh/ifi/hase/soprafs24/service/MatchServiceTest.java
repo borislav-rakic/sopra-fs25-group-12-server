@@ -131,20 +131,20 @@ public class MatchServiceTest {
     }
 
     @Test
-    public void testGetPollingError() {
+    public void testGetMatchDTOError() {
         when(matchRepository.findMatchByMatchId(1L)).thenReturn(null);
 
         assertThrows(
                 ResponseStatusException.class,
-                () -> matchService.getPolling(1L),
-                "Expected getPolling to throw an exception");
+                () -> matchService.getMatchDTO(1L),
+                "Expected getMatchDTO to throw an exception");
     }
 
     @Test
-    public void testGetPollingSuccess() {
+    public void testGetMatchDTOSuccess() {
         when(matchRepository.findMatchByMatchId(1L)).thenReturn(match);
 
-        Match result = matchService.getPolling(1L);
+        Match result = matchService.getMatchDTO(1L);
 
         assertEquals(match, result);
     }

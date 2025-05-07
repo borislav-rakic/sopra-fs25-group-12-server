@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
@@ -233,10 +234,20 @@ public class GameSetupService {
 
         match.setPhase(MatchPhase.IN_PROGRESS);
         log.info("💄 MatchPhase is set to IN_PROGRESS");
-        game.setPhase(GamePhase.PASSING);
-        log.info("💄 GameState is set to PASSING");
-        // gameRepository.flush();
-        log.info("  🦑 GameSetupService: °°° PASSING COMMENCES °°°");
+
+        int currentGameNumber = game.getGameNumber(); // or however you track it
+
+        if (currentGameNumber % 4 == 0) {
+            game.setPhase(GamePhase.FIRSTTRICK);
+            game.setTrickPhase(TrickPhase.READYFORFIRSTCARD);
+            log.info("💄 GamePhase is set to FIRSTTRICK (no passing this round #{}).", currentGameNumber);
+            assignTwoOfClubsLeader(game);
+            log.info("  🦑 GameSetupService: Skipping PASSING — going straight to first trick");
+        } else {
+            game.setPhase(GamePhase.PASSING);
+            log.info("💄 GamePhase is set to PASSING");
+            log.info("  🦑 GameSetupService: °°° PASSING COMMENCES °°°");
+        }
 
         // Save updated game + match
         gameRepository.save(game);
@@ -272,7 +283,28 @@ public class GameSetupService {
         gameStatsService.initializeGameStats(match, game);
         log.info("  🦑 GameSetupService: Created new game {} (gamePhase={}) for match {} (matchPhase={}).",
                 game.getGameId(),
-                match.getMatchId(), game.getPhase(), match.getPhase());
+                game.getPhase(),
+                match.getMatchId(),
+                match.getPhase());
         return game;
+    }
+
+    // Careful: this is an exact copy of a similar method in CardPassingService.
+    public void assignTwoOfClubsLeader(Game game) {
+        Match match = game.getMatch();
+        for (MatchPlayer player : match.getMatchPlayers()) {
+            if (player.hasCardCodeInHand(GameConstants.TWO_OF_CLUBS)) {
+                int slot = player.getMatchPlayerSlot();
+                game.setCurrentMatchPlayerSlot(slot);
+                game.setTrickLeaderMatchPlayerSlot(slot);
+
+                log.info("° 2C assigned to matchPlayerSlot {}. New trickMatchPlayerSlotOrder: {}.",
+                        slot, game.getTrickMatchPlayerSlotOrderAsString());
+
+                return;
+            }
+        }
+
+        throw new IllegalStateException("No player has the 2♣ — invalid game state.");
     }
 }

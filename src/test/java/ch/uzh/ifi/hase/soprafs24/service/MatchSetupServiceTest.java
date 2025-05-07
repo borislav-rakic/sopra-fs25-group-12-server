@@ -10,6 +10,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -112,6 +113,7 @@ public class MatchSetupServiceTest {
         when(userService.getUserByToken("1234")).thenReturn(user);
         when(matchRepository.findActiveMatchesByHostId(user.getId())).thenReturn(null);
         when(matchRepository.saveAndFlush(Mockito.any())).thenReturn(match);
+        when(matchRepository.findActiveMatchesByHostId(user.getId())).thenReturn(Collections.emptyList());
 
         // Act
         Match result = matchSetupService.createNewMatch("1234");

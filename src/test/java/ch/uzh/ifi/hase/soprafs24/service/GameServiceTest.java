@@ -3,6 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 import ch.uzh.ifi.hase.soprafs24.constant.AiMatchPlayerState;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.entity.*;
 import ch.uzh.ifi.hase.soprafs24.repository.*;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
@@ -15,6 +16,10 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -102,38 +107,39 @@ public class GameServiceTest {
     }
 
     @Test
-    public void testPlayAiTurnsUntilHuman() {
+    public void testPlaySingleAiTurn_executesTurnSuccessfully() {
+        // Arrange
         game.setCurrentMatchPlayerSlot(2);
         game.setPhase(GamePhase.FINALTRICK);
 
-        User userAI1 = new User();
-        userAI1.setUsername("AI1");
-        userAI1.setIsAiPlayer(true);
+        User userAI = new User();
+        userAI.setUsername("AI1");
+        userAI.setIsAiPlayer(true);
 
-        MatchPlayer matchPlayerAI1 = new MatchPlayer();
-        matchPlayerAI1.setUser(userAI1);
-        matchPlayerAI1.setMatch(match);
-        matchPlayerAI1.setMatchPlayerSlot(2);
-        matchPlayerAI1.setAiMatchPlayerState(AiMatchPlayerState.THINKING);
-        matchPlayerAI1.setHand("3C");
-        matchPlayerAI1.setIsAiPlayer(true);
+        MatchPlayer aiPlayer = new MatchPlayer();
+        aiPlayer.setUser(userAI);
+        aiPlayer.setMatch(match);
+        aiPlayer.setMatchPlayerSlot(2);
+        aiPlayer.setAiMatchPlayerState(AiMatchPlayerState.THINKING);
+        aiPlayer.setHand("3C");
+        aiPlayer.setIsAiPlayer(true);
 
-        match.getMatchPlayers().add(matchPlayerAI1);
+        match.setMatchPlayers(new ArrayList<>(List.of(aiPlayer)));
 
-        given(gameRepository.findGameByGameId(Mockito.any())).willReturn(game);
-        given(aiPlayingService.selectCardToPlay(Mockito.any(), Mockito.any(), Mockito.any())).willReturn("3C", "4C",
-                "5C");
+        given(aiPlayingService.selectCardToPlay(any(), any(), any())).willReturn("3C");
+        doNothing().when(cardRulesService).validateMatchPlayerCardCode(any(), any(), any());
+        doNothing().when(gameStatsService).recordCardPlay(any(), any(), any());
+        given(matchPlayerRepository.findByMatchAndMatchPlayerSlot(any(), anyInt())).willReturn(aiPlayer);
 
-        Mockito.doNothing().when(cardRulesService).validateMatchPlayerCardCode(Mockito.any(), Mockito.any(),
-                Mockito.any());
-        Mockito.doNothing().when(gameStatsService).recordCardPlay(Mockito.any(), Mockito.any(), Mockito.any());
+        // Act
+        boolean result = gameService.playSingleAiTurn(match, game, aiPlayer);
 
-        gameService.playAiTurnsUntilHuman(game.getGameId());
-
-        verify(gameRepository).findGameByGameId(Mockito.any());
-        verify(aiPlayingService).selectCardToPlay(Mockito.any(), Mockito.any(), Mockito.any());
-        verify(cardRulesService).validateMatchPlayerCardCode(Mockito.any(), Mockito.any(), Mockito.any());
-        verify(gameStatsService).recordCardPlay(Mockito.any(), Mockito.any(), Mockito.any());
+        // Assert
+        assertTrue(result);
+        assertEquals(AiMatchPlayerState.READY, aiPlayer.getAiMatchPlayerState());
+        verify(aiPlayingService).selectCardToPlay(eq(game), eq(aiPlayer), eq(Strategy.LEFTMOST));
+        verify(cardRulesService).validateMatchPlayerCardCode(eq(game), eq(aiPlayer), eq("3C"));
+        verify(gameStatsService).recordCardPlay(eq(game), eq(aiPlayer), eq("3C"));
     }
 
     @Test

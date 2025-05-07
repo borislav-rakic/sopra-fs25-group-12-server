@@ -4,6 +4,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchMessageType;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchMessage;
@@ -22,6 +23,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.server.ResponseStatusException;
 
+import java.time.Duration;
+import java.time.Instant;
 import java.util.*;
 
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
@@ -84,7 +87,7 @@ public class MatchService {
         return matchRepository.findAll();
     }
 
-    public Match getPolling(Long matchId) {
+    public Match getMatchDTO(Long matchId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
 
         if (match == null) {
@@ -144,7 +147,7 @@ public class MatchService {
         User user = userService.requireUserByToken(token);
         Game game = gameRepository.findActiveGameByMatchId(match.getMatchId());
         MatchPlayer matchPlayer = match.requireMatchPlayerByUser(user);
-        System.out.println("matchService.passingAcceptCards reached");
+        log.info("matchService.passingAcceptCards reached");
         gameService.passingAcceptCards(game, matchPlayer, passingDTO, pickRandomly);
     };
 
@@ -175,20 +178,6 @@ public class MatchService {
 
     }
 
-    public void playAiTurnsUntilHuman(Match match) {
-        Game game = requireActiveGameByMatch(match);
-
-        // Let GameService do the actual AI playing
-        gameService.playAiTurnsUntilHuman(game.getGameId());
-
-        log.info("MatchService: playAiTurnsUntilHuman. Now checking if isFinalCardOfGame.");
-        // Step 6: Finalize game/match if this was the last card
-        if (isFinalCardOfGame(game)) {
-            handleGameScoringAndConfirmation(game.getMatch(), game);
-        }
-
-    }
-
     private boolean isFinalCardOfGame(Game game) {
         log.info(
                 "MatchService: Now checking if isFinalCardOfGame. GamePhase={}, currentPlayOrder={}.",
@@ -204,6 +193,8 @@ public class MatchService {
         matchSetupService.isMatchStartable(match, user);
         log.info("Match is being started (seed=`{}´)", seed);
         match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
+        // make sure the game has been polled fresh.
+        getHostMatchPlayer(match).updateLastPollTime();
 
         Game game = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, seed);
 
@@ -211,37 +202,72 @@ public class MatchService {
     }
 
     public PollingDTO getPlayerPolling(String token, Long matchId) {
+        // Match available?
         Match match = matchRepository.findMatchByMatchId(matchId);
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
-        User user = userRepository.findUserByToken(token);
-        if (user == null) {
+        // User identfiable?
+        User requestingUser = userRepository.findUserByToken(token);
+        if (requestingUser == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
 
-        Game game = match.getActiveGame();
-        if (game != null) {
-            User currentUser = match.requireUserBySlot(game.getCurrentMatchPlayerSlot());
-            MatchPlayer requestingPlayer = match.requireMatchPlayerByUser(user);
+        // Who is polling?
+        // Is it an actual MatchPlayer of this match?
+        MatchPlayer requestingMatchPlayer = match.getMatchPlayers().stream()
+                .filter(mp -> mp.getUser().getId().equals(requestingUser.getId()))
+                .findFirst()
+                .orElse(null);
 
-            boolean isMatchOwnerPolling = requestingPlayer.getMatchPlayerSlot() == 1;
-
-            // Give each polling player a fair chance to grab TrickPhase.JUSTCOMPLETED at
-            // least once.
-            if (isMatchOwnerPolling) {
-                gameService.advanceTrickPhaseIfOwnerPolling(game);
-            }
-            if (isMatchOwnerPolling &&
-                    currentUser != null &&
-                    Boolean.TRUE.equals(currentUser.getIsAiPlayer()) &&
-                    game.getPhase().inTrick()) {
-
-                playAiTurnsUntilHuman(match);
-            }
+        // No! It is a random person.
+        if (requestingMatchPlayer == null) {
+            return pollingService.getSpectatorPolling(requestingUser, match);
         }
 
-        return pollingService.getPlayerPolling(user, match, gameRepository, matchPlayerRepository);
+        // Yes! Let us remember their visit.
+        requestingMatchPlayer.updateLastPollTime();
+        matchPlayerRepository.save(requestingMatchPlayer);
+
+        // Are we still fine about the host being alive?
+        if (secondsSinceHostsLastPolling(match) > GameConstants.HOST_TIME_OUT_SECONDS) {
+            log.info("Host is not polling anymore.");
+            abortMatch(match);
+        }
+
+        // Is there an active game for this match?
+        Game game = match.getActiveGame();
+        if (game != null) {
+            // Whose turn is it anyway?
+            MatchPlayer currentPlayer = match.requireMatchPlayerBySlot(game.getCurrentMatchPlayerSlot());
+
+            // Is the person calling the host of the match?
+            if (requestingMatchPlayer.getIsHost()) {
+
+                // It is the host of the match, let him advance the TrickPhase if neccessary
+                gameService.advanceTrickPhaseIfOwnerPolling(game);
+
+                // Is the currentPlayer an AIPlayer who is supposed to play a card
+                if (
+                // The game is still on.
+                game.getPhase().inTrick()
+                        // The TrickPhase is just fine.
+                        && (game.getTrickPhase() == TrickPhase.READYFORFIRSTCARD
+                                || game.getTrickPhase() == TrickPhase.RUNNINGTRICK)
+                        // I really am an AIPlayer and it it is my turn
+                        && Boolean.TRUE.equals(currentPlayer.getIsAiPlayer())) {
+
+                    gameService.playSingleAiTurn(match, game, currentPlayer);
+
+                    // Having done that, let us check if the game is perhaps over.
+                    if (isFinalCardOfGame(game)) {
+                        handleGameScoringAndConfirmation(game.getMatch(), game);
+                    }
+                }
+            }
+        }
+        // Every MatchPlayer needs their polling (host or non-host).
+        return pollingService.getPlayerPolling(requestingUser, match, gameRepository, matchPlayerRepository);
     }
 
     public Game requireActiveGameByMatch(Match match) {
@@ -263,7 +289,7 @@ public class MatchService {
         for (MatchPlayer mp : match.getMatchPlayers()) {
             totalGameScore += mp.getGameScore();
         }
-        if (totalGameScore != 26) {
+        if (totalGameScore != 26 && totalGameScore != 78) {
             throw new IllegalStateException("At the end of a game there were not exactly 26 points scored.");
         }
 
@@ -366,22 +392,31 @@ public class MatchService {
      *
      * @param match the match to shut down
      */
+    @Transactional
     public void handleConfirmedMatch(Match match) {
-        // Mark game as finished
         match.setPhase(MatchPhase.FINISHED);
         log.info("MatchPhase is set to FINISHED.");
 
-        // Clear dependencies manually to trigger orphan removal
+        // Sever parent-child references for games so orphan removal works
+        for (Game game : match.getGames()) {
+            game.setMatch(null);
+        }
         match.getGames().clear();
+
+        for (MatchPlayer player : match.getMatchPlayers()) {
+            player.setMatch(null);
+        }
         match.getMatchPlayers().clear();
+
+        for (MatchMessage message : match.getMessages()) {
+            message.setMatch(null);
+        }
         match.getMessages().clear();
 
-        // Optionally clear auxiliary maps/lists
         match.getInvites().clear();
         match.getJoinRequests().clear();
         match.getAiPlayers().clear();
 
-        // Save match with cleared children — children will be deleted
         matchRepository.saveAndFlush(match);
     }
 
@@ -501,4 +536,30 @@ public class MatchService {
         matchRepository.save(match);
     }
 
+    public MatchPlayer getHostMatchPlayer(Match match) {
+        Long hostId = match.getHostId();
+
+        for (MatchPlayer player : match.getMatchPlayers()) {
+            if (player.getUser() != null && player.getUser().getId().equals(hostId)) {
+                return player;
+            }
+        }
+
+        return null; // host's MatchPlayer not found
+    }
+
+    public int secondsSinceHostsLastPolling(Match match) {
+        MatchPlayer hostPlayer = getHostMatchPlayer(match);
+        if (hostPlayer == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match does not have a host.");
+        }
+        return (int) Duration.between(hostPlayer.getLastPollTime(), Instant.now()).getSeconds();
+    }
+
+    public void abortMatch(Match match) {
+        match.setPhase(MatchPhase.ABORTED);
+        match.getMatchSummary().setMatchSummaryHtml(
+                "<div>The Host was offline for more than 30 seconds. The match was disbanded before completion</div>");
+        handleConfirmedMatch(match);
+    }
 }

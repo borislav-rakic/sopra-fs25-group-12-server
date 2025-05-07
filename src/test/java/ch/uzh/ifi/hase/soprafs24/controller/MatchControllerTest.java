@@ -118,7 +118,7 @@ public class MatchControllerTest {
         }
 
         @Test
-        public void testGetPolling() throws Exception {
+        public void testGetMatchDTO() throws Exception {
                 Match match = new Match();
 
                 List<MatchPlayer> matchPlayers = new ArrayList<>();
@@ -134,7 +134,7 @@ public class MatchControllerTest {
                 List<Long> matchPlayerIds = new ArrayList<>();
                 matchPlayerIds.add(match.getMatchPlayers().get(0).getMatchPlayerId());
 
-                given(matchService.getPolling(Mockito.any())).willReturn(match);
+                given(matchService.getMatchDTO(Mockito.any())).willReturn(match);
 
                 MockHttpServletRequestBuilder getRequest = get("/matches/1");
 

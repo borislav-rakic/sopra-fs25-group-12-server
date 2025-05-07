@@ -1,13 +1,5 @@
 package ch.uzh.ifi.hase.soprafs24.entity;
 
-import javax.persistence.Entity;
-import javax.persistence.Id;
-import javax.persistence.OneToOne;
-import javax.persistence.JoinColumn;
-import javax.persistence.CascadeType;
-
-import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
-
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.ArrayList;
@@ -366,6 +358,13 @@ public class Match implements Serializable {
                 .filter(mp -> mp.getUser() != null && token.equals(mp.getUser().getToken()))
                 .findFirst()
                 .orElseThrow(() -> new IllegalArgumentException("No MatchPlayer found with token: " + token));
+    }
+
+    public MatchPlayer requireHostPlayer() {
+        return this.matchPlayers.stream()
+                .filter(MatchPlayer::getIsHost)
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException("No host player found in match " + this.matchId));
     }
 
 }

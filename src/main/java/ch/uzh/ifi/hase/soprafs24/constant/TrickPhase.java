@@ -1,7 +1,8 @@
 package ch.uzh.ifi.hase.soprafs24.constant;
 
 public enum TrickPhase {
-    RUNNING, // Trick has one or more but but fewer than four cards.
-    JUSTCOMPLETED, // The fourth card was just added to the trick.
-    READY; // Trick is waiting for first leading trick player to play a card.
+    READYFORFIRSTCARD, // Trick is empty, waiting for first card (2♣ holder starts)
+    RUNNINGTRICK, // Trick in progress (1–3 cards played)
+    TRICKJUSTCOMPLETED, // 4th card played, display result delay (UI animations etc.)
+    PROCESSINGTRICK // Delay expired, ready to assign points and clear trick
 }

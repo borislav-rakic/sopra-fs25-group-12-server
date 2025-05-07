@@ -104,7 +104,6 @@ public class CardPassingService {
 
     private void reassignPassedCards(Game game, Map<Integer, List<PassedCard>> cardsByMatchPlayerSlot,
             Map<Integer, Integer> passTo) {
-        Match match = game.getMatch();
         List<GameStats> updatedGameStats = new ArrayList<>(); // Collect for batch update
 
         for (Map.Entry<Integer, List<PassedCard>> entry : cardsByMatchPlayerSlot.entrySet()) {
@@ -150,21 +149,6 @@ public class CardPassingService {
         // Save all updated GameStats in one batch at the end
         gameStatsRepository.saveAll(updatedGameStats);
         gameStatsRepository.flush(); // Optional but ensures immediate write
-
-        for (MatchPlayer player : match.getMatchPlayers()) {
-            System.out.println(player.getMatchPlayerSlot() + " " + player.getHand());
-            if (player.hasCardCodeInHand(GameConstants.TWO_OF_CLUBS)) {
-                game.setCurrentMatchPlayerSlot(player.getMatchPlayerSlot());
-                game.setTrickLeaderMatchPlayerSlot(player.getMatchPlayerSlot());
-                log.info(
-                        "° After passing the new trick lead (holding 2C) is matchPlayerSlot {}. New trickMatchPlayerSlotOrder: {}.",
-                        player.getMatchPlayerSlot(), game.getTrickMatchPlayerSlotOrderAsString());
-                System.out.println("° 2C with " + player.getMatchPlayerSlot() + " " + player.getHand());
-                System.out.println("° Reassigned starting matchPlayerSlot to player holding 2C (matchPlayerSlot:"
-                        + player.getMatchPlayerSlot() + ").");
-                break;
-            }
-        }
         gameRepository.flush();
     }
 

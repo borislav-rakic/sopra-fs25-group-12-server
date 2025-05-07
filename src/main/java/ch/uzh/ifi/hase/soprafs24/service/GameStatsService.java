@@ -202,4 +202,180 @@ public class GameStatsService {
         return score;
     }
 
+    /**
+     * 
+     * 
+     * */
+    public void updateGameStatsAfterTrickChange(Game game) {
+        // If a player plays a card as the first person in the trick, then no inferences
+        // can be made about their cards.
+        // If, however, a player does not play in suit, we can infer that none of his
+        // cards are in that suit.
+        List<GameStats> gameStats = gameStatsRepository.findAllByGame(game);
+        List<String> currentTrick = game.getCurrentTrick();
+        if (currentTrick.size() == 0) {
+            return;
+        }
+        int matchPlayerSlot = game.getCurrentMatchPlayerSlot();
+        // It is a second, third or fourth card
+        if (currentTrick.size() != 1) {
+            String leadingCardCode = currentTrick.get(0);
+            String leadingCardSuit = CardUtils.getSuitOfFirstCardInCardCodeString(leadingCardCode);
+            String latestCardCode = currentTrick.get(currentTrick.size() - 1);
+            String latestCardSuit = CardUtils.getSuitOfFirstCardInCardCodeString(latestCardCode);
+            if (!latestCardSuit.equals(leadingCardSuit)) {
+                int maskToClear = ~(1 << matchPlayerSlot); // bitmask to clear the player's bit
+
+                for (GameStats stat : gameStats) {
+                    if (stat.getSuit().getSymbol().equals(leadingCardSuit) && stat.getPlayOrder() == 0) {
+                        int updatedHolders = stat.getPossibleHolders() & maskToClear;
+                        stat.setPossibleHolders(updatedHolders);
+                    }
+                }
+                gameStatsRepository.saveAll(gameStats);
+                gameStatsRepository.flush();
+            }
+
+        }
+
+    }
+
+    public List<String> cardCodesInSlotFromSlot(Game game, int theirSlot, int mySlot) {
+        List<String> possibleCards = new ArrayList<>();
+        Match match = game.getMatch();
+        MatchPlayer me = null;
+        MatchPlayer them = null;
+
+        for (MatchPlayer player : match.getMatchPlayers()) {
+            if (player.getMatchPlayerSlot() == mySlot) {
+                me = player;
+            }
+            if (player.getMatchPlayerSlot() == theirSlot) {
+                them = player;
+            }
+        }
+
+        if (me == null || them == null) {
+            throw new IllegalArgumentException("Invalid player slot(s): " + mySlot + " or " + theirSlot);
+        }
+
+        List<GameStats> allStats = gameStatsRepository.findAllByGame(game);
+
+        List<String> myHand = me.getHand() != null ? List.of(me.getHand().split(",")) : List.of();
+        // List<String> passedToThem = getCardsIPassedToPlayer(game, mySlot, theirSlot);
+
+        for (GameStats stat : allStats) {
+            String cardCode = stat.getRank().getSymbol() + stat.getSuit().getSymbol();
+
+            if (stat.getPlayOrder() > 0)
+                continue;
+            if (myHand.contains(cardCode))
+                continue;
+            if ((stat.getPossibleHolders() & (1 << theirSlot)) == 0)
+                continue;
+
+            possibleCards.add(cardCode);
+        }
+
+        return possibleCards;
+    }
+
+    public List<String> cardCodesInSlotFromSlotGivenLeadingSuit(
+            Game game,
+            int theirSlot,
+            int mySlot,
+            String leadingSuit) {
+        // Do not even bother if there is no leadingSuit known.
+        if (leadingSuit == null || leadingSuit.isBlank()) {
+            return cardCodesInSlotFromSlot(game, theirSlot, mySlot);
+        }
+        List<String> possibleCards = new ArrayList<>();
+        Match match = game.getMatch();
+        MatchPlayer me = null;
+        MatchPlayer them = null;
+
+        for (MatchPlayer player : match.getMatchPlayers()) {
+            if (player.getMatchPlayerSlot() == mySlot) {
+                me = player;
+            }
+            if (player.getMatchPlayerSlot() == theirSlot) {
+                them = player;
+            }
+        }
+
+        if (me == null || them == null) {
+            return List.of(); // gracefully return an empty list if slots are invalid
+        }
+
+        List<GameStats> allStats = gameStatsRepository.findAllByGame(game);
+        List<String> myHand = me.getHand() != null ? List.of(me.getHand().split(",")) : List.of();
+
+        if (leadingSuit == null || leadingSuit.isBlank()) {
+            return cardCodesInSlotFromSlot(game, theirSlot, mySlot);
+        }
+
+        // Step 1: Determine if theirSlot might still have the leading suit
+        boolean mightHaveLeadingSuit = false;
+        for (GameStats stat : allStats) {
+            if (stat.getSuit().getSymbol().equals(leadingSuit) &&
+                    stat.getPlayOrder() == 0 &&
+                    (stat.getPossibleHolders() & (1 << theirSlot)) != 0) {
+                mightHaveLeadingSuit = true;
+                break;
+            }
+        }
+
+        // Step 2: Filter cards
+        for (GameStats stat : allStats) {
+            String cardCode = stat.getRank().getSymbol() + stat.getSuit().getSymbol();
+
+            if (stat.getPlayOrder() > 0)
+                continue;
+            if (myHand.contains(cardCode))
+                continue;
+            if ((stat.getPossibleHolders() & (1 << theirSlot)) == 0)
+                continue;
+
+            // Enforce suit-following
+            if (mightHaveLeadingSuit && !stat.getSuit().getSymbol().equals(leadingSuit))
+                continue;
+
+            possibleCards.add(cardCode);
+        }
+
+        return possibleCards;
+    }
+
+    public List<String> getCardsIPassedToPlayer(Game game, int mySlot, int theirSlot) {
+        List<String> passedCardCodes = new ArrayList<>();
+
+        List<GameStats> allStats = gameStatsRepository.findAllByGame(game);
+
+        for (GameStats stat : allStats) {
+            if (stat.getPassedBy() == mySlot && stat.getPassedTo() == theirSlot) {
+                String cardCode = stat.getRankSuit();
+                passedCardCodes.add(cardCode);
+            }
+        }
+
+        return passedCardCodes;
+    }
+
+    public List<Integer> matchPlayerSlotsLeftAfterMyCard(Game game) {
+        int mySlot = game.getCurrentMatchPlayerSlot();
+        int alreadyPlayed = game.getCurrentTrick().size(); // number of cards already played
+        int numPlayersLeftAfterMe = 3 - alreadyPlayed; // max 3 players follow me in trick
+
+        if (numPlayersLeftAfterMe <= 0) {
+            return List.of(); // I'm the last player in the trick
+        }
+
+        List<Integer> remaining = new ArrayList<>(numPlayersLeftAfterMe);
+        for (int i = 1; i <= numPlayersLeftAfterMe; i++) {
+            int nextSlot = ((mySlot - 1 + i) % 4) + 1; // wraparound for 1-based slots
+            remaining.add(nextSlot);
+        }
+        return remaining;
+    }
+
 }

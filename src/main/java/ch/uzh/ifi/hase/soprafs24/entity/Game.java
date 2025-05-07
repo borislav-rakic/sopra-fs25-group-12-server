@@ -47,7 +47,7 @@ public class Game {
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private TrickPhase trickPhase = TrickPhase.READY;
+    private TrickPhase trickPhase = TrickPhase.READYFORFIRSTCARD;
 
     @Column(name = "trick_leader_match_player_slot", nullable = false)
     private Integer trickLeaderMatchPlayerSlot = 0;

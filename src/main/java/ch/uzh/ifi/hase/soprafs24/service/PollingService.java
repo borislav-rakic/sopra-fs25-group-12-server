@@ -37,16 +37,13 @@ public class PollingService {
     // private final Logger log = LoggerFactory.getLogger(PollingService.class);
 
     private final CardRulesService cardRulesService;
-    private final MatchSummaryService matchSummaryService;
     private final MatchMessageService matchMessageService;
 
     @Autowired
     public PollingService(
             @Qualifier("cardRulesService") CardRulesService cardRulesService,
-            @Qualifier("matchSummaryService") MatchSummaryService matchSummaryService,
             @Qualifier("matchMessageService") MatchMessageService matchMessageService) {
         this.cardRulesService = cardRulesService;
-        this.matchSummaryService = matchSummaryService;
         this.matchMessageService = matchMessageService;
 
     }
@@ -262,7 +259,7 @@ public class PollingService {
         Instant lastPollTime = matchPlayer.getLastPollTime();
 
         // Convert polling interval from milliseconds (int) to Duration
-        Duration pollingDuration = Duration.ofMillis(GameConstants.POLLING_INTERVAL);
+        Duration pollingDuration = Duration.ofMillis(GameConstants.POLLING_INTERVAL_MS);
 
         // Calculate the minimum allowed time between polls (75% of polling interval)
         Duration minimumPollInterval = pollingDuration.multipliedBy(1).dividedBy(4); // 25%
@@ -318,4 +315,16 @@ public class PollingService {
         return dto;
     }
 
+    public PollingDTO getSpectatorPolling(User user, Match match) {
+        if (match.getPhase() == MatchPhase.RESULT) {
+            return matchResultMessage(match);
+        } else if (match.getPhase() == MatchPhase.FINISHED) {
+            return matchFinishedMessage(match);
+        } else if (match.getPhase() == MatchPhase.ABORTED) {
+            return matchAbortedMessage(match);
+        } else {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "This match is ongoing, but you are not part of it.");
+        }
+    }
 }

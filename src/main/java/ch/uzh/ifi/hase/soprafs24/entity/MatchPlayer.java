@@ -66,6 +66,9 @@ public class MatchPlayer {
     @Enumerated(EnumType.STRING)
     AiMatchPlayerState aiMatchPlayerState = AiMatchPlayerState.READY;
 
+    @Column
+    boolean isHost = false;
+
     // === Getter and Setter methods ===
 
     public Long getMatchPlayerId() {
@@ -373,6 +376,14 @@ public class MatchPlayer {
 
     public void setAiMatchPlayerState(AiMatchPlayerState aiMatchPlayerState) {
         this.aiMatchPlayerState = aiMatchPlayerState;
+    }
+
+    public boolean getIsHost() {
+        return isHost;
+    }
+
+    public void setIsHost(boolean isHost) {
+        this.isHost = isHost;
     }
 
 }

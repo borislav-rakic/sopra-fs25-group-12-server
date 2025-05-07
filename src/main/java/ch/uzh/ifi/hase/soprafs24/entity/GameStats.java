@@ -172,7 +172,7 @@ public class GameStats {
         this.pointsWorth = pointsWorth;
     }
 
-    public int getpassedBy() {
+    public int getPassedBy() {
         return passedBy;
     }
 

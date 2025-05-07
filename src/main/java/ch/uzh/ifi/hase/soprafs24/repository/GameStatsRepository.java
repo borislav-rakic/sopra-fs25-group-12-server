@@ -17,13 +17,9 @@ public interface GameStatsRepository extends JpaRepository<GameStats, Long> {
 
     List<GameStats> findByMatch(Match match);
 
-    GameStats findByRankSuit(String rankSuit);
-
     void deleteByMatch(Match match);
 
     GameStats findByRankSuitAndGameAndCardHolder(String rankSuit, Game game, int cardHolder);
-
-    List<GameStats> findByGameAndCardHolder(Game game, int cardHolder);
 
     GameStats findByRankAndSuitAndGame(Rank rank, Suit suit, Game game);
 
@@ -36,8 +32,6 @@ public interface GameStatsRepository extends JpaRepository<GameStats, Long> {
     List<GameStats> findByGameAndPlayOrderGreaterThanOrderByPlayOrderAsc(Game game, int playOrder);
 
     List<GameStats> findByGameAndPlayedByGreaterThan(Game game, int playedBy);
-
-    List<GameStats> findByGameAndCardHolderAndPlayedBy(Game game, int cardHolder, int playedBy);
 
     List<GameStats> findByGameAndTrickNumber(Game game, int trickNumber);
 

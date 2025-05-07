@@ -11,9 +11,7 @@ public final class GameConstants {
 
     public static final String SEED_PREFIX = "seed--";
 
-    public static final boolean PLAY_ALL_AI_TURNS_AT_ONCE = false;
-
-    public static final int POLLING_INTERVAL = 1000;
+    public static final int POLLING_INTERVAL_MS = 1000;
 
     public static final boolean PREVENT_OVERPOLLING = false;
 
@@ -24,6 +22,10 @@ public final class GameConstants {
     public static final String TWO_OF_CLUBS = "2C";
 
     public static final String QUEEN_OF_SPADES = "QS";
+
+    public static final int HOST_TIME_OUT_SECONDS = 30;
+
+    public static final int TRICK_DELAY_MS = 1500;
 
     private GameConstants() {
         // Prevent instantiation
