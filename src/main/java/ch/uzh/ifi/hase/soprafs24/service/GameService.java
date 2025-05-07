@@ -118,6 +118,7 @@ public class GameService {
         return true;
     }
 
+    @Transactional
     public void playCardAsHuman(Game game, MatchPlayer matchPlayer, String cardCode) {
         log.info("=== PLAY CARD AS HUMAN ({}), CurrentSlot: {}.",
                 game.getCurrentPlayOrder(), game.getCurrentMatchPlayerSlot());
@@ -156,6 +157,7 @@ public class GameService {
         log.info("=== PLAY CARD AS HUMAN CONCLUDED ({}) ===", game.getCurrentPlayOrder());
     }
 
+    @Transactional
     public void playCardAsAi(Game game, MatchPlayer aiPlayer, String cardCode) {
         CardUtils.requireValidCardFormat(cardCode);
 
@@ -194,6 +196,7 @@ public class GameService {
         executeValidatedCardPlay(game, aiPlayer, cardCode);
     }
 
+    @Transactional
     public void executeValidatedCardPlay(Game game, MatchPlayer matchPlayer, String cardCode) {
         log.info("   +-- executeValidatedCardPlay ---");
 
@@ -207,11 +210,24 @@ public class GameService {
 
         // Step 2: Add the card to the trick
         game.addCardCodeToCurrentTrick(cardCode);
+        boolean heartJustBroke = cardRulesService.ensureHeartBreak(game);
+        if (game.getCurrentPlayOrder() == 1) {
+            matchMessageService.addMessage(
+                    game.getMatch(),
+                    MatchMessageType.GAME_STARTED,
+                    matchMessageService.getFunMessage(MatchMessageType.GAME_STARTED));
+        }
         if (GameConstants.QUEEN_OF_SPADES.equals(cardCode)) {
             matchMessageService.addMessage(
                     game.getMatch(),
                     MatchMessageType.QUEEN_WARNING,
                     matchMessageService.getFunMessage(MatchMessageType.QUEEN_WARNING));
+        }
+        if (heartJustBroke) {
+            matchMessageService.addMessage(
+                    game.getMatch(),
+                    MatchMessageType.HEARTS_BROKEN,
+                    matchMessageService.getFunMessage(MatchMessageType.HEARTS_BROKEN));
         }
         log.info("   | Card {} added to trick: {}. Hand now: {}", cardCode, game.getCurrentTrick(),
                 matchPlayer.getHand());
@@ -264,6 +280,7 @@ public class GameService {
         }
     }
 
+    @Transactional
     private void handlePotentialTrickCompletion(Game game) {
         log.info(" (No trick completion yet.)");
         if (game.getCurrentTrickSize() != GameConstants.MAX_TRICK_SIZE) {
@@ -303,6 +320,7 @@ public class GameService {
         // LEFT.
     }
 
+    @Transactional
     public void advanceTrickPhaseIfOwnerPolling(Game game) {
         if (
         // TrickPhase is still frozen in TRICKJUSTCOMPLETED
@@ -345,6 +363,7 @@ public class GameService {
         }
     }
 
+    @Transactional
     public void resetNonAiPlayersReady(Game game) {
         Match match = game.getMatch();
 

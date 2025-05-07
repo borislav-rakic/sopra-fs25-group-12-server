@@ -438,15 +438,15 @@ public class CardRulesService {
         return passMap;
     }
 
-    public void ensureHeartBreak(Game game) {
+    public boolean ensureHeartBreak(Game game) {
         // Assumes that playing the card was legal!
         if (game.getHeartsBroken()) {
-            return; // Already broken, nothing to do
+            return false; // Already broken, nothing to do
         }
 
         List<String> currentTrick = game.getCurrentTrick();
         if (currentTrick == null || currentTrick.isEmpty()) {
-            return; // No cards yet
+            return false; // No cards yet
         }
 
         String lastCardCode = currentTrick.get(currentTrick.size() - 1);
@@ -454,7 +454,9 @@ public class CardRulesService {
 
         if ("H".equals(lastCard.getSuit())) {
             game.setHeartsBroken(true);
+            return true;
         }
+        return false;
     }
 
     public boolean isGameReadyForResults(Game game) {

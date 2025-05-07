@@ -179,8 +179,10 @@ public class PollingService {
         List<PlayerCardDTO> playableCardDTOList = new ArrayList<>();
         String playableCards = "";
 
-        // Only show playable cards if it is this player's turn
-        if (matchPlayer.getMatchPlayerSlot() == game.getCurrentMatchPlayerSlot()) {
+        // Only show playable cards if it is this player's turn and it is a nonPausing
+        // TrickPhase
+        if (matchPlayer.getMatchPlayerSlot() == game.getCurrentMatchPlayerSlot()
+                && !game.getTrickPhase().inPause()) {
             playableCards = CardUtils.normalizeCardCodeString(
                     cardRulesService.getPlayableCardsForMatchPlayerPolling(game, matchPlayer));
 
@@ -224,7 +226,7 @@ public class PollingService {
         }
         dto.setPreviousTrickPoints(game.getPreviousTrickPoints()); // [18a]
 
-        dto.setMessages(matchMessageService.messages(match, game, matchPlayer)); // [18c]
+        dto.setMatchMessages(matchMessageService.messages(match, game, matchPlayer)); // [18c]
 
         // Info about the other players
         dto.setMatchPlayers(matchPlayers); // [21]
@@ -238,7 +240,11 @@ public class PollingService {
         // Info about myself
         dto.setMatchPlayerSlot(matchPlayer.getMatchPlayerSlot());
         dto.setPlayerSlot(matchPlayer.getMatchPlayerSlot() - 1);
-        dto.setMyTurn(matchPlayer.getMatchPlayerSlot() == game.getCurrentMatchPlayerSlot()); // [32]
+        dto.setMyTurn(
+                // My slot is supposed to play
+                matchPlayer.getMatchPlayerSlot() == game.getCurrentMatchPlayerSlot()
+                        // TrickPhase is neither TRICKJUSTCOMPLETED nor PROCESSINGTRICK
+                        && !game.getTrickPhase().inPause()); // [32]
         dto.setPlayerCards(playerCardDTOList); // [33a]
         dto.setPlayerCardsAsString(hand); // [33b]
         dto.setPlayableCards(playableCardDTOList); // [34a]
