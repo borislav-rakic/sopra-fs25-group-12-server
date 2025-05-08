@@ -105,6 +105,14 @@ public class PollingService {
         requestingMatchPlayer.incrementPollCounter();
         int pollCounter = requestingMatchPlayer.getPollCounter();
 
+        // The index in the player array that represents the requesting player
+        // "me"____ = "south"_ = position 0 on client
+        // "left"__ = "west"__ = position 1 on client
+        // "across" = "north"_ = position 2 on client
+        // "right"_ = "east"__ = position 3 on client
+
+        int positionIndex = requestingMatchPlayer.getMatchPlayerSlot() - 1;
+
         // OTHER PLAYERS
 
         /// AVATAR
@@ -124,18 +132,25 @@ public class PollingService {
             }
         }
 
-        /// Number of cards in hand
+        // Number of cards in hand per player, keyed by 0-based position index (slot 1 →
+        // index 0, etc.)
+        // The frontend rotates these values based on the client's relative position.
         Map<Integer, Integer> handCounts = new HashMap<>();
         for (MatchPlayer mp : match.getMatchPlayers()) {
             int count = mp.getHandCardsArray().length;
             handCounts.put(mp.getMatchPlayerSlot() - 1, count);
         }
-        //// Points per player
+
+        // Total match points per player, keyed by 0-based position index
+        // (matchPlayerSlot - 1)
+        // The frontend uses this to display relative scores around the table.
         Map<Integer, Integer> pointsOfPlayers = new HashMap<>();
         for (MatchPlayer mp : match.getMatchPlayers()) {
             pointsOfPlayers.put(mp.getMatchPlayerSlot() - 1, mp.getMatchScore());
         }
 
+        // Usernames and User objects in position index order (0 = match owner,
+        // clockwise)
         List<String> matchPlayers = new ArrayList<>();
         matchPlayers.add(match.getPlayer1() != null ? match.getPlayer1().getUsername() : null);
         matchPlayers.add(match.getPlayer2() != null ? match.getPlayer2().getUsername() : null);

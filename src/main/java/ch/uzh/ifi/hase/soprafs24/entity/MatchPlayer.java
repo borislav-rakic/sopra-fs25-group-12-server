@@ -28,6 +28,14 @@ public class MatchPlayer {
     @JoinColumn(name = "player_id")
     private User user;
 
+    /**
+     * Absolute slot number assigned to the player in the match (1 to 4).
+     * Used on the backend to identify who plays when.
+     * 
+     * Note: On the frontend, this slot is rotated so that the pollling/local player
+     * is always in position 0.
+     */
+
     @Column(name = "matchPlayerSlot", nullable = false)
     private int matchPlayerSlot;
 

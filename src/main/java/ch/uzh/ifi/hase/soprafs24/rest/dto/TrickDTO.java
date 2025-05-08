@@ -6,15 +6,15 @@ public class TrickDTO {
 
     public static class TrickCard {
         private String code;
-        private int playerSlot; // 0 = me, 1 = left, 2 = across, 3 = right
+        private int position; // 0 = me, 1 = left, 2 = across, 3 = right
         private int order; // 0 to 3
 
         public TrickCard() {
         }
 
-        public TrickCard(String code, int playerSlot, int order) {
+        public TrickCard(String code, int position, int order) {
             this.code = code;
-            this.playerSlot = playerSlot;
+            this.position = position;
             this.order = order;
         }
 
@@ -26,12 +26,12 @@ public class TrickDTO {
             this.code = code;
         }
 
-        public int getPlayerSlot() {
-            return playerSlot;
+        public int getPosition() {
+            return position;
         }
 
-        public void setPlayerSlot(int playerSlot) {
-            this.playerSlot = playerSlot;
+        public void setPosition(int position) {
+            this.position = position;
         }
 
         public int getOrder() {
@@ -44,16 +44,16 @@ public class TrickDTO {
     }
 
     private List<TrickCard> cards;
-    private int trickLeaderSlot; // relative to this player
-    private Integer winningSlot; // 0–3 (relative), or null if ongoing
+    private int trickLeaderPosition; // relative to this player
+    private Integer winningPosition; // 0–3 (relative), or null if ongoing
 
     public TrickDTO() {
     }
 
-    public TrickDTO(List<TrickCard> cards, int trickLeaderSlot, Integer winningSlot) {
+    public TrickDTO(List<TrickCard> cards, int trickLeaderPosition, Integer winningPosition) {
         this.cards = cards;
-        this.trickLeaderSlot = trickLeaderSlot;
-        this.winningSlot = winningSlot;
+        this.trickLeaderPosition = trickLeaderPosition;
+        this.winningPosition = winningPosition;
     }
 
     public List<TrickCard> getCards() {
@@ -64,19 +64,19 @@ public class TrickDTO {
         this.cards = cards;
     }
 
-    public int getTrickLeaderSlot() {
-        return trickLeaderSlot;
+    public int getTrickLeaderPosition() {
+        return trickLeaderPosition;
     }
 
-    public void setTrickLeaderSlot(int trickLeaderSlot) {
-        this.trickLeaderSlot = trickLeaderSlot;
+    public void setTrickLeaderPosition(int trickLeaderPosition) {
+        this.trickLeaderPosition = trickLeaderPosition;
     }
 
-    public Integer getWinningSlot() {
-        return winningSlot;
+    public Integer getWinningPosition() {
+        return winningPosition;
     }
 
-    public void setWinningSlot(Integer winningSlot) {
-        this.winningSlot = winningSlot;
+    public void setWinningPosition(Integer winningPosition) {
+        this.winningPosition = winningPosition;
     }
 }
