@@ -119,7 +119,7 @@ public class GameSimulationService {
     @Transactional
     public void simulateMatchToLastTrick(Match match, Game game) {
 
-        simulateUpToFinalTrick(match, game);
+        simulateUpToFinalTrick(match, game, 0);
 
         log.info("SIM. SimulateGameToLastTrick done");
         Game originalGame = game;
@@ -224,7 +224,7 @@ public class GameSimulationService {
     }
 
     @Transactional
-    public void simulateUpToFinalTrick(Match match, Game game) {
+    public void simulateUpToFinalTrick(Match match, Game game, Integer fakeShootingTheMoon) {
         try {
 
             game.setCurrentMatchPlayerSlot(0);
@@ -252,6 +252,18 @@ public class GameSimulationService {
             int ii = random.nextInt(aa.size());
             List<Integer> bb = aa.get(ii);
 
+            List<List<Integer>> aaa = Arrays.asList(
+                    Arrays.asList(0, 0, 0, 26),
+                    Arrays.asList(0, 0, 26, 0),
+                    Arrays.asList(0, 26, 0, 0),
+                    Arrays.asList(26, 0, 0, 0));
+            int iii = random.nextInt(aaa.size());
+            List<Integer> bbb = aaa.get(iii);
+
+            if (fakeShootingTheMoon > 0) {
+                bb = bbb;
+            }
+
             m1.setHand(b.get(0));
             m1.setGameScore(bb.get(0));
 
@@ -272,6 +284,7 @@ public class GameSimulationService {
             game.setCurrentTrick(new ArrayList<>());
             game.setHeartsBroken(true);
             game.setCurrentMatchPlayerSlot(1);
+            game.setTrickLeaderMatchPlayerSlot(1);
             game.setCurrentPlayOrder(48);
             game.setCurrentTrickNumber(13);
             game.setPhase(GamePhase.FINALTRICK);

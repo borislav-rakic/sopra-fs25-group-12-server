@@ -341,6 +341,13 @@ public class GameService {
             }
         }
 
+        List<Integer> gameScores = match.getMatchPlayers().stream()
+                .map(MatchPlayer::getGameScore)
+                .toList(); // Java 16+, use collect(Collectors.toList()) for older versions
+
+        game.setGameScoresList(gameScores);
+        gameRepository.save(game);
+
         for (MatchPlayer mp : match.getMatchPlayers()) {
             mp.setMatchScore(mp.getMatchScore() + mp.getGameScore());
             mp.setGameScore(0);
