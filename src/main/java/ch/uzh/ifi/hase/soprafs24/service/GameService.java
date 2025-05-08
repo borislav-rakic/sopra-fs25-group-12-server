@@ -326,7 +326,7 @@ public class GameService {
         for (MatchPlayer mp : match.getMatchPlayers()) {
             if (mp.getGameScore() == 26) {
                 moonShot = true;
-                mp.setGameScore(0);
+                mp.setGameScore(-1);
                 mp.setShotTheMoonCount(mp.getShotTheMoonCount() + 1);
             }
         }
@@ -335,6 +335,8 @@ public class GameService {
             for (MatchPlayer mp : match.getMatchPlayers()) {
                 if (mp.getGameScore() == 0) {
                     mp.setGameScore(26);
+                } else if (mp.getGameScore() == -1) {
+                    mp.setGameScore(0);
                 }
             }
         }
