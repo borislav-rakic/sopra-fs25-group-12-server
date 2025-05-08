@@ -336,7 +336,13 @@ public class MatchController {
     @PostMapping("/matches/{matchId}/game/sim/game")
     @ResponseStatus(HttpStatus.OK)
     public void advanceGame(@PathVariable Long matchId) {
-        matchService.autoPlayGame(matchId);
+        matchService.autoPlayGame(matchId, 0);
+    }
+
+    @PostMapping("/matches/{matchId}/game/sim/moon")
+    @ResponseStatus(HttpStatus.OK)
+    public void advanceGameToMoon(@PathVariable Long matchId) {
+        matchService.autoPlayGame(matchId, 1);
     }
 
     @PostMapping("/matches/{matchId}/game/sim/match")

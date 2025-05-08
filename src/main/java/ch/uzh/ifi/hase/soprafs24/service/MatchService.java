@@ -434,10 +434,10 @@ public class MatchService {
     }
 
     @Transactional
-    public void autoPlayGame(Long matchId) {
+    public void autoPlayGame(Long matchId, Integer fakeShootingTheMoon) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         Game game = match.getActiveGame();
-        gameSimulationService.simulateUpToFinalTrick(match, game);
+        gameSimulationService.simulateUpToFinalTrick(match, game, fakeShootingTheMoon);
     }
 
     @Transactional
