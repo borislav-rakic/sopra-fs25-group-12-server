@@ -85,6 +85,17 @@ public class Match implements Serializable {
     @JoinColumn(name = "match_summary_id")
     private MatchSummary matchSummary;
 
+    @Column(nullable = false)
+    private boolean fastForwardMode = false;
+
+    public void setFastForwardMode(boolean fastForwardMode) {
+        this.fastForwardMode = fastForwardMode;
+    }
+
+    public boolean getFastForwardMode() {
+        return fastForwardMode = true;
+    }
+
     public List<Game> getGames() {
         return games;
     }

@@ -1,6 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
@@ -19,8 +20,8 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+// import org.slf4j.Logger;
+//import org.slf4j.LoggerFactory;
 
 @Service
 public class GameTrickService {
@@ -39,6 +40,31 @@ public class GameTrickService {
     public void addCardToTrick(Match match, Game game, MatchPlayer matchPlayer, String cardCode) {
         game.addCardCodeToCurrentTrick(cardCode);
         game.setCurrentPlayOrder(game.getCurrentPlayOrder() + 1);
+        updateGamePhaseBasedOnPlayOrder(game);
+    }
+
+    public void updateGamePhaseBasedOnPlayOrder(Game game) {
+        int playOrder = game.getCurrentPlayOrder();
+        GamePhase currentPhase = game.getPhase();
+        GamePhase newPhase;
+
+        if (playOrder == 0) {
+            newPhase = GamePhase.FIRSTTRICK;
+            game.setTrickPhase(TrickPhase.READYFORFIRSTCARD);
+        } else if (playOrder <= 4) {
+            newPhase = GamePhase.FIRSTTRICK;
+        } else if (playOrder <= 48) {
+            newPhase = GamePhase.NORMALTRICK;
+        } else if (playOrder <= GameConstants.FULL_DECK_CARD_COUNT) {
+            newPhase = GamePhase.FINALTRICK;
+        } else {
+            newPhase = GamePhase.RESULT;
+        }
+
+        if (newPhase != currentPhase) {
+            game.setPhase(newPhase);
+            log.info("💄 GamePhase transitioned from {} to {} (playOrder = {}).", currentPhase, newPhase, playOrder);
+        }
     }
 
     public void determineWinnerOfTrick(Match match, Game game) {
@@ -54,12 +80,6 @@ public class GameTrickService {
         MatchPlayer winner = matchPlayerRepository.findByMatchAndMatchPlayerSlot(match, winnerSlot);
         winner.setGameScore(winner.getGameScore() + points);
         matchPlayerRepository.save(winner);
-    }
-
-    public void clearTrick(Match match, Game game) {
-        game.setPreviousTrick(game.getCurrentTrick());
-        game.clearCurrentTrick();
-        game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
     }
 
     public TrickDTO prepareTrickDTO(Match match, Game game, MatchPlayer pollingMatchPlayer) {
@@ -79,7 +99,7 @@ public class GameTrickService {
         Integer leaderAbsolute = game.getTrickLeaderMatchPlayerSlot();
         int leaderRelative = (leaderAbsolute - pollingSlot + 4) % 4;
 
-        Integer winnerAbsolute = game.getTrickPhase().inPause()
+        Integer winnerAbsolute = game.getTrickPhase().inTransition()
                 ? game.getPreviousTrickWinnerMatchPlayerSlot()
                 : null;
         Integer winnerRelative = winnerAbsolute != null ? (winnerAbsolute - pollingSlot + 4) % 4 : null;
@@ -104,7 +124,7 @@ public class GameTrickService {
         Integer leaderAbsolute = game.getPreviousTrickLeaderMatchPlayerSlot();
         int leaderRelative = (leaderAbsolute - pollingSlot + 4) % 4;
 
-        Integer winnerAbsolute = game.getTrickPhase().inPause()
+        Integer winnerAbsolute = game.getTrickPhase().inTransition()
                 ? game.getPreviousTrickWinnerMatchPlayerSlot()
                 : null;
         Integer winnerRelative = winnerAbsolute != null ? (winnerAbsolute - pollingSlot + 4) % 4 : null;
@@ -113,7 +133,6 @@ public class GameTrickService {
     }
 
     public void afterCardPlayed(Game game) {
-        game.setCurrentPlayOrder(game.getCurrentPlayOrder() + 1);
 
         if (game.getCurrentTrickSize() == 1) {
             game.setTrickPhase(TrickPhase.RUNNINGTRICK);
@@ -143,6 +162,7 @@ public class GameTrickService {
         MatchPlayer winnerMatchPlayer = matchPlayerRepository.findByMatchAndMatchPlayerSlot(game.getMatch(),
                 winnerMatchPlayerSlot);
         winnerMatchPlayer.setGameScore(winnerMatchPlayer.getGameScore() + points);
+
         matchPlayerRepository.save(winnerMatchPlayer);
         matchPlayerRepository.flush();
 
@@ -151,6 +171,7 @@ public class GameTrickService {
         // Step A3: Archive the trick
         // move current trick to previous, but do not clear it just yet.
         game.setPreviousTrick(game.getCurrentTrick());
+        game.setPreviousTrickLeaderMatchPlayerSlot(game.getTrickLeaderMatchPlayerSlot());
         game.setPreviousTrickWinnerMatchPlayerSlot(winnerMatchPlayerSlot);
         game.setPreviousTrickPoints(points);
 
@@ -158,13 +179,36 @@ public class GameTrickService {
         game.setTrickLeaderMatchPlayerSlot(game.getPreviousTrickWinnerMatchPlayerSlot());
         game.setCurrentMatchPlayerSlot(game.getPreviousTrickWinnerMatchPlayerSlot());
 
+        log.info("Previous leader MatchPlayerSlot: {}, new leader (absolute): {}",
+                game.getPreviousTrickLeaderMatchPlayerSlot(),
+                game.getTrickLeaderMatchPlayerSlot());
+
         // Step A5:
         game.setTrickJustCompletedTime(Instant.now());
+        if (match.getFastForwardMode()) {
+            clearTrick(match, game);
+
+            log.info("Fast-forwarded trick to READY phase");
+            return; // Don't stop — let upper layer (MatchService) continue
+        }
         game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
         log.info(" & TrickPhase set to JUSTCOMPLETED at {}", game.getTrickJustCompletedTime());
 
         // STOP HERE AND WAIT FOR A POLLING BY THE MATCH OWNER TO PICK UP WHERE YOU
         // LEFT.
+    }
+
+    public void clearTrick(Match match, Game game) {
+        game.setPreviousTrick(game.getCurrentTrick());
+        game.clearCurrentTrick();
+        game.setTrickPhase(TrickPhase.READYFORFIRSTCARD);
+        game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
+        log.info(
+                "Trick was just cleared in GameTrickService. GamePhase={}, TrickPhase={}, PlayOrder={}, currentTrickNumber={}.",
+                game.getPhase(),
+                game.getTrickPhase(),
+                game.getCurrentPlayOrder(),
+                game.getCurrentTrickNumber());
     }
 
 }

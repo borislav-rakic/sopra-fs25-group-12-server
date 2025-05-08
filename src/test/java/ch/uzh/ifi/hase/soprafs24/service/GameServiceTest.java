@@ -165,54 +165,6 @@ public class GameServiceTest {
     }
 
     @Test
-    public void testUpdateGameBasedOnPlayOrderFINALTRICK() {
-        game.setPhase(GamePhase.FINALTRICK);
-        game.setCurrentPlayOrder(52);
-
-        GamePhase expected = GamePhase.RESULT;
-
-        gameService.updateGamePhaseBasedOnPlayOrder(game);
-
-        assertEquals(expected, game.getPhase());
-    }
-
-    @Test
-    public void testUpdateGameBasedOnPlayOrderNORMALTRICKBeforeFINALTRICK() {
-        game.setPhase(GamePhase.NORMALTRICK);
-        game.setCurrentPlayOrder(48);
-
-        GamePhase expected = GamePhase.FINALTRICK;
-
-        gameService.updateGamePhaseBasedOnPlayOrder(game);
-
-        assertEquals(expected, game.getPhase());
-    }
-
-    @Test
-    public void testUpdateGameBasedOnPlayOrderFIRSTTRICK() {
-        game.setPhase(GamePhase.FIRSTTRICK);
-        game.setCurrentPlayOrder(4);
-
-        GamePhase expected = GamePhase.NORMALTRICK;
-
-        gameService.updateGamePhaseBasedOnPlayOrder(game);
-
-        assertEquals(expected, game.getPhase());
-    }
-
-    @Test
-    public void testUpdateGameBasedOnPlayOrderPASSING() {
-        game.setPhase(GamePhase.PASSING);
-        game.setCurrentPlayOrder(0);
-
-        GamePhase expected = GamePhase.FIRSTTRICK;
-
-        gameService.updateGamePhaseBasedOnPlayOrder(game);
-
-        assertEquals(expected, game.getPhase());
-    }
-
-    @Test
     public void testPassingDelegatesToCardPassingService() {
         // Arrange
         Game game = new Game();

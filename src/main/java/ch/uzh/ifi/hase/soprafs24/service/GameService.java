@@ -233,34 +233,11 @@ public class GameService {
 
         gameStatsService.updateGameStatsAfterTrickChange(game);
 
-        gameTrickService.afterCardPlayed(game); // new method for advancing state + checking trick completion
+        gameTrickService.afterCardPlayed(game); // advancing state + checking trick completion
 
         gameStatsService.recordCardPlay(game, matchPlayer, cardCode);
 
         log.info("   +--- executeValidatedCardPlay ---");
-    }
-
-    public void updateGamePhaseBasedOnPlayOrder(Game game) {
-        GamePhase before = game.getPhase();
-        int currentPlayOrder = game.getCurrentPlayOrder();
-        if (before == GamePhase.FINALTRICK
-                && currentPlayOrder >= GameConstants.FULL_DECK_CARD_COUNT) {
-            game.setPhase(GamePhase.RESULT);
-        } else if (before == GamePhase.NORMALTRICK
-                && currentPlayOrder >= (GameConstants.FULL_DECK_CARD_COUNT - 4)) {
-            game.setPhase(GamePhase.FINALTRICK);
-        } else if (before == GamePhase.FIRSTTRICK
-                && currentPlayOrder >= GameConstants.MAX_TRICK_SIZE) {
-            game.setPhase(GamePhase.NORMALTRICK);
-        } else if (before == GamePhase.PASSING
-                && currentPlayOrder == 0) {
-            game.setPhase(GamePhase.FIRSTTRICK);
-            game.setTrickPhase(TrickPhase.READYFORFIRSTCARD);
-        }
-        GamePhase after = game.getPhase();
-        if (before != after) {
-            log.info("💄 GamePhase set to {} (playOrder = {}).", after, game.getCurrentPlayOrder());
-        }
     }
 
     @Transactional
@@ -275,17 +252,14 @@ public class GameService {
             log.info("Trick marked READY for clearing on next poll.");
             return;
         }
-
         if (game.getTrickPhase() == TrickPhase.PROCESSINGTRICK) {
-            updateGamePhaseBasedOnPlayOrder(game);
-            game.clearCurrentTrick();
-            game.setCurrentTrickNumber(game.getCurrentTrickNumber() + 1);
+            gameTrickService.clearTrick(game.getMatch(), game);
+            gameTrickService.updateGamePhaseBasedOnPlayOrder(game);
 
             if (finalizeGameIfComplete(game)) {
                 return; // Already handled
             }
 
-            game.setTrickPhase(TrickPhase.READYFORFIRSTCARD);
             gameRepository.save(game);
 
             log.info("Trick cleared and new one started. Trick #: {}, Leader: {}",
@@ -456,23 +430,40 @@ public class GameService {
                     game.getCurrentTrickNumber()));
         }
         // PlayOrder vs. GamePhase
-        if (game.getPhase() == GamePhase.FIRSTTRICK
-                && (game.getCurrentPlayOrder() < 0
-                        || game.getCurrentPlayOrder() > GameConstants.MAX_TRICK_SIZE)
-                || (game.getPhase() == GamePhase.NORMALTRICK
-                        && (game.getCurrentPlayOrder() < 4
-                                || game.getCurrentPlayOrder() > 12 * GameConstants.MAX_TRICK_SIZE))
-                || (game.getPhase() == GamePhase.FINALTRICK
-                        && (game.getCurrentPlayOrder() < 48
-                                || game.getCurrentPlayOrder() > GameConstants.FULL_DECK_CARD_COUNT))
-                || (game.getPhase() == GamePhase.RESULT
-                        && (game.getCurrentPlayOrder() < GameConstants.FULL_DECK_CARD_COUNT))
-                || (game.getPhase() == GamePhase.PASSING
-                        && (game.getCurrentPlayOrder() > 0))) {
-            throw new IllegalStateException(String.format(
-                    "Illegal Game State: GamePhase is %s, but trickNumber is %d.",
-                    game.getPhase(),
-                    game.getCurrentPlayOrder()));
+        doPlayOrderAndTrickPhaseMatch(game);
+    }
+
+    public void doPlayOrderAndTrickPhaseMatch(Game game) {
+        TrickPhase trickPhase = game.getTrickPhase();
+        int playOrder = game.getCurrentPlayOrder();
+        GamePhase phase = game.getPhase();
+
+        boolean isTrickBetween = trickPhase.inTransition();
+
+        if (phase == GamePhase.FIRSTTRICK) {
+            if (playOrder < 0 || (!isTrickBetween && playOrder > GameConstants.MAX_TRICK_SIZE)) {
+                throw new IllegalStateException(String.format(
+                        "Invalid playOrder %d for phase FIRSTTRICK.", playOrder));
+            }
+        } else if (phase == GamePhase.NORMALTRICK) {
+            if (playOrder < 4 || (!isTrickBetween && playOrder > 48)) {
+                throw new IllegalStateException(String.format(
+                        "Invalid playOrder %d for phase NORMALTRICK.", playOrder));
+            }
+        } else if (phase == GamePhase.FINALTRICK) {
+            if (playOrder < 48 || playOrder > GameConstants.FULL_DECK_CARD_COUNT) {
+                throw new IllegalStateException(String.format(
+                        "Invalid playOrder %d for phase FINALTRICK.", playOrder));
+            }
+        } else if (phase == GamePhase.RESULT) {
+            if (playOrder < GameConstants.FULL_DECK_CARD_COUNT) {
+                throw new IllegalStateException(String.format(
+                        "Invalid playOrder %d for phase RESULT.", playOrder));
+            }
+        } else if (phase == GamePhase.PASSING) {
+            if (playOrder != 0) {
+                throw new IllegalStateException("During PASSING phase, playOrder should be 0.");
+            }
         }
     }
 
@@ -500,8 +491,8 @@ public class GameService {
                 game.setCurrentMatchPlayerSlot(slot);
                 game.setTrickLeaderMatchPlayerSlot(slot);
 
-                log.info("° 2C assigned to matchPlayerSlot {}. New trickMatchPlayerSlotOrder: {}.",
-                        slot, game.getTrickMatchPlayerSlotOrderAsString());
+                log.info("° TrickLeaderMatchPlayerSlot was assigned to MatchPlayerSlot{}.",
+                        slot);
 
                 return;
             }
@@ -521,6 +512,31 @@ public class GameService {
         }
 
         throw new IllegalStateException("No player has the 2♣ — invalid game state.");
+    }
+
+    @Transactional
+    public void fastForwardGameInternally(Game game) {
+        Match match = game.getMatch();
+
+        if (game.getTrickPhase() == TrickPhase.TRICKJUSTCOMPLETED) {
+            // Skip wait time — treat as instantly complete
+            game.setTrickPhase(TrickPhase.PROCESSINGTRICK);
+            log.info("Fast-forward: skipping trick pause.");
+        }
+
+        if (game.getTrickPhase() == TrickPhase.PROCESSINGTRICK) {
+            gameTrickService.clearTrick(match, game);
+            gameTrickService.updateGamePhaseBasedOnPlayOrder(game);
+
+            if (finalizeGameIfComplete(game)) {
+                log.info("Fast-forward: game completed.");
+                return;
+            }
+
+            game.setTrickPhase(TrickPhase.READYFORFIRSTCARD);
+            gameRepository.save(game);
+            log.info("Fast-forward: trick cleared and next one ready.");
+        }
     }
 
 }

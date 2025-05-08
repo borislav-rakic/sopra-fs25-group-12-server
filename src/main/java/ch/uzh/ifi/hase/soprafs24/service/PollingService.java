@@ -23,7 +23,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
-import ch.uzh.ifi.hase.soprafs24.model.Card;
+//import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayerCardDTO;
@@ -111,7 +111,7 @@ public class PollingService {
         // "across" = "north"_ = position 2 on client
         // "right"_ = "east"__ = position 3 on client
 
-        int positionIndex = requestingMatchPlayer.getMatchPlayerSlot() - 1;
+        // int positionIndex = requestingMatchPlayer.getMatchPlayerSlot() - 1;
 
         // OTHER PLAYERS
 
@@ -189,7 +189,7 @@ public class PollingService {
         // Only show playable cards if it is this player's turn and it is a nonPausing
         // TrickPhase
         if (matchPlayer.getMatchPlayerSlot() == game.getCurrentMatchPlayerSlot()
-                && !game.getTrickPhase().inPause()) {
+                && !game.getTrickPhase().inTransition()) {
             playableCards = CardUtils.normalizeCardCodeString(
                     cardRulesService.getPlayableCardsForMatchPlayerPolling(game, matchPlayer));
 
@@ -242,7 +242,7 @@ public class PollingService {
                 // My slot is supposed to play
                 matchPlayer.getMatchPlayerSlot() == game.getCurrentMatchPlayerSlot()
                         // TrickPhase is neither TRICKJUSTCOMPLETED nor PROCESSINGTRICK
-                        && !game.getTrickPhase().inPause()); // [32]
+                        && !game.getTrickPhase().inTransition()); // [32]
         dto.setPlayerCards(playerCardDTOList); // [33a]
         dto.setPlayerCardsAsString(hand); // [33b]
         dto.setPlayableCards(playableCardDTOList); // [34a]

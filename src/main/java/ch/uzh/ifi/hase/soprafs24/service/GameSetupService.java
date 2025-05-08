@@ -243,7 +243,12 @@ public class GameSetupService {
 
         int currentGameNumber = game.getGameNumber(); // or however you track it
 
+        // already assign the leading position to the MatchPlayer holding 2 of Clubs.
+        assignTwoOfClubsLeader(game);
+        game.setPreviousTrickLeaderMatchPlayerSlot(game.getTrickLeaderMatchPlayerSlot());
+
         if (currentGameNumber % 4 == 0) {
+            // Skip passing and jump directly into the first trick.
             game.setPhase(GamePhase.FIRSTTRICK);
             game.setTrickPhase(TrickPhase.READYFORFIRSTCARD);
             log.info("💄 GamePhase is set to FIRSTTRICK (no passing this round #{}).", currentGameNumber);
@@ -303,10 +308,7 @@ public class GameSetupService {
                 int slot = player.getMatchPlayerSlot();
                 game.setCurrentMatchPlayerSlot(slot);
                 game.setTrickLeaderMatchPlayerSlot(slot);
-
-                log.info("° 2C assigned to matchPlayerSlot {}. New trickMatchPlayerSlotOrder: {}.",
-                        slot, game.getTrickMatchPlayerSlotOrderAsString());
-
+                log.info("TrickLeaderMatchPlayerSlot was set to {}.", slot);
                 return;
             }
         }

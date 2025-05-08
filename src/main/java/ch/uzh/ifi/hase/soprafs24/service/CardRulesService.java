@@ -296,8 +296,6 @@ public class CardRulesService {
     public int determineTrickWinner(Game game) {
         log.info("   ççç DETERMINING TRICK WINNER OF TRICK #{}.", game.getCurrentTrickNumber());
         log.info("   ç Current Trick is {}.", game.getCurrentTrickAsString());
-        log.info("   ç Current trick matchPlayerSlot order (derived) is {}.",
-                game.getTrickMatchPlayerSlotOrderAsString());
 
         List<String> trick = game.getCurrentTrick(); // Cards played, in order
         List<Integer> slots = game.getTrickMatchPlayerSlotOrder(); // Slots who played, in order
