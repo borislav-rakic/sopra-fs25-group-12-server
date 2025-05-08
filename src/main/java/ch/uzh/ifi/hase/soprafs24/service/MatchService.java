@@ -152,7 +152,7 @@ public class MatchService {
 
         log.info("matchService.passingAcceptCards reached");
         if (game.getPhase() == GamePhase.SKIP_PASSING) {
-            if (passingDTO != null && !passingDTO.getCardsAsString().isEmpty()) {
+            if (passingDTO != null && !passingDTO.getCards().isEmpty()) {
                 throw new GameplayException("No cards should be passed during SKIP_PASSING.");
             }
 
