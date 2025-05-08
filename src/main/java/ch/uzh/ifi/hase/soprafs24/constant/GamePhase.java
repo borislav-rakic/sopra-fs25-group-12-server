@@ -4,6 +4,7 @@ public enum GamePhase {
     PRESTART, // Game initialized, not yet started
     WAITING_FOR_EXTERNAL_API, // Game is waiting asynchronously for external API
     PASSING, // Players pass 3 cards (Left, Right, Across)
+    SKIP_PASSING, // Every fourth round, there is no PASSING
     FIRSTTRICK, // First trick being played (2♣ lead)
     NORMALTRICK, // Middle tricks (after first)
     FINALTRICK, // Final trick (#13)
@@ -19,6 +20,7 @@ public enum GamePhase {
         return this == PRESTART // Game initialized, not yet started
                 || this == WAITING_FOR_EXTERNAL_API // Game is waiting asynchronously for external API
                 || this == PASSING // Players pass 3 cards (Left, Right, Across)
+                || this == SKIP_PASSING // Every fourth round, there is no PASSING
                 || this == FIRSTTRICK // First trick being played (2♣ lead)
                 || this == NORMALTRICK // Middle tricks (after first)
                 || this == FINALTRICK // Final trick (#13)
@@ -29,6 +31,7 @@ public enum GamePhase {
         return this == FIRSTTRICK || this == NORMALTRICK || this == FINALTRICK;
     }
 
-    public boolean inPassing(){ return this == PASSING; }
+    public boolean inPassing() {
+        return this == PASSING;
+    }
 }
-

@@ -244,6 +244,10 @@ public class MatchService {
             // Is the person calling the host of the match?
             if (requestingMatchPlayer.getIsHost()) {
 
+                if (game.getPhase() == GamePhase.SKIP_PASSING) {
+                    noPassing(match, game);
+                }
+
                 // It is the host of the match, let him advance the TrickPhase if neccessary
                 gameService.advanceTrickPhaseIfOwnerPolling(game);
 
@@ -276,6 +280,19 @@ public class MatchService {
             throw new IllegalStateException("No active game found for this match (MatchService).");
         }
         return activeGame;
+    }
+
+    private void noPassing(Match match, Game game) {
+        if (game.getPhase() == GamePhase.SKIP_PASSING && game.getTrickPhase() != TrickPhase.READYFORFIRSTCARD) {
+            gameService.assignTwoOfClubsLeader(game);
+            game.setCurrentTrickNumber(1);
+            game.setCurrentPlayOrder(0);
+            game.setPhase(GamePhase.FIRSTTRICK);
+            game.setTrickPhase(TrickPhase.READYFORFIRSTCARD);
+            log.info("/// READY TO PLAY FIRST TRICK (AFTER SKIPPING PASSING) ///");
+
+            gameRepository.saveAndFlush(game);
+        }
     }
 
     public void handleConfirmedGame(Match match, Game finishedGame) {

@@ -50,7 +50,7 @@ public class Game {
     private TrickPhase trickPhase = TrickPhase.READYFORFIRSTCARD;
 
     @Column(name = "trick_leader_match_player_slot", nullable = false)
-    private Integer trickLeaderMatchPlayerSlot = 0;
+    private Integer trickLeaderMatchPlayerSlot = 1;
 
     @Column(name = "current_trick", length = 32)
     private String currentTrick = ""; // e.g., "2C,3D,QH,AS"
@@ -65,7 +65,7 @@ public class Game {
     private int currentPlayOrder = 0;
 
     @Column(name = "previous_trick_leader_match_player_slot")
-    private Integer previousTrickLeaderMatchPlayerSlot;
+    private Integer previousTrickLeaderMatchPlayerSlot = 1;
 
     @Column(name = "previous_trick_winner_match_player_slot")
     private Integer previousTrickWinnerMatchPlayerSlot;
