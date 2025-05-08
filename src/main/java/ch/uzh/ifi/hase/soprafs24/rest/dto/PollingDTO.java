@@ -6,7 +6,6 @@ import java.util.Map;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
-import ch.uzh.ifi.hase.soprafs24.model.Card;
 
 public class PollingDTO {
     // Info about the Match context
@@ -21,18 +20,11 @@ public class PollingDTO {
     private TrickPhase trickPhase; // [12]
     private boolean heartsBroken; // [13]
 
-    private List<Card> currentTrick; // [14a]
-    private String currentTrickAsString; // [14b]
-    private Integer currentTrickLeaderMatchPlayerSlot; // [15a]
-    private Integer currentTrickLeaderPlayerSlot; // [15b]
+    private TrickDTO currentTrickDTO;
+    private TrickDTO previousTrickDTO;
     private Integer currentPlayerSlot; // [15c]
     private int currentPlayOrder; // [15d]
 
-    private List<Card> previousTrick; // [16a]
-    private String previousTrickAsString; // [16b]
-    private Integer previousTrickWinnerMatchPlayerSlot; // [17a]
-    private Integer previousTrickWinnerPlayerSlot; // [17b]
-    private int previousTrickPoints; // [18a]
     private String resultHtml; // [18b]
     private List<MatchMessageDTO> matchMessages; // [18c]
 
@@ -199,79 +191,23 @@ public class PollingDTO {
 
     /******************** PREVIOUS TRICK **************************/
 
-    public List<Card> getCurrentTrick() {
-        return currentTrick;
+    public TrickDTO getCurrentTrickDTO() {
+        return currentTrickDTO;
     }
 
-    public void setCurrentTrick(List<Card> currentTrick) {
-        this.currentTrick = currentTrick;
+    public void setCurrentTrickDTO(TrickDTO currentTrickDTO) {
+        this.currentTrickDTO = currentTrickDTO;
     }
 
-    public String getCurrentTrickAsString() {
-        return currentTrickAsString;
+    public TrickDTO getPreviousTrickDTO() {
+        return previousTrickDTO;
     }
 
-    public void setCurrentTrickAsString(String currentTrickAsString) {
-        this.currentTrickAsString = currentTrickAsString;
-    }
-
-    public void setCurrentTrickLeaderPlayerSlot(int currentTrickLeaderPlayerSlot) {
-        this.currentTrickLeaderPlayerSlot = currentTrickLeaderPlayerSlot;
-    }
-
-    public Integer getCurrentTrickLeaderPlayerSlot() {
-        return currentTrickLeaderPlayerSlot;
-    }
-
-    public Integer getCurrentTrickLeaderMatchPlayerSlot() {
-        return currentTrickLeaderMatchPlayerSlot;
-    }
-
-    public void setCurrentTrickLeaderMatchPlayerSlot(Integer currentTrickLeaderMatchPlayerSlot) {
-        this.currentTrickLeaderMatchPlayerSlot = currentTrickLeaderMatchPlayerSlot;
+    public void setPreviousTrickDTO(TrickDTO previousTrickDTO) {
+        this.previousTrickDTO = previousTrickDTO;
     }
 
     /******************** PREVIOUS TRICK **************************/
-
-    public List<Card> getPreviousTrick() {
-        return previousTrick;
-    }
-
-    public void setPreviousTrick(List<Card> previousTrick) {
-        this.previousTrick = previousTrick;
-    }
-
-    public String getPreviousTrickAsString() {
-        return previousTrickAsString;
-    }
-
-    public void setPreviousTrickAsString(String previousTrickAsString) {
-        this.previousTrickAsString = previousTrickAsString;
-    }
-
-    public Integer getPreviousTrickWinnerMatchPlayerSlot() {
-        return previousTrickWinnerMatchPlayerSlot;
-    }
-
-    public void setPreviousTrickWinnerMatchPlayerSlot(Integer previousTrickWinnerMatchPlayerSlot) {
-        this.previousTrickWinnerMatchPlayerSlot = previousTrickWinnerMatchPlayerSlot;
-    }
-
-    public Integer getPreviousTrickWinnerPlayerSlot() {
-        return previousTrickWinnerPlayerSlot;
-    }
-
-    public void setPreviousTrickWinnerPlayerSlot(Integer previousTrickWinnerPlayerSlot) {
-        this.previousTrickWinnerPlayerSlot = previousTrickWinnerPlayerSlot;
-    }
-
-    public int getPreviousTrickPoints() {
-        return previousTrickPoints;
-    }
-
-    public void setPreviousTrickPoints(int previousTrickPoints) {
-        this.previousTrickPoints = previousTrickPoints;
-    }
 
     public boolean isHeartsBroken() {
         return heartsBroken;

@@ -20,12 +20,10 @@ import ch.uzh.ifi.hase.soprafs24.constant.AiMatchPlayerState;
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchMessageType;
-import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
-import ch.uzh.ifi.hase.soprafs24.entity.MatchMessage;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
@@ -52,6 +50,7 @@ public class GameService {
     private final CardRulesService cardRulesService;
     private final GameRepository gameRepository;
     private final GameStatsService gameStatsService;
+    private final GameTrickService gameTrickService;
     private final MatchRepository matchRepository;
     private final MatchMessageService matchMessageService;
     private final MatchPlayerRepository matchPlayerRepository;
@@ -66,6 +65,7 @@ public class GameService {
             @Qualifier("cardRulesService") CardRulesService cardRulesService,
             @Qualifier("gameRepository") GameRepository gameRepository,
             @Qualifier("gameStatsService") GameStatsService gameStatsService,
+            @Qualifier("gameTrickService") GameTrickService gameTrickService,
             @Qualifier("matchMessageService") MatchMessageService matchMessageService,
             @Qualifier("matchRepository") MatchRepository matchRepository,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
@@ -75,6 +75,7 @@ public class GameService {
         this.cardRulesService = cardRulesService;
         this.gameRepository = gameRepository;
         this.gameStatsService = gameStatsService;
+        this.gameTrickService = gameTrickService;
         this.matchMessageService = matchMessageService;
         this.matchRepository = matchRepository;
         this.matchPlayerRepository = matchPlayerRepository;
@@ -203,61 +204,40 @@ public class GameService {
     public void executeValidatedCardPlay(Game game, MatchPlayer matchPlayer, String cardCode) {
         log.info("   +-- executeValidatedCardPlay ---");
 
-        log.info("   | Playing card: {} by MatchPlayer {} (before play: hand = {})",
-                cardCode, matchPlayer.getInfo(), matchPlayer.getHand());
-
-        // Step 1: Remove the card from hand
         if (!matchPlayer.removeCardCodeFromHand(cardCode)) {
             throw new IllegalStateException("Tried to remove a card that wasn't in hand: " + cardCode);
         }
 
-        // Step 2: Add the card to the trick
-        game.addCardCodeToCurrentTrick(cardCode);
-        boolean heartJustBroke = cardRulesService.ensureHeartBreak(game);
-        if (game.getCurrentPlayOrder() == 1) {
-            matchMessageService.addMessage(
-                    game.getMatch(),
-                    MatchMessageType.GAME_STARTED,
-                    matchMessageService.getFunMessage(MatchMessageType.GAME_STARTED));
-        }
+        gameTrickService.addCardToTrick(game.getMatch(), game, matchPlayer, cardCode);
+
         if (GameConstants.QUEEN_OF_SPADES.equals(cardCode)) {
             matchMessageService.addMessage(
                     game.getMatch(),
                     MatchMessageType.QUEEN_WARNING,
                     matchMessageService.getFunMessage(MatchMessageType.QUEEN_WARNING));
         }
-        if (heartJustBroke) {
+
+        if (cardRulesService.ensureHeartBreak(game)) {
             matchMessageService.addMessage(
                     game.getMatch(),
                     MatchMessageType.HEARTS_BROKEN,
                     matchMessageService.getFunMessage(MatchMessageType.HEARTS_BROKEN));
         }
-        log.info("   | Card {} added to trick: {}. Hand now: {}", cardCode, game.getCurrentTrick(),
-                matchPlayer.getHand());
-        game.setCurrentPlayOrder(game.getCurrentPlayOrder() + 1);
-        log.info("CURRENTPLAYORDER {}", game.getCurrentPlayOrder());
+
+        if (game.getCurrentPlayOrder() == 1) {
+            matchMessageService.addMessage(
+                    game.getMatch(),
+                    MatchMessageType.GAME_STARTED,
+                    matchMessageService.getFunMessage(MatchMessageType.GAME_STARTED));
+        }
 
         gameStatsService.updateGameStatsAfterTrickChange(game);
 
-        if (game.getCurrentTrickSize() == 1) {
-            game.setTrickPhase(TrickPhase.RUNNINGTRICK);
-            log.info("   | TrickPhase transitioned to RUNNINGTRICK.");
-        }
-        // Step 3: Advance the turn if trick is not complete
-        if (game.getCurrentTrickSize() < GameConstants.MAX_TRICK_SIZE) {
-            int nextSlot = (game.getCurrentMatchPlayerSlot() % GameConstants.MAX_TRICK_SIZE) + 1;
-            game.setCurrentMatchPlayerSlot(nextSlot);
-            log.info("   | Turn advanced to next matchPlayerSlot: {}", game.getCurrentMatchPlayerSlot());
-        }
+        gameTrickService.afterCardPlayed(game); // new method for advancing state + checking trick completion
 
-        // Step 4: Handle potential trick completion
-        handlePotentialTrickCompletion(game);
-
-        // Step 5: Record the completed play — now that state is stable
         gameStatsService.recordCardPlay(game, matchPlayer, cardCode);
-        log.info("   | Stats recorded for card {} by MatchPlayer {}", cardCode, matchPlayer.getInfo());
-        log.info("   +--- executeValidatedCardPlay ---");
 
+        log.info("   +--- executeValidatedCardPlay ---");
     }
 
     public void updateGamePhaseBasedOnPlayOrder(Game game) {
@@ -281,46 +261,6 @@ public class GameService {
         if (before != after) {
             log.info("💄 GamePhase set to {} (playOrder = {}).", after, game.getCurrentPlayOrder());
         }
-    }
-
-    @Transactional
-    private void handlePotentialTrickCompletion(Game game) {
-        log.info(" (No trick completion yet.)");
-        if (game.getCurrentTrickSize() != GameConstants.MAX_TRICK_SIZE) {
-            return; // Trick is not complete yet
-        }
-        log.info(" &&& TRICK COMPLETION: {}. &&&", game.getCurrentTrick());
-
-        // Step A1: Determine winner and points based on current trick
-        int winnerMatchPlayerSlot = cardRulesService.determineTrickWinner(game);
-        int points = cardRulesService.calculateTrickPoints(game, winnerMatchPlayerSlot);
-
-        // Step A2: Adds the points to the correct entry in the MatchPlayer relation
-        MatchPlayer winnerMatchPlayer = matchPlayerRepository.findByMatchAndMatchPlayerSlot(game.getMatch(),
-                winnerMatchPlayerSlot);
-        winnerMatchPlayer.setGameScore(winnerMatchPlayer.getGameScore() + points);
-        matchPlayerRepository.save(winnerMatchPlayer);
-        matchPlayerRepository.flush();
-
-        log.info(" & Trick winnerMatchPlayerSlot {} ({} points)", winnerMatchPlayerSlot, points);
-
-        // Step A3: Archive the trick
-        // move current trick to previous, but do not clear it just yet.
-        game.setPreviousTrick(game.getCurrentTrick());
-        game.setPreviousTrickWinnerMatchPlayerSlot(winnerMatchPlayerSlot);
-        game.setPreviousTrickPoints(points);
-
-        // Step A4: Make everything ready. All that remains is clearing the trick.
-        game.setTrickLeaderMatchPlayerSlot(game.getPreviousTrickWinnerMatchPlayerSlot());
-        game.setCurrentMatchPlayerSlot(game.getPreviousTrickWinnerMatchPlayerSlot());
-
-        // Step A5:
-        game.setTrickJustCompletedTime(Instant.now());
-        game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
-        log.info(" & TrickPhase set to JUSTCOMPLETED at {}", game.getTrickJustCompletedTime());
-
-        // STOP HERE AND WAIT FOR A POLLING BY THE MATCH OWNER TO PICK UP WHERE YOU
-        // LEFT.
     }
 
     @Transactional
@@ -386,9 +326,8 @@ public class GameService {
                         .toList());
 
         if (totalGameScore != 26 && totalGameScore != 78) {
-            throw new IllegalStateException(
-                    String.format("Expected 26 or 78 points at end of game, but encountered %s.",
-                            totalGameScore));
+            log.warn("Unexpected total score at game end: {}", totalGameScore);
+            throw new GameplayException("Scoring error: the total points collected this round are inconsistent.");
         }
 
         // Handle moon shot

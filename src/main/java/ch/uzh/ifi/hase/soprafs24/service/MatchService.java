@@ -165,10 +165,6 @@ public class MatchService {
         String cardCode = "XX".equals(dto.getCard()) ? "XX" : CardUtils.requireValidCardFormat(dto.getCard());
         gameService.playCardAsHuman(game, matchPlayer, cardCode);
 
-        log.info("MatchService: playCardAsHuman. Now checking if isFinalCardOfGame.");
-        if (gameService.finalizeGameIfComplete(game)) {
-            wrapUpCompletedGame(game);
-        }
     }
 
     private void wrapUpCompletedGame(Game game) {
@@ -188,15 +184,6 @@ public class MatchService {
         match.setPhase(MatchPhase.BETWEEN_GAMES);
         log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
         matchRepository.save(match);
-    }
-
-    private boolean isFinalCardOfGame(Game game) {
-        boolean verdict = game.getPhase() == GamePhase.RESULT &&
-                game.getCurrentPlayOrder() >= GameConstants.FULL_DECK_CARD_COUNT;
-        log.info(
-                "MatchService: Now checking if isFinalCardOfGame. GamePhase={}, currentPlayOrder={}. Verdict={}.",
-                game.getPhase(), game.getCurrentPlayOrder(), verdict);
-        return verdict;
     }
 
     @Transactional

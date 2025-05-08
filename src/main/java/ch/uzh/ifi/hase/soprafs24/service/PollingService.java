@@ -38,14 +38,16 @@ public class PollingService {
 
     private final CardRulesService cardRulesService;
     private final MatchMessageService matchMessageService;
+    private final GameTrickService gameTrickService;
 
     @Autowired
     public PollingService(
             @Qualifier("cardRulesService") CardRulesService cardRulesService,
-            @Qualifier("matchMessageService") MatchMessageService matchMessageService) {
+            @Qualifier("matchMessageService") MatchMessageService matchMessageService,
+            @Qualifier("gameTrickService") GameTrickService gameTrickService) {
         this.cardRulesService = cardRulesService;
         this.matchMessageService = matchMessageService;
-
+        this.gameTrickService = gameTrickService;
     }
 
     /**
@@ -71,16 +73,6 @@ public class PollingService {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "There is no active  game in this match (Polling).");
         }
-
-        // Current trick as List<Card> [14]
-        List<Card> currentTrickAsCards = game.getCurrentTrick().stream()
-                .map(CardUtils::fromCode)
-                .collect(Collectors.toList());
-
-        // Previous trick as List<Card> [14]
-        List<Card> previousTrickAsCards = game.getPreviousTrick().stream()
-                .map(CardUtils::fromCode)
-                .collect(Collectors.toList());
 
         // MATCHPLAYER
         MatchPlayer matchPlayer = matchPlayerRepository.findByUserAndMatch(user, match);
@@ -214,17 +206,8 @@ public class PollingService {
         dto.setGamePhase(game.getPhase()); // [11a]
         dto.setTrickPhase(game.getTrickPhase()); // [12]
         dto.setHeartsBroken(game.getHeartsBroken()); // [13]
-        dto.setCurrentTrick(currentTrickAsCards); // [14]
-
-        dto.setCurrentTrickLeaderMatchPlayerSlot(game.getTrickLeaderMatchPlayerSlot()); // [15a]
-        dto.setCurrentTrickLeaderPlayerSlot(game.getTrickLeaderMatchPlayerSlot() - 1); // [15b]
-
-        dto.setPreviousTrick(previousTrickAsCards); // [16]
-        if (game.getPreviousTrickWinnerMatchPlayerSlot() != null) {
-            dto.setPreviousTrickWinnerMatchPlayerSlot(game.getPreviousTrickWinnerMatchPlayerSlot());
-            dto.setPreviousTrickWinnerPlayerSlot(game.getPreviousTrickWinnerMatchPlayerSlot() - 1);
-        }
-        dto.setPreviousTrickPoints(game.getPreviousTrickPoints()); // [18a]
+        dto.setCurrentTrickDTO(gameTrickService.prepareTrickDTO(match, game, matchPlayer)); // [14]
+        dto.setPreviousTrickDTO(gameTrickService.preparePreviousTrickDTO(match, game, matchPlayer));
 
         dto.setMatchMessages(matchMessageService.messages(match, game, matchPlayer)); // [18c]
 
