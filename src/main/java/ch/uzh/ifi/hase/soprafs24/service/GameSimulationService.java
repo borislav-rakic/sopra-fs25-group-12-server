@@ -119,7 +119,8 @@ public class GameSimulationService {
 
     @Transactional
     public void simulateMatchToLastTrick(Match match, Game game) {
-        simulateGameToLastTrick(match, game); // This may throw, which is fine
+
+        simulateUpToFinalTrick(match, game);
 
         log.info("SIM. SimulateGameToLastTrick done");
         Game originalGame = game;
@@ -221,6 +222,71 @@ public class GameSimulationService {
                 .get(); // Safe now because we checked list is not empty
 
         return Integer.valueOf(highestScore);
+    }
+
+    @Transactional
+    public void simulateUpToFinalTrick(Match match, Game game) {
+        try {
+
+            game.setCurrentMatchPlayerSlot(0);
+            gameRepository.saveAndFlush(game);
+            MatchPlayer m1 = match.getMatchPlayers().get(0);
+            MatchPlayer m2 = match.getMatchPlayers().get(1);
+            MatchPlayer m3 = match.getMatchPlayers().get(2);
+            MatchPlayer m4 = match.getMatchPlayers().get(3);
+
+            List<List<String>> a = Arrays.asList(
+                    Arrays.asList("5C", "6C", "7C", "8C"),
+                    Arrays.asList("5C", "6D", "7C", "8D"),
+                    Arrays.asList("5S", "6S", "7C", "0D"),
+                    Arrays.asList("4C", "6D", "7C", "KD"),
+                    Arrays.asList("5S", "6D", "7D", "8C"));
+            int i = random.nextInt(a.size());
+            List<String> b = a.get(i);
+
+            List<List<Integer>> aa = Arrays.asList(
+                    Arrays.asList(5, 21, 0, 0),
+                    Arrays.asList(9, 9, 4, 4),
+                    Arrays.asList(20, 3, 3, 0),
+                    Arrays.asList(0, 6, 5, 15),
+                    Arrays.asList(0, 0, 0, 26));
+            int ii = random.nextInt(aa.size());
+            List<Integer> bb = aa.get(ii);
+
+            m1.setHand(b.get(0));
+            m1.setGameScore(bb.get(0));
+
+            m2.setHand(b.get(1));
+            m2.setGameScore(bb.get(1));
+
+            m3.setHand(b.get(2));
+            m3.setGameScore(bb.get(2));
+
+            m4.setHand(b.get(3));
+            m4.setGameScore(bb.get(3));
+
+            matchPlayerRepository.save(m1);
+            matchPlayerRepository.save(m2);
+            matchPlayerRepository.save(m3);
+            matchPlayerRepository.save(m4);
+
+            game.setCurrentTrick(new ArrayList<>());
+            game.setHeartsBroken(true);
+            game.setCurrentMatchPlayerSlot(1);
+            game.setCurrentPlayOrder(48);
+            game.setCurrentTrickNumber(13);
+            game.setPhase(GamePhase.FINALTRICK);
+            gameRepository.saveAndFlush(game);
+
+            log.info("Simulation stopped at FINALTRICK for game {}", game.getGameId());
+        } catch (Exception e) {
+            log.error("Exception during simulation: ", e); // Logs full stack trace
+            throw e; // rethrow if needed
+        }
+    }
+
+    public boolean isTrickComplete(Game game) {
+        return game.getCurrentTrick().size() == 4;
     }
 
 }

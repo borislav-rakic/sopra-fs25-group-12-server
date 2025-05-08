@@ -435,22 +435,9 @@ public class MatchService {
 
     @Transactional
     public void autoPlayGame(Long matchId) {
-        Match match = requireMatchByMatchId(matchId);
-        Game game = requireActiveGameByMatch(match);
-
-        // Call the simulation service to play the game until the last trick
-        gameSimulationService.simulateGameToLastTrick(match, game);
-
-        // Log matchPlayer scores before saving
-        match.getMatchPlayers().forEach(player -> {
-            log.info("MatchPlayer id={}, slot={}, matchScore={}",
-                    player.getUser().getId(), player.getMatchPlayerSlot(), player.getMatchScore());
-        });
-
-        // Save all match players with the updated scores
-        matchPlayerRepository.saveAll(match.getMatchPlayers());
-
-        log.info("Auto-play to last trick finished for match {}", matchId);
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        Game game = match.getActiveGame();
+        gameSimulationService.simulateUpToFinalTrick(match, game);
     }
 
     @Transactional
