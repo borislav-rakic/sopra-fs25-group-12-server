@@ -93,7 +93,7 @@ public class Match implements Serializable {
     }
 
     public boolean getFastForwardMode() {
-        return fastForwardMode = true;
+        return fastForwardMode;
     }
 
     public List<Game> getGames() {

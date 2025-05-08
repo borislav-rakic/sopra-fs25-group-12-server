@@ -24,6 +24,7 @@ import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
+import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -229,8 +230,8 @@ public class GameSetupService {
 
                 cardIndex++;
             }
-
-            matchPlayer.setHand(handBuilder.toString());
+            String sortedHand = CardUtils.normalizeCardCodeString(handBuilder.toString());
+            matchPlayer.setHand(sortedHand);
             log.info("  🦑 GameSetupService: Dealing hand [{}] to MatchPlayer.id={} in slot={}.",
                     matchPlayer.getHand(),
                     matchPlayer.getUser().getId(),

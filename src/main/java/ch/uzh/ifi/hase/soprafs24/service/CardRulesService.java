@@ -16,6 +16,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 import ch.uzh.ifi.hase.soprafs24.util.DebuggingService;
@@ -66,7 +67,7 @@ public class CardRulesService {
      **/
     public String getPlayableCardsForMatchPlayer(Game game, MatchPlayer matchPlayer, boolean isPlaying) {
         // Game state is assumed to be perfectly consistent!
-        log.info("   ¦¦¦ REACHED getPlayableCardsForMatchPlayer ¦¦¦");
+        // log.info(" ¦¦¦ REACHED getPlayableCardsForMatchPlayer ¦¦¦");
 
         // Only players who are actually about to play get info on playability of cards.
         if (!game.getPhase().inTrick()
@@ -126,7 +127,7 @@ public class CardRulesService {
         GamePhase gamePhase = game.getPhase();
         // log.info(" ¦ gamePhase: {}.", gamePhase);
 
-        log.info("   ¦ Which Cards are Playable?");
+        // log.info(" ¦ Which Cards are Playable?");
         // log.info(
         // " ¦ MatchPlayer {} in matchPlayerSlot {}, playing in trick #{}.",
         // matchPlayer.getInfo(),
@@ -148,7 +149,7 @@ public class CardRulesService {
         // Case 0. There are no cards in the player's hand
         if (handSize == 0) {
             // log.info(" ¦ Case 0.");
-            throw new IllegalStateException(
+            throw new GameplayException(
                     String.format(
                             "Player has no cards in his hands: %s.",
                             hand));
@@ -241,11 +242,15 @@ public class CardRulesService {
 
         }
         log.info(
-                "   ¦ Playable cards [in hand {} (does {}include 2C)}, given it is trick #{} and it is trick card #{} in the current trick {} ({}) and hearts are {}broken: {}.",
-                hand, handHas2C ? "" : "not ", trickNumber, trickSize, trick,
-                leadingSuit.isEmpty() ? "no leading suit" : "leading suit:" + leadingSuit, heartsBroken ? "" : "not ",
+                "   ¦ Playable cards (hand: [{}]) card #{} in trick #{}; cards in trick: [{}] ({}) and hearts are {}broken: {}. Verdict: [{}].",
+                hand,
+                trickSize + 1,
+                trickNumber,
+                trick,
+                leadingSuit.isEmpty() ? "no leading suit" : "leading suit:" + leadingSuit,
+                heartsBroken ? "" : "not ",
                 playableCards);
-        log.info("   ¦¦¦ VERDICT: {}.", playableCards);
+        // log.info(" ¦¦¦ VERDICT: {}.", playableCards);
         return CardUtils.normalizeCardCodeString(playableCards);
 
     }
@@ -294,8 +299,9 @@ public class CardRulesService {
      * @return the matchPlayerSlot number (integer) of the winning player
      */
     public int determineTrickWinner(Game game) {
-        log.info("   ççç DETERMINING TRICK WINNER OF TRICK #{}.", game.getCurrentTrickNumber());
-        log.info("   ç Current Trick is {}.", game.getCurrentTrickAsString());
+        // log.info(" ççç DETERMINING TRICK WINNER OF TRICK #{}.",
+        // game.getCurrentTrickNumber());
+        // log.info(" ç Current Trick is {}.", game.getCurrentTrickAsString());
 
         List<String> trick = game.getCurrentTrick(); // Cards played, in order
         List<Integer> slots = game.getTrickMatchPlayerSlotOrder(); // Slots who played, in order
@@ -323,9 +329,10 @@ public class CardRulesService {
             char suit = getSuit(cardCode);
             int value = getCardValue(cardCode);
 
-            log.info("   ç Evaluating card {} with suit {} and value {}, leading suit: {}",
-                    cardCode, suit, value, leadingSuit);
-            log.info("   ç MatchPlayerSlot {} played card {}", rotatedSlots.get(i), rotatedTrick.get(i));
+            // log.info(" ç Evaluating card {} with suit {} and value {}, leading suit: {}",
+            // cardCode, suit, value, leadingSuit);
+            // log.info(" ç MatchPlayerSlot {} played card {}", rotatedSlots.get(i),
+            // rotatedTrick.get(i));
 
             if (suit == leadingSuit && value > bestValue) {
                 bestValue = value;
@@ -334,11 +341,12 @@ public class CardRulesService {
         }
 
         int winningSlot = rotatedSlots.get(winningIndex);
-        log.info("   ç Establishing Winner: LeaderSlot: {}, Rotated Slots: {}, Trick: {}",
-                leaderSlot,
-                rotatedSlots.stream().map(String::valueOf).collect(Collectors.joining(",")),
-                rotatedTrick);
-        log.info("   ççç VERDICT: Winner is {}", winningSlot);
+        // log.info(" ç Establishing Winner: LeaderSlot: {}, Rotated Slots: {}, Trick:
+        // {}",
+        // leaderSlot,
+        // rotatedSlots.stream().map(String::valueOf).collect(Collectors.joining(",")),
+        // rotatedTrick);
+        // log.info(" ççç VERDICT: Winner is {}", winningSlot);
         return winningSlot;
     }
 

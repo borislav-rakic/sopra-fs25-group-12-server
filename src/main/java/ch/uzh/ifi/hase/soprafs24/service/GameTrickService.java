@@ -40,7 +40,10 @@ public class GameTrickService {
     public void addCardToTrick(Match match, Game game, MatchPlayer matchPlayer, String cardCode) {
         game.addCardCodeToCurrentTrick(cardCode);
         game.setCurrentPlayOrder(game.getCurrentPlayOrder() + 1);
-        updateGamePhaseBasedOnPlayOrder(game);
+        log.info("addCardToTrick, cardCode={}, new playOrder={}, gamePhase (before updating) is {}.",
+                cardCode,
+                game.getCurrentPlayOrder(),
+                game.getPhase());
     }
 
     public void updateGamePhaseBasedOnPlayOrder(Game game) {
@@ -64,6 +67,8 @@ public class GameTrickService {
         if (newPhase != currentPhase) {
             game.setPhase(newPhase);
             log.info("💄 GamePhase transitioned from {} to {} (playOrder = {}).", currentPhase, newPhase, playOrder);
+        } else {
+            log.info("💄 No GamePhase transition in {} to (playOrder = {}).", currentPhase, playOrder);
         }
     }
 

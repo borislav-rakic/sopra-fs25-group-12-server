@@ -123,7 +123,7 @@ public class GameService {
 
     @Transactional
     public void playCardAsHuman(Game game, MatchPlayer matchPlayer, String cardCode) {
-        log.info("=== PLAY CARD AS HUMAN ({}), CurrentSlot: {}.",
+        log.info("=== PLAY CARD AS HUMAN (playOrder={}), CurrentSlot: {}.",
                 game.getCurrentPlayOrder(), game.getCurrentMatchPlayerSlot());
         log.info("  = HUMAN at matchPlayerSlot {} attempting to play card {}.", matchPlayer.getInfo(),
                 cardCode);
@@ -256,8 +256,17 @@ public class GameService {
             gameTrickService.clearTrick(game.getMatch(), game);
             gameTrickService.updateGamePhaseBasedOnPlayOrder(game);
 
+            // NEW: Detect and set final game phase
+            if (game.getCurrentPlayOrder() == GameConstants.FULL_DECK_CARD_COUNT &&
+                    game.getPhase() != GamePhase.RESULT) {
+
+                log.info("All cards played — setting GamePhase to RESULT.");
+                game.setPhase(GamePhase.RESULT);
+            }
+
+            // Proceed with finalization
             if (finalizeGameIfComplete(game)) {
-                return; // Already handled
+                return; // Game is done
             }
 
             gameRepository.save(game);
