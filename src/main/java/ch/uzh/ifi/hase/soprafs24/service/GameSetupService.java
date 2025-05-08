@@ -15,7 +15,6 @@ import org.springframework.web.server.ResponseStatusException;
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
-import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
@@ -23,6 +22,7 @@ import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 import reactor.core.publisher.Mono;
@@ -33,13 +33,16 @@ public class GameSetupService {
 
     private final ExternalApiClientService externalApiClientService;
     private final GameStatsService gameStatsService;
+    private final MatchPlayerRepository matchPlayerRepository;
 
     @Autowired
     public GameSetupService(
             @Qualifier("externalApiClientService") ExternalApiClientService externalApiClientService,
-            @Qualifier("gameStatsService") GameStatsService gameStatsService) {
+            @Qualifier("gameStatsService") GameStatsService gameStatsService,
+            @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository) {
         this.externalApiClientService = externalApiClientService;
         this.gameStatsService = gameStatsService;
+        this.matchPlayerRepository = matchPlayerRepository;
 
     }
 
@@ -236,6 +239,7 @@ public class GameSetupService {
                     matchPlayer.getHand(),
                     matchPlayer.getUser().getId(),
                     matchPlayer.getMatchPlayerSlot());
+            matchPlayerRepository.saveAndFlush(matchPlayer);
 
         }
 

@@ -9,9 +9,14 @@ import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 @Qualifier("aiPlayingService")
 public class AiPlayingService {
+
+    private static final Logger log = LoggerFactory.getLogger(AiPlayingService.class);
 
     private final CardRulesService cardRulesService;
 
@@ -22,8 +27,8 @@ public class AiPlayingService {
     public String selectCardToPlay(Game game, MatchPlayer matchPlayer, Strategy strategy) {
         String playableCardsString = cardRulesService.getPlayableCardsForMatchPlayerPolling(game, matchPlayer);
 
-        System.out.println("I am MatchPlayer with hand: " + matchPlayer.getHand());
-        System.out.println("I am MatchPlayer with playable hand: " + playableCardsString);
+        // log.info ("I am MatchPlayer with hand: {}.", matchPlayer.getHand());
+        // log.info ("I am MatchPlayer with playable hand: {}.", playableCardsString);
 
         if (playableCardsString == null || playableCardsString.isBlank()) {
             throw new IllegalStateException(
@@ -34,8 +39,8 @@ public class AiPlayingService {
 
         String[] legalCards = playableCardsString.split(",");
 
-        System.out.println("Hi, I am an AI player, making a decision.");
-        System.out.println("My legal cards are: " + String.join(", ", legalCards));
+        // log.info("Hi, I am an AI player, making a decision.");
+        // log.info("My legal cards are: ", String.join(", ", legalCards));
 
         String cardCode;
         switch (strategy) {
@@ -51,7 +56,7 @@ public class AiPlayingService {
             default -> cardCode = legalCards[0]; // fallback => RANDOM
         }
 
-        System.out.println("I choose: " + cardCode);
+        log.info("AI Player chooses: {}.", cardCode);
         return cardCode;
     }
 

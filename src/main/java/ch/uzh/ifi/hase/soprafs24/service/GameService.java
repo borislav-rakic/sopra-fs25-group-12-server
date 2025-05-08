@@ -208,8 +208,16 @@ public class GameService {
             throw new IllegalStateException("Tried to remove a card that wasn't in hand: " + cardCode);
         }
 
+        log.info("    + executeValidatedCardPlay just about to addCardToTrick({}). GamePhase={}.", cardCode,
+                game.getPhase());
         gameTrickService.addCardToTrick(game.getMatch(), game, matchPlayer, cardCode);
+        log.info("    + executeValidatedCardPlay just after addCardToTrick({}). GamePhase={}.", cardCode,
+                game.getPhase());
+        gameTrickService.updateGamePhaseBasedOnPlayOrder(game);
 
+        log.info("    + executeValidatedCardPlay just after updateGamePhaseBasedOnPlayOrder({}). GamePhase={}.",
+                cardCode,
+                game.getPhase());
         if (GameConstants.QUEEN_OF_SPADES.equals(cardCode)) {
             matchMessageService.addMessage(
                     game.getMatch(),

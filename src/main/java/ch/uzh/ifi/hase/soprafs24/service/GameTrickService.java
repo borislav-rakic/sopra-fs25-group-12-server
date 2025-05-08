@@ -68,7 +68,7 @@ public class GameTrickService {
             game.setPhase(newPhase);
             log.info("💄 GamePhase transitioned from {} to {} (playOrder = {}).", currentPhase, newPhase, playOrder);
         } else {
-            log.info("💄 No GamePhase transition in {} to (playOrder = {}).", currentPhase, playOrder);
+            log.info("💄 No GamePhase transition in GamePhase={} (playOrder = {}).", currentPhase, playOrder);
         }
     }
 
