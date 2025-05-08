@@ -88,6 +88,10 @@ public class GameTrickService {
     }
 
     public TrickDTO prepareTrickDTO(Match match, Game game, MatchPlayer pollingMatchPlayer) {
+        if (game.getTrickPhase().inTransition()) {
+            return preparePreviousTrickDTO(match, game, pollingMatchPlayer);
+        }
+
         List<String> currentTrick = game.getCurrentTrick();
         List<Integer> absoluteOrder = game.getTrickMatchPlayerSlotOrder();
 
@@ -104,12 +108,7 @@ public class GameTrickService {
         Integer leaderAbsolute = game.getTrickLeaderMatchPlayerSlot();
         int leaderRelative = (leaderAbsolute - pollingSlot + 4) % 4;
 
-        Integer winnerAbsolute = game.getTrickPhase().inTransition()
-                ? game.getPreviousTrickWinnerMatchPlayerSlot()
-                : null;
-        Integer winnerRelative = winnerAbsolute != null ? (winnerAbsolute - pollingSlot + 4) % 4 : null;
-
-        return new TrickDTO(cards, leaderRelative, winnerRelative);
+        return new TrickDTO(cards, leaderRelative, null);
     }
 
     public TrickDTO preparePreviousTrickDTO(Match match, Game game, MatchPlayer pollingMatchPlayer) {
