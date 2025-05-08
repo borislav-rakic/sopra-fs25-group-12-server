@@ -80,27 +80,27 @@ public class MatchSummaryService {
     matchWinner.setMatchScore(1000);
 
     for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
-      // Checks if this player has a lower score than the one before
-      if (matchPlayer.getMatchScore() < matchWinner.getMatchScore()) {
-        matchWinner = matchPlayer;
-      }
+        // Checks if this player has a lower score than the one before
+        if (matchPlayer.getMatchScore() < matchWinner.getMatchScore()) {
+            matchWinner = matchPlayer;
+        }
 
-      // Adds the username
-      html = html.concat(String.format("""
+        // Adds the username
+        html = html.concat(String.format("""
                       <tr>
                           <td>%s</td>
           """, matchPlayer.getUser().getUsername()));
 
-      // Adds the score for each game
-      for (int i = 0; i < games.size(); i++) {
-        int matchPlayerScore = gameStatsService.getPlayerScoreInGame(matchPlayer.getMatchPlayerSlot(), games.get(i));
-        html = html.concat(String.format("""
+        // Adds the score for each game
+        for (int i = 0; i < games.size(); i++) {
+            int matchPlayerScore = games.get(i).getGameScoresList().get(matchPlayer.getMatchPlayerSlot());
+            html = html.concat(String.format("""
                             <td>%s</td>
             """, matchPlayerScore));
-      }
+        }
 
-      // Adds the total score, amount of perfect rounds, and amount of moon shots
-      html = html.concat(String.format("""
+        // Adds the total score, amount of perfect rounds, and amount of moon shots
+        html = html.concat(String.format("""
                           <td>%s</td>
                           <td>%s</td>
                           <td>%s</td>
