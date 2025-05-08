@@ -25,6 +25,7 @@ import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
+import ch.uzh.ifi.hase.soprafs24.util.MatchUtils;
 import reactor.core.publisher.Mono;
 
 @Service
@@ -253,6 +254,7 @@ public class GameSetupService {
         if (currentGameNumber % 4 == 0) {
             // Skip passing and jump directly into the first trick.
             game.setPhase(GamePhase.SKIP_PASSING);
+            MatchUtils.resetReadyStateForHumanPlayers(match, matchPlayerRepository);
         } else {
             game.setPhase(GamePhase.PASSING);
             log.info("💄 GamePhase is set to PASSING");

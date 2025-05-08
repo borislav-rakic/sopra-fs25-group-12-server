@@ -11,6 +11,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.MatchMessage;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
@@ -28,6 +29,7 @@ import java.time.Instant;
 import java.util.*;
 
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
+import ch.uzh.ifi.hase.soprafs24.util.MatchUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -147,7 +149,18 @@ public class MatchService {
         User user = userService.requireUserByToken(token);
         Game game = gameRepository.findActiveGameByMatchId(match.getMatchId());
         MatchPlayer matchPlayer = match.requireMatchPlayerByUser(user);
+
         log.info("matchService.passingAcceptCards reached");
+        if (game.getPhase() == GamePhase.SKIP_PASSING) {
+            if (passingDTO != null && !passingDTO.getCardsAsString().isEmpty()) {
+                throw new GameplayException("No cards should be passed during SKIP_PASSING.");
+            }
+
+            matchPlayer.setReady(true);
+            matchPlayerRepository.saveAndFlush(matchPlayer);
+            return;
+        }
+
         gameService.passingAcceptCards(game, matchPlayer, passingDTO, pickRandomly);
     };
 
@@ -283,7 +296,10 @@ public class MatchService {
     }
 
     private void noPassing(Match match, Game game) {
-        if (game.getPhase() == GamePhase.SKIP_PASSING && game.getTrickPhase() != TrickPhase.READYFORFIRSTCARD) {
+        if (game.getPhase() == GamePhase.SKIP_PASSING
+                && game.getTrickPhase() != TrickPhase.READYFORFIRSTCARD
+                && MatchUtils.verifyAllHumanMatchPlayersReady(match)) {
+
             gameService.assignTwoOfClubsLeader(game);
             game.setCurrentTrickNumber(1);
             game.setCurrentPlayOrder(0);
