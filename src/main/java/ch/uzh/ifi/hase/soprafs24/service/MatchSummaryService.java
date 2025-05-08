@@ -93,7 +93,7 @@ public class MatchSummaryService {
 
         // Adds the score for each game
         for (int i = 0; i < games.size(); i++) {
-            int matchPlayerScore = games.get(i).getGameScoresList().get(matchPlayer.getMatchPlayerSlot());
+            int matchPlayerScore = games.get(i).getGameScoresList().get(matchPlayer.getMatchPlayerSlot() - 1);
             html = html.concat(String.format("""
                             <td>%s</td>
             """, matchPlayerScore));

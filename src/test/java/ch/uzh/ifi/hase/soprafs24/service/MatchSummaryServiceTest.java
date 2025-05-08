@@ -39,10 +39,20 @@ public class MatchSummaryServiceTest {
 
     @BeforeEach
     public void setup() {
+        List<Integer> scoreList = new ArrayList<>();
+        scoreList.add(15);
+        scoreList.add(2);
+        scoreList.add(5);
+        scoreList.add(20);
+
         game1 = new Game();
+        game1.setGameScoresList(scoreList);
         game2 = new Game();
+        game2.setGameScoresList(scoreList);
         game3 = new Game();
+        game3.setGameScoresList(scoreList);
         game4 = new Game();
+        game4.setGameScoresList(scoreList);
 
         List<Game> games = new ArrayList<>();
         games.add(game1);
@@ -64,21 +74,25 @@ public class MatchSummaryServiceTest {
         matchPlayer1.setUser(user1);
         matchPlayer1.setPerfectGames(0);
         matchPlayer1.setShotTheMoonCount(1);
+        matchPlayer1.setMatchPlayerSlot(1);
         matchPlayer2 = new MatchPlayer();
         matchPlayer2.setMatchScore(80);
         matchPlayer2.setUser(user2);
         matchPlayer2.setPerfectGames(2);
         matchPlayer2.setShotTheMoonCount(0);
+        matchPlayer2.setMatchPlayerSlot(2);
         matchPlayer3 = new MatchPlayer();
         matchPlayer3.setMatchScore(90);
         matchPlayer3.setUser(user3);
         matchPlayer3.setPerfectGames(3);
         matchPlayer3.setShotTheMoonCount(0);
+        matchPlayer3.setMatchPlayerSlot(3);
         matchPlayer4 = new MatchPlayer();
         matchPlayer4.setMatchScore(50);
         matchPlayer4.setUser(user4);
         matchPlayer4.setPerfectGames(0);
         matchPlayer4.setShotTheMoonCount(0);
+        matchPlayer4.setMatchPlayerSlot(4);
 
         List<MatchPlayer> matchPlayers = new ArrayList<>();
         matchPlayers.add(matchPlayer1);
@@ -121,38 +135,38 @@ public class MatchSummaryServiceTest {
                             <tr>
                                 <td>user1</td>
                                 <td>15</td>
-                                <td>2</td>
-                                <td>5</td>
-                                <td>20</td>
+                                <td>15</td>
+                                <td>15</td>
+                                <td>15</td>
                                 <td>70</td>
                                 <td>0</td>
                                 <td>1</td>
                             </tr>
                             <tr>
                                 <td>user2</td>
-                                <td>15</td>
                                 <td>2</td>
-                                <td>5</td>
-                                <td>20</td>
+                                <td>2</td>
+                                <td>2</td>
+                                <td>2</td>
                                 <td>80</td>
                                 <td>2</td>
                                 <td>0</td>
                             </tr>
                             <tr>
                                 <td>user3</td>
-                                <td>15</td>
-                                <td>2</td>
                                 <td>5</td>
-                                <td>20</td>
+                                <td>5</td>
+                                <td>5</td>
+                                <td>5</td>
                                 <td>90</td>
                                 <td>3</td>
                                 <td>0</td>
                             </tr>
                             <tr>
                                 <td>user4</td>
-                                <td>15</td>
-                                <td>2</td>
-                                <td>5</td>
+                                <td>20</td>
+                                <td>20</td>
+                                <td>20</td>
                                 <td>20</td>
                                 <td>50</td>
                                 <td>0</td>

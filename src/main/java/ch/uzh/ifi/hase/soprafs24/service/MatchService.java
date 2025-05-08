@@ -328,6 +328,7 @@ public class MatchService {
         gameRepository.save(finishedGame);
         if (shouldEndMatch(match)) {
             match.setPhase(MatchPhase.RESULT);
+            setExistingMatchSummaryOrCreateIt(match, matchSummaryService.buildMatchResultHtml(match, finishedGame));
             log.info("💄 MatchPhase is set to RESULT.");
             matchRepository.save(match);
         } else {
