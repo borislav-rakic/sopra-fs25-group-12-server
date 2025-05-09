@@ -13,6 +13,9 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.Dictionary;
+import java.util.Hashtable;
 import java.util.List;
 
 @Service
@@ -74,71 +77,92 @@ public class MatchSummaryService {
   }
 
   public String buildMatchResultHtml(Match match, Game game) {
-    String html = """
-        <div className="modalMessage modalMessageMatchFinished">
-            <table>
-                <thead>
-                    <tr>
-                        <th>GAME</th>
-        """;
-
+    String html = "<div className=\"modalMessage modalMessageMatchResult\">";
+    html += "<table>";
     List<Game> games = match.getGames();
-    int counter = 1;
+    List<MatchPlayer> mp = match.getMatchPlayers();
+    html += "<tr>";
+    html += "<th>Game</th>";
+    html += "<th>" + mp.get(0).getUser().getUsername() + "</th>";
+    html += "<th>" + mp.get(1).getUser().getUsername() + "</th>";
+    html += "<th>" + mp.get(2).getUser().getUsername() + "</th>";
+    html += "<th>" + mp.get(3).getUser().getUsername() + "</th>";
+    html += "</tr>";
+
     for (int i = 0; i < games.size(); i++) {
-      html = html.concat(String.format("                <th>%s</th>\n", counter));
-      counter++;
+      Game someGame = games.get(i);
+      List<Integer> gameScores = someGame.getGameScoresList();
+      html += "<tr>";
+      html += "<td>" + someGame.getGameNumber() + "</td>";
+      for (int j = 0; j < gameScores.size(); j++) {
+        html += "<td>" + gameScores.get(j) + "</td>";
+      }
+      html += "</tr>";
     }
 
-    html = html.concat("""
-                        <th>| Match</th>
-                        <th>Perfect<br/>Rounds</th>
-                        <th>Shooting<br/>the Moon</th>
-                    </tr>
-                </thead>
-                <tbody>
-        """);
+    html += "<tr>";
+    html += "<td><em><strong>Moon shots</strong></em></td>";
+    html += "<td><em><strong>" + mp.get(0).getShotTheMoonCount() + "</strong></em></td>";
+    html += "<td><em><strong>" + mp.get(1).getShotTheMoonCount() + "</strong></em></td>";
+    html += "<td><em><strong>" + mp.get(2).getShotTheMoonCount() + "</strong></em></td>";
+    html += "<td><em><strong>" + mp.get(3).getShotTheMoonCount() + "</strong></em></td>";
+    html += "</tr>";
 
-    MatchPlayer matchWinner = new MatchPlayer();
-    matchWinner.setMatchScore(1000);
+    html += "<tr>";
+    html += "<td><em><strong>Perfect games</strong></em></td>";
+    html += "<td><em><strong>" + mp.get(0).getPerfectGames() + "</strong></em></td>";
+    html += "<td><em><strong>" + mp.get(1).getPerfectGames() + "</strong></em></td>";
+    html += "<td><em><strong>" + mp.get(2).getPerfectGames() + "</strong></em></td>";
+    html += "<td><em><strong>" + mp.get(3).getPerfectGames() + "</strong></em></td>";
+    html += "</tr>";
 
-    for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
-      // Checks if this player has a lower score than the one before
-      if (matchPlayer.getMatchScore() < matchWinner.getMatchScore()) {
-        matchWinner = matchPlayer;
+    MatchPlayer winner = new MatchPlayer();
+    winner.setMatchScore(5000);
+
+    for (int i = 0; i < mp.size(); i++) {
+      if (mp.get(i).getMatchScore() < winner.getMatchScore()) {
+        winner = mp.get(i);
       }
-
-      // Adds the username
-      html = html.concat(String.format("""
-                      <tr>
-                          <td>%s</td>
-          """, matchPlayer.getUser().getUsername()));
-
-      // Adds the score for each game
-      for (int i = 0; i < games.size(); i++) {
-        int matchPlayerScore = games.get(i).getGameScoresList().get(matchPlayer.getMatchPlayerSlot() - 1);
-        html = html.concat(String.format("""
-                            <td>%s</td>
-            """, matchPlayerScore));
-      }
-
-      // Adds the total score, amount of perfect rounds, and amount of moon shots
-      html = html.concat(String.format("""
-                          <td>%s</td>
-                          <td>%s</td>
-                          <td>%s</td>
-                      </tr>
-          """, matchPlayer.getMatchScore(), matchPlayer.getPerfectGames(), matchPlayer.getShotTheMoonCount()));
     }
 
-    // Adds the winner of the match
-    html = html.concat(String.format("""
-                </tbody>
-            </table>
-                <div>
-                    %s wins, CONGRATS!
-                </div>
-        </div>
-        """, matchWinner.getUser().getUsername()));
+    List<MatchPlayer> mpWinners = new ArrayList<>();
+
+    for (int i = 0; i < mp.size(); i++) {
+      if (mp.get(i).getMatchScore() == winner.getMatchScore()) {
+        mpWinners.add(mp.get(i));
+      }
+    }
+
+    html += "<tr>";
+    html += "<th>Total:</th>";
+    html += "<th>" + mp.get(0).getMatchScore() + "</th>";
+    html += "<th>" + mp.get(1).getMatchScore() + "</th>";
+    html += "<th>" + mp.get(2).getMatchScore() + "</th>";
+    html += "<th>" + mp.get(3).getMatchScore() + "</th>";
+    html += "</tr>";
+    html += "</table>";
+    html += "<div class=\"modalMessageNewsFlash\">";
+    for (int i = 0; i < mpWinners.size(); i++) {
+      if (mpWinners.size() == 1) {
+        html += "<div class=\"modalMessageNewsFlashItem\">The winner is " + mpWinners.get(i).getUser().getUsername() + "!</div>";
+        break;
+      }
+
+      if (i == 0) {
+        html += "<div class=\"modalMessageNewsFlashItem\">The winners are ";
+      }
+      else {
+        html += ", ";
+      }
+
+      html += mpWinners.get(i).getUser().getUsername();
+
+      if (i == mpWinners.size() - 1) {
+        html += "!</div>";
+      }
+    }
+    html += "</div>";
+    html += "</div>";
 
     return html;
   }
