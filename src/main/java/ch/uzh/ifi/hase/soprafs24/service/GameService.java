@@ -280,7 +280,7 @@ public class GameService {
                         matchMessageService.getFunMessage(MatchMessageType.LAST_TRICK_STARTED));
             }
 
-            // NEW: Detect and set final game phase
+            // Detect and set final game phase
             if (game.getCurrentPlayOrder() == GameConstants.FULL_DECK_CARD_COUNT &&
                     game.getPhase() != GamePhase.RESULT) {
 

@@ -6,8 +6,11 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import java.util.HashMap;
+import java.util.HashSet;
+
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 
@@ -95,6 +98,9 @@ public class Match implements Serializable {
 
     @Column(name = "match_player_names_csv")
     private String matchPlayerNames = "_,_,_,_"; // Example: "a,b,c,d"
+
+    @Column(name = "slot_did_confirm_last_game")
+    private String slotDidConfirmLastGameCsv = "";
 
     public void setFastForwardMode(boolean fastForwardMode) {
         this.fastForwardMode = fastForwardMode;
@@ -447,6 +453,34 @@ public class Match implements Serializable {
                 .filter(MatchPlayer::getIsHost)
                 .findFirst()
                 .orElseThrow(() -> new IllegalStateException("No host player found in match " + this.matchId));
+    }
+
+    /// =========== SLOT_DID_CONFIRM_LAST_GAME ============ //
+
+    @Transient
+    public List<Integer> getSlotDidConfirmLastGame() {
+        if (slotDidConfirmLastGameCsv == null || slotDidConfirmLastGameCsv.isBlank()) {
+            return new ArrayList<>();
+        }
+        return Arrays.stream(slotDidConfirmLastGameCsv.split(","))
+                .map(String::trim)
+                .filter(s -> !s.isEmpty())
+                .map(Integer::parseInt)
+                .collect(Collectors.toList());
+    }
+
+    public void setSlotDidConfirmLastGame(List<Integer> slots) {
+        this.slotDidConfirmLastGameCsv = slots.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+    }
+
+    public void addSlotDidConfirm(Integer slot) {
+        List<Integer> current = getSlotDidConfirmLastGame();
+        if (!current.contains(slot)) {
+            current.add(slot);
+            setSlotDidConfirmLastGame(current); // updates the CSV
+        }
     }
 
 }

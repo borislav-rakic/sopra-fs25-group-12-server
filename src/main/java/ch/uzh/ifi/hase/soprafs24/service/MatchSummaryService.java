@@ -14,8 +14,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Dictionary;
-import java.util.Hashtable;
 import java.util.List;
 
 @Service
@@ -144,14 +142,14 @@ public class MatchSummaryService {
     html += "<div class=\"modalMessageNewsFlash\">";
     for (int i = 0; i < mpWinners.size(); i++) {
       if (mpWinners.size() == 1) {
-        html += "<div class=\"modalMessageNewsFlashItem\">The winner is " + mpWinners.get(i).getUser().getUsername() + "!</div>";
+        html += "<div class=\"modalMessageNewsFlashItem\">The winner is " + mpWinners.get(i).getUser().getUsername()
+            + "!</div>";
         break;
       }
 
       if (i == 0) {
         html += "<div class=\"modalMessageNewsFlashItem\">The winners are ";
-      }
-      else {
+      } else {
         html += ", ";
       }
 

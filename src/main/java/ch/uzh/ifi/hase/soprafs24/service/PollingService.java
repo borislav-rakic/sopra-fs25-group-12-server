@@ -63,15 +63,8 @@ public class PollingService {
         // MATCH [1], [2], [3], [4]
         // GAME [11], [12]
 
-        // If game is no longer active, the Game object and the MatchPlayers are no
-        // longer available!
-        if (match.getPhase() == MatchPhase.RESULT) {
-            return matchResultMessage(match);
-        } else if (match.getPhase() == MatchPhase.FINISHED) {
-            return matchFinishedMessage(match);
-        } else if (match.getPhase() == MatchPhase.ABORTED) {
-            return matchAbortedMessage(match);
-        }
+        //
+
         Game game = gameRepository.findActiveGameByMatchId(match.getMatchId());
         if (game == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
@@ -260,6 +253,30 @@ public class PollingService {
     }
 
     /**
+     * Gets the necessary information for a player in MatchPhase:
+     * RESULT, FINISHED, or ABORTED.
+     *
+     * @param user           The user making the request
+     * @param match          The match in question
+     * @param showGameResult If true, the last game result will be shown instead of
+     *                       match result
+     * @return PollingDTO with the appropriate post-match content
+     */
+    public PollingDTO getPlayerPollingForPostMatchPhase(User user, Match match, boolean showGameResult) {
+        if (showGameResult) {
+            return gameResultMessage(match);
+        }
+
+        return switch (match.getPhase()) {
+            case RESULT -> matchResultMessage(match);
+            case FINISHED -> matchFinishedMessage(match);
+            case ABORTED -> matchAbortedMessage(match);
+            default -> throw new IllegalStateException(
+                    "getPlayerPollingForPostMatchPhase called in unexpected MatchPhase: " + match.getPhase());
+        };
+    }
+
+    /**
      * Checks if the matchPlayer can poll based on the polling interval.
      * 
      * @param matchPlayer the matchPlayer trying to poll
@@ -297,14 +314,30 @@ public class PollingService {
         dto.setMatchId(match.getMatchId());
         dto.setMatchGoal(match.getMatchGoal());
         dto.setMatchPlayers(match.getMatchPlayerNames());
-        dto.setMatchGoal(match.getMatchGoal());
         dto.setPlayerPoints(match.getMatchScoresMap());
         dto.setGamePhase(GamePhase.FINISHED);
-        dto.setGamePhase(GamePhase.FINISHED);
-        dto.setMatchPhase(MatchPhase.RESULT);
+        dto.setMatchPhase(MatchPhase.FINISHED);
         MatchSummary matchSummary = match.getMatchSummary();
         if (matchSummary != null) {
             dto.setResultHtml(matchSummary.getMatchSummaryHtml());
+        } else {
+            dto.setResultHtml("<div>This match is over.</div>");
+        }
+        return dto;
+    }
+
+    private PollingDTO gameResultMessage(Match match) {
+        PollingDTO dto = new PollingDTO();
+        dto.setHostId(match.getHostId());
+        dto.setMatchId(match.getMatchId());
+        dto.setMatchGoal(match.getMatchGoal());
+        dto.setMatchPlayers(match.getMatchPlayerNames());
+        dto.setPlayerPoints(match.getMatchScoresMap());
+        dto.setGamePhase(GamePhase.FINISHED);
+        dto.setMatchPhase(MatchPhase.RESULT); // This player has not yet confirmed the GameResult
+        MatchSummary matchSummary = match.getMatchSummary();
+        if (matchSummary != null) {
+            dto.setResultHtml(matchSummary.getGameSummaryHtml());
         } else {
             dto.setResultHtml("<div>This match is over.</div>");
         }

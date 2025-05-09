@@ -180,22 +180,28 @@ public class MatchService {
 
     }
 
-    private void wrapUpCompletedGame(Game game) {
+    public void wrapUpCompletedGame(Game game) {
         Match match = game.getMatch();
 
-        // Create summary
+        // Create and store match summary
         String summary = matchSummaryService.buildMatchResultHtml(match, game);
         setExistingMatchSummaryOrCreateIt(match, summary);
 
-        // Add message
+        // Add game ended message
         MatchMessage message = new MatchMessage();
         message.setType(MatchMessageType.GAME_ENDED);
         message.setContent("Game finished! Please confirm to continue.");
         match.addMessage(message);
 
-        // Update phase
-        match.setPhase(MatchPhase.BETWEEN_GAMES);
-        log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
+        // Decide next match phase
+        if (shouldEndMatch(match)) {
+            match.setPhase(MatchPhase.RESULT);
+            log.info("💄 MatchPhase is set to RESULT.");
+        } else {
+            match.setPhase(MatchPhase.BETWEEN_GAMES);
+            log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
+        }
+
         matchRepository.save(match);
     }
 
@@ -224,6 +230,25 @@ public class MatchService {
         User requestingUser = userRepository.findUserByToken(token);
         if (requestingUser == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+        }
+
+        // --- Handle match already in RESULT or FINISHED phase ---
+        if (match.getPhase() == MatchPhase.RESULT
+                || match.getPhase() == MatchPhase.FINISHED
+                || match.getPhase() == MatchPhase.ABORTED) {
+            Integer slot = getSlotForUser(match, requestingUser);
+
+            boolean isMatchPlayer = slot != null;
+
+            boolean hasConfirmed = slot != null && match.getSlotDidConfirmLastGame().contains(slot);
+
+            boolean showGameResult = match.getPhase() == MatchPhase.RESULT
+                    || (match.getPhase() == MatchPhase.FINISHED && isMatchPlayer && !hasConfirmed);
+
+            return pollingService.getPlayerPollingForPostMatchPhase(
+                    requestingUser,
+                    match,
+                    showGameResult);
         }
 
         // Who is polling?
@@ -261,13 +286,33 @@ public class MatchService {
                     assertAllHumanPlayersSkippedPassing(match, game);
                 }
 
-                // It is the host of the match, let him advance the TrickPhase if neccessary
+                // Advance the TrickPhase if this user is the host
                 gameService.advanceTrickPhaseIfOwnerPolling(game);
+
+                // After trick phase advancement, check if the match should end
+                if (match.getPhase().inGame() && shouldEndMatch(match)) {
+                    game.setPhase(GamePhase.FINISHED);
+                    gameRepository.save(game);
+
+                    match.setPhase(MatchPhase.RESULT);
+                    setExistingMatchSummaryOrCreateIt(match,
+                            matchSummaryService.buildMatchResultHtml(match, game));
+                    matchRepository.saveAndFlush(match);
+                    log.info("MatchPhase set to RESULT — match has ended.");
+                    // return immediately!
+                    return pollingService.getPlayerPollingForPostMatchPhase(
+                            requestingUser,
+                            match,
+                            true // showGameResult
+                    );
+                }
 
                 // Is the currentPlayer an AIPlayer who is supposed to play a card
                 if (
-                // The game is still on.
-                game.getPhase().inTrick()
+                // The match is not over yet.
+                !shouldEndMatch(match)
+                        // The game is still on.
+                        && game.getPhase().inTrick()
                         // The TrickPhase is just fine.
                         && (game.getTrickPhase() == TrickPhase.READYFORFIRSTCARD
                                 || game.getTrickPhase() == TrickPhase.RUNNINGTRICK)
@@ -342,18 +387,11 @@ public class MatchService {
         finishedGame.setPhase(GamePhase.FINISHED);
         log.info("💄 GamePhase is set to FINISHED.");
         gameRepository.save(finishedGame);
-        if (shouldEndMatch(match)) {
-            match.setPhase(MatchPhase.RESULT);
-            setExistingMatchSummaryOrCreateIt(match, matchSummaryService.buildMatchResultHtml(match, finishedGame));
-            log.info("💄 MatchPhase is set to RESULT.");
-            matchRepository.save(match);
-        } else {
-            match.setPhase(MatchPhase.BETWEEN_GAMES);
+        match.setPhase(MatchPhase.BETWEEN_GAMES);
 
-            log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
-            matchRepository.save(match);
-            gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
-        }
+        log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
+        matchRepository.save(match);
+        gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
     }
 
     /**
@@ -363,8 +401,7 @@ public class MatchService {
      * @param match the match to shut down
      */
     @Transactional
-    public void handleConfirmedMatch(Match match) {
-        match.setPhase(MatchPhase.FINISHED);
+    public void handleMatchInResultPhaseOrAborted(Match match) {
         log.info("MatchPhase is set to FINISHED.");
 
         // Sever parent-child references for games so orphan removal works
@@ -391,57 +428,90 @@ public class MatchService {
     }
 
     public void checkGameAndStartNextIfNeeded(Match match) {
+        // If the match is already in RESULT or FINISHED, nothing to do
+        if (!match.getPhase().equals(MatchPhase.BETWEEN_GAMES)) {
+            return;
+        }
+
+        // Defensive: make sure no active game exists before creating a new one
         Game activeGame = requireActiveGameByMatch(match);
         if (activeGame != null) {
-            return; // There is still an active game
+            log.info("Active game still present, not starting new one.");
+            return;
         }
 
-        boolean matchOver = match.getMatchPlayers().stream()
-                .anyMatch(mp -> mp.getMatchScore() >= match.getMatchGoal());
-
-        if (matchOver) {
-            match.setPhase(MatchPhase.FINISHED);
-            log.info("💄 MatchPhase is set to FINISHED.");
-            matchRepository.save(match);
-        } else {
-            match.setPhase(MatchPhase.BETWEEN_GAMES);
-
-            log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
-            matchRepository.save(match); // Save transition before creating a new game
-
-            // Delegate to GameSetupService for game creation
-            gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
-        }
+        // Start next game
+        log.info("Starting next game in BETWEEN_GAMES phase.");
+        gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
     }
 
     public void confirmGameResult(String token, Long matchId) {
         Match match = requireMatchByMatchId(matchId);
-        Game game = requireActiveGameByMatch(match);
         User user = userRepository.findUserByToken(token);
         if (user == null) {
-
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+            log.info("Unknown or unauthorized user. Confirmation ignored.");
+            return;
         }
-        MatchPlayer player = matchPlayerRepository.findByUserAndMatch(user, match);
 
+        MatchPhase phase = match.getPhase();
+
+        // Early exit if no confirmation needed
+        if (phase == MatchPhase.FINISHED || phase == MatchPhase.ABORTED) {
+            log.info("Match already finished or aborted. No further confirmation needed.");
+            return;
+        }
+
+        // Handle match result confirmation
+        if (phase == MatchPhase.RESULT) {
+            Integer slot = getSlotForUser(match, user);
+            if (slot == null) {
+                log.info("User {} is not a match participant. Ignoring.", user.getId());
+                return;
+            }
+
+            if (!match.getSlotDidConfirmLastGame().contains(slot)) {
+                match.getSlotDidConfirmLastGame().add(slot);
+                log.info("MatchPlayer in slot {} confirmed match result.", slot);
+
+                // Transition to FINISHED after first confirmation
+                match.setPhase(MatchPhase.FINISHED);
+                matchRepository.save(match);
+                log.info("Match marked as FINISHED.");
+            }
+            return;
+        }
+
+        // Handle normal game confirmation
+        Game game = requireActiveGameByMatch(match);
+        MatchPlayer player = matchPlayerRepository.findByUserAndMatch(user, match);
         if (player == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not found in match");
         }
-        player.setReady(true);
 
-        log.info("    🫡 MatchPlayer id={} in slot={} was set to ready=true.",
-                player.getUser().getId(),
-                player.getMatchPlayerSlot());
+        player.setReady(true);
         matchPlayerRepository.save(player);
+        log.info("MatchPlayer id={} in slot={} set to ready.", user.getId(), player.getMatchPlayerSlot());
 
         boolean allHumansReady = match.getMatchPlayers().stream()
                 .filter(mp -> !Boolean.TRUE.equals(mp.getIsAiPlayer()))
                 .allMatch(MatchPlayer::getIsReady);
 
         if (allHumansReady) {
-            log.info("    🫡 All human MatchPlayers are Ready!");
+            log.info("All human players confirmed game result.");
             handleConfirmedGame(match, game);
         }
+    }
+
+    private Integer getSlotForUser(Match match, User user) {
+        if (user.getId().equals(match.getPlayer1().getId()))
+            return 1;
+        if (user.getId().equals(match.getPlayer2().getId()))
+            return 2;
+        if (user.getId().equals(match.getPlayer3().getId()))
+            return 3;
+        if (user.getId().equals(match.getPlayer4().getId()))
+            return 4;
+        return null;
     }
 
     public boolean shouldEndMatch(Match match) {
@@ -537,7 +607,7 @@ public class MatchService {
     public void abortMatch(Match match) {
         match.setPhase(MatchPhase.ABORTED);
         match.getMatchSummary().setMatchSummaryHtml(
-                "<div>The Host was offline for more than 30 seconds. The match was disbanded before completion</div>");
-        handleConfirmedMatch(match);
+                "<div>The Host Player was offline for more than 30 seconds. The match was disbanded before completion.</div>");
+        handleMatchInResultPhaseOrAborted(match);
     }
 }
