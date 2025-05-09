@@ -258,7 +258,7 @@ public class MatchService {
             if (requestingMatchPlayer.getIsHost()) {
 
                 if (game.getPhase() == GamePhase.SKIP_PASSING) {
-                    noPassing(match, game);
+                    assertAllHumanPlayersSkippedPassing(match, game);
                 }
 
                 // It is the host of the match, let him advance the TrickPhase if neccessary
@@ -287,6 +287,14 @@ public class MatchService {
         return pollingService.getPlayerPolling(requestingUser, match, gameRepository, matchPlayerRepository);
     }
 
+    /**
+     * Finds active game for given match or throws
+     * 
+     * @param match Current Match object.
+     * @return Game object of current match.
+     * @throws IllegalStateException if there is no active game for this match at
+     *                               this point.
+     */
     public Game requireActiveGameByMatch(Match match) {
         Game activeGame = gameRepository.findActiveGameByMatchId(match.getMatchId());
         if (activeGame == null) {
@@ -295,9 +303,17 @@ public class MatchService {
         return activeGame;
     }
 
-    private void noPassing(Match match, Game game) {
+    /**
+     * Checks if all human players of a game are ready again after
+     * GamePhase=SKIP_PASSING.
+     * 
+     * @param match current Match
+     * @param game  current Game
+     */
+
+    private void assertAllHumanPlayersSkippedPassing(Match match, Game game) {
         if (game.getPhase() == GamePhase.SKIP_PASSING
-                && game.getTrickPhase() != TrickPhase.READYFORFIRSTCARD
+                && game.getTrickPhase() == TrickPhase.READYFORFIRSTCARD
                 && MatchUtils.verifyAllHumanMatchPlayersReady(match)) {
 
             gameService.assignTwoOfClubsLeader(game);
@@ -435,33 +451,40 @@ public class MatchService {
     }
 
     @Transactional
-    public void autoPlayGame(Long matchId, Integer fakeShootingTheMoon) {
+    public void autoPlayToLastTrickOfGame(Long matchId, Integer fakeShootingTheMoon) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         Game game = match.getActiveGame();
-        gameSimulationService.simulateUpToFinalTrick(match, game, fakeShootingTheMoon);
+        gameSimulationService.autoPlayToLastTrickOfGame(match, game, fakeShootingTheMoon);
     }
 
     @Transactional
-    public void autoPlayGameSummary(Long matchId, Integer fakeShootingTheMoon) {
+    public void autoPlayToGameSummary(Long matchId, Integer fakeShootingTheMoon) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         Game game = match.getActiveGame();
-        gameSimulationService.simulateUpToGameSummary(match, game);
+        gameSimulationService.autoPlayToGameSummary(match, game);
     }
 
     @Transactional
-    public void autoPlayMatchSummary(Long matchId, Integer fakeShootingTheMoon) {
+    public void autoPlayToMatchSummary(Long matchId, Integer fakeShootingTheMoon) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         Game game = match.getActiveGame();
-        gameSimulationService.simulateUpToMatchSummary(match, game);
+        gameSimulationService.autoPlayToMatchSummary(match, game);
     }
 
     @Transactional
-    public void autoPlayMatch(Long matchId) {
+    public void autoPlayToLastTrickOfMatchThree(Long matchId, Integer fakeShootingTheMoon) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        Game game = match.getActiveGame();
+        gameSimulationService.autoPlayToLastTrickOfMatchThree(match, game);
+    }
+
+    @Transactional
+    public void autoPlayToLastTrickOfMatch(Long matchId) {
         Match match = requireMatchByMatchId(matchId);
         Game game = requireActiveGameByMatch(match);
 
         // Call the simulation service to play the game until the last trick
-        gameSimulationService.simulateMatchToLastTrick(match, game);
+        gameSimulationService.autoPlayToLastTrickOfMatch(match, game);
 
         // Log matchPlayer scores before saving
         match.getMatchPlayers().forEach(player -> {

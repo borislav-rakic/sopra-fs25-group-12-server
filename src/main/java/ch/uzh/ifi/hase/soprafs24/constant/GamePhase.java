@@ -32,6 +32,6 @@ public enum GamePhase {
     }
 
     public boolean inPassing() {
-        return this == PASSING;
+        return this == PASSING || this == SKIP_PASSING;
     }
 }

@@ -335,31 +335,37 @@ public class MatchController {
 
     @PostMapping("/matches/{matchId}/game/sim/game")
     @ResponseStatus(HttpStatus.OK)
-    public void advanceGame(@PathVariable Long matchId) {
-        matchService.autoPlayGame(matchId, 0);
+    public void autoPlayToLastTrickOfGame(@PathVariable Long matchId) {
+        matchService.autoPlayToLastTrickOfGame(matchId, 0);
     }
 
     @PostMapping("/matches/{matchId}/game/sim/moon")
     @ResponseStatus(HttpStatus.OK)
-    public void advanceGameToMoon(@PathVariable Long matchId) {
-        matchService.autoPlayGame(matchId, 1);
+    public void autoPlayToLastTrickOfGameMoon(@PathVariable Long matchId) {
+        matchService.autoPlayToLastTrickOfGame(matchId, 1);
     }
 
     @PostMapping("/matches/{matchId}/game/sim/match")
     @ResponseStatus(HttpStatus.OK)
-    public void advanceMatch(@PathVariable Long matchId) {
-        matchService.autoPlayMatch(matchId);
+    public void autoPlayToEndOfMatch(@PathVariable Long matchId) {
+        matchService.autoPlayToLastTrickOfMatch(matchId);
     }
 
     @PostMapping("/matches/{matchId}/game/sim/gamesummary")
     @ResponseStatus(HttpStatus.OK)
-    public void advanceMatchToGameSummary(@PathVariable Long matchId) {
-        matchService.autoPlayGameSummary(matchId, 0);
+    public void autoPlayToGameSummary(@PathVariable Long matchId) {
+        matchService.autoPlayToGameSummary(matchId, 0);
     }
 
     @PostMapping("/matches/{matchId}/game/sim/matchsummary")
     @ResponseStatus(HttpStatus.OK)
-    public void advanceMatchToMatchSummary(@PathVariable Long matchId) {
-        matchService.autoPlayMatchSummary(matchId, 0);
+    public void autoPlayToMatchSummary(@PathVariable Long matchId) {
+        matchService.autoPlayToMatchSummary(matchId, 0);
+    }
+
+    @PostMapping("/matches/{matchId}/game/sim/endofmatchthree")
+    @ResponseStatus(HttpStatus.OK)
+    public void autoPlayToLastTrickOfMatchThree(@PathVariable Long matchId) {
+        matchService.autoPlayToLastTrickOfMatchThree(matchId, 0);
     }
 }
