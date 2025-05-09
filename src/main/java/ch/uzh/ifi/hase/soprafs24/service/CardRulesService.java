@@ -511,4 +511,23 @@ public class CardRulesService {
                 toMatchPlayerSlot, directionLabel);
     }
 
+    public boolean trickConsistsOnlyOfHearts(List<String> currentTrick) {
+        if (currentTrick == null || currentTrick.isEmpty()) {
+            return false;
+        }
+
+        for (String card : currentTrick) {
+            if (card == null || card.length() < 2) {
+                return false; // invalid card format
+            }
+
+            char suit = card.charAt(card.length() - 1); // suit is the last char
+            if (suit != 'H') {
+                return false; // not a heart
+            }
+        }
+
+        return true;
+    }
+
 }

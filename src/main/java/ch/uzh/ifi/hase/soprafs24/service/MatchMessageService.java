@@ -76,6 +76,27 @@ public class MatchMessageService {
                     "♛ The royal pain has arrived.",
                     "♛ The Queen has chosen her victim.",
                     "♛ All hail... or maybe fear... the Queen of Spades!");
+            case LAST_TRICK_STARTED -> randomPick(
+                    "🪦 The final motion begins. Your hand is fate’s echo now.",
+                    "🪦 The line has been drawn. Only silence follows this trick.",
+                    "🪦 No more cunning. No more hope. Just the last descent.",
+                    "🪦 Four cards remain. And none of them care what you want.",
+                    "🪦 You’ve made your choices. The trick plays itself now.",
+                    "🪦 As the Titans fell, so too will hands be laid bare.",
+                    "🪦 The end walks on quiet feet — one trick, no mercy.",
+                    "🪦 All that’s left is to endure. The outcome is already written.",
+                    "🪦 No gods remain to sway this. Only the play itself.",
+                    "🪦 This isn’t a battle — it’s a ritual. Let the last trick run its course.",
+                    "🪦 The last trick is here. There are no more decisions — only destiny.",
+                    "🪦 All cards must be played. There is no turning back now.",
+                    "🪦 The end is in motion. No strategy left — only steel nerves.",
+                    "🪦 Each hand moves toward the inevitable. The last trick unfolds.",
+                    "🪦 Nothing left but echoes and execution. Let the final trick begin.",
+                    "🪦 This is no longer a game — it’s a reckoning in four plays.",
+                    "🪦 Final act. No moves left. Only outcomes.",
+                    "🪦 Like Oedipus at the crossroads — all paths led here.",
+                    "🪦 The fates have spun their thread. Now we watch it snap.",
+                    "🪦 The last card is not a choice — it is a sentence.");
             case HEARTS_BROKEN -> randomPick(
                     "💔 Hearts broken!",
                     "💔 The floodgates are open — hearts are live.",
@@ -116,6 +137,17 @@ public class MatchMessageService {
                     "🚀 Let the strategy — and the sabotage — begin!",
                     "🚀 War of hearts has begun!",
                     "🚀 Fate is shuffled. Let’s play some cards!");
+            case ALL_HEARTS_TRICK -> randomPick(
+                    "🩸 The sky is red — someone’s taking them all.",
+                    "🩸 No clubs, no diamonds. Just pain. And you can't pass.",
+                    "🩸 Four hearts remain. Four blades. Someone bleeds.",
+                    "🩸 It's a full bleed. May the least unlucky survive.",
+                    "🩸 This trick doesn’t end with points. It ends with scars.",
+                    "🩸 No more evasion. No more mercy. Someone pays.",
+                    "🩸 The deck deals no favors now — only wounds.",
+                    "🩸 A bouquet of pain — and you're holding the vase.",
+                    "🩸 Whoever takes this is writing their name in crimson.",
+                    "🩸 All hearts. No escape. One unlucky soul.");
             case PLAYER_JOINED -> randomPick(
                     "A new Player has joined.");
             case PLAYER_LEFT -> randomPick(
@@ -147,6 +179,7 @@ public class MatchMessageService {
                     String.format("📢 Don’t underestimate %s — rookie with style!", who),
                     String.format("📢 Looks like %s brought their A-game.", who),
                     String.format("📢 New challenger unlocked: %s!", who));
+
             case PLAYER_LEFT -> randomPick(
                     String.format("🫶 %s has decided to step aside.", who),
                     String.format("🫶🏿 %s has left the table — the game goes on!", who),
@@ -174,6 +207,10 @@ public class MatchMessageService {
                     "Hearts is broken!");
             case GAME_STARTED -> randomPick(
                     "The Game is on!");
+            case LAST_TRICK_STARTED -> randomPick(
+                    "The last trick has just started.");
+            case ALL_HEARTS_TRICK -> randomPick(
+                    "A trick full of hearts.");
             // Add more cases as needed
             default -> ""; // Fallback if type not supported
         };

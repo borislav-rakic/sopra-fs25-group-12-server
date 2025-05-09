@@ -262,8 +262,21 @@ public class GameService {
             return;
         }
         if (game.getTrickPhase() == TrickPhase.PROCESSINGTRICK) {
+            if (cardRulesService.trickConsistsOnlyOfHearts(game.getCurrentTrick())) {
+                matchMessageService.addMessage(
+                        game.getMatch(),
+                        MatchMessageType.ALL_HEARTS_TRICK,
+                        matchMessageService.getFunMessage(MatchMessageType.ALL_HEARTS_TRICK));
+            }
             gameTrickService.clearTrick(game.getMatch(), game);
             gameTrickService.updateGamePhaseBasedOnPlayOrder(game);
+
+            if (game.getCurrentPlayOrder() == 48) {
+                matchMessageService.addMessage(
+                        game.getMatch(),
+                        MatchMessageType.LAST_TRICK_STARTED,
+                        matchMessageService.getFunMessage(MatchMessageType.LAST_TRICK_STARTED));
+            }
 
             // NEW: Detect and set final game phase
             if (game.getCurrentPlayOrder() == GameConstants.FULL_DECK_CARD_COUNT &&

@@ -47,6 +47,11 @@ public class GameSimulationService {
         this.matchPlayerRepository = matchPlayerRepository;
     }
 
+    public void keeptThoseInjectionsUseful(Game game) {
+        cardRulesService.determineTrickWinner(game);
+        gameService.assignTwoOfClubsLeader(game);
+    }
+
     @Transactional
     public void autoPlayToLastTrickOfMatch(Match match, Game game) {
 
@@ -106,7 +111,8 @@ public class GameSimulationService {
         autoPlayToLastTrickOfGame(match, game, 0);
 
         log.info("SIM. SimulateGameToLastTrick done");
-        Game originalGame = game;
+        //// The original game is probably not need anymore
+        // Game originalGame = game;
 
         int loopCounter = 1;
         List<MatchPlayer> matchPlayers = match.getMatchPlayers();
