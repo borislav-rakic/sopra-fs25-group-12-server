@@ -3,8 +3,10 @@ package ch.uzh.ifi.hase.soprafs24.entity;
 import javax.persistence.*;
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 import java.util.HashMap;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
@@ -87,6 +89,9 @@ public class Match implements Serializable {
 
     @Column(nullable = false)
     private boolean fastForwardMode = false;
+
+    @Column(name = "match_scores_csv")
+    private String matchScoresCsv = "0,0,0,0"; // Example: "4,5,3,13"
 
     public void setFastForwardMode(boolean fastForwardMode) {
         this.fastForwardMode = fastForwardMode;
@@ -227,6 +232,33 @@ public class Match implements Serializable {
     public void addMessage(MatchMessage message) {
         this.messages.add(message);
         message.setMatch(this); // ensures both sides of the relationship are in sync
+    }
+
+    // ======== MATCH SCORE ============ //
+
+    @Transient
+    public List<Integer> getMatchScoresList() {
+        if (matchScoresCsv == null || matchScoresCsv.isBlank()) {
+            return new ArrayList<>();
+        }
+        return Arrays.stream(matchScoresCsv.split(","))
+                .map(String::trim)
+                .map(Integer::parseInt)
+                .collect(Collectors.toList());
+    }
+
+    public void setMatchScoresList(List<Integer> scores) {
+        this.matchScoresCsv = scores.stream()
+                .map(String::valueOf)
+                .collect(Collectors.joining(","));
+    }
+
+    public int getScoreForSlot(int matchPlayerSlot) {
+        List<Integer> scores = getMatchScoresList();
+        if (matchPlayerSlot < 1 || matchPlayerSlot > scores.size()) {
+            throw new IllegalArgumentException("Invalid player slot: " + matchPlayerSlot);
+        }
+        return scores.get(matchPlayerSlot - 1);
     }
 
     // ======== SOME HELPERS =========== //

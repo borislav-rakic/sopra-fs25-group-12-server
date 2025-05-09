@@ -442,6 +442,20 @@ public class MatchService {
     }
 
     @Transactional
+    public void autoPlayGameSummary(Long matchId, Integer fakeShootingTheMoon) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        Game game = match.getActiveGame();
+        gameSimulationService.simulateUpToGameSummary(match, game);
+    }
+
+    @Transactional
+    public void autoPlayMatchSummary(Long matchId, Integer fakeShootingTheMoon) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        Game game = match.getActiveGame();
+        gameSimulationService.simulateUpToMatchSummary(match, game);
+    }
+
+    @Transactional
     public void autoPlayMatch(Long matchId) {
         Match match = requireMatchByMatchId(matchId);
         Game game = requireActiveGameByMatch(match);

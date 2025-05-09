@@ -350,4 +350,16 @@ public class MatchController {
     public void advanceMatch(@PathVariable Long matchId) {
         matchService.autoPlayMatch(matchId);
     }
+
+    @PostMapping("/matches/{matchId}/game/sim/gamesummary")
+    @ResponseStatus(HttpStatus.OK)
+    public void advanceMatchToGameSummary(@PathVariable Long matchId) {
+        matchService.autoPlayGameSummary(matchId, 0);
+    }
+
+    @PostMapping("/matches/{matchId}/game/sim/matchsummary")
+    @ResponseStatus(HttpStatus.OK)
+    public void advanceMatchToMatchSummary(@PathVariable Long matchId) {
+        matchService.autoPlayMatchSummary(matchId, 0);
+    }
 }

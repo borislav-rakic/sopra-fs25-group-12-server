@@ -169,6 +169,105 @@ public class GameSimulationService {
         }
     }
 
+    @Transactional
+    public void simulateUpToMatchSummary(Match match, Game game) {
+
+        simulateUpToFinalTrick(match, game, 0);
+
+        log.info("SIM. SimulateGameToLastTrick done");
+        Game originalGame = game;
+
+        int loopCounter = 1;
+        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
+
+        while (getMaxScore(match, game) < match.getMatchGoal() - 10) {
+            log.info("     SIM. Loop #{}", loopCounter);
+
+            Game newGame = new Game(game);
+            match.addGame(newGame);
+
+            game.setHeartsBroken(true);
+            game.setCurrentPlayOrder(52);
+            game.setPhase(GamePhase.FINISHED);
+
+            newGame.setGameNumber(game.getGameNumber() + 1);
+            newGame.setMatch(match);
+
+            List<Integer> randomScores = generateRandomScores();
+            log.info("     SIM. Generated scoreString: {}", randomScores);
+
+            game.setGameScoresList(randomScores);
+            gameRepository.save(game);
+            gameRepository.save(newGame);
+
+            for (int i = 0; i < matchPlayers.size(); i++) {
+                MatchPlayer tmp = matchPlayers.get(i);
+                tmp.addToMatchScore(randomScores.get(i));
+                matchPlayerRepository.save(tmp);
+            }
+
+            game = newGame;
+
+            if (loopCounter++ > 15) {
+                log.warn("Simulation loop exited after reaching limit.");
+                break;
+            }
+        }
+    }
+
+    @Transactional
+    public void simulateUpToGameSummary(Match match, Game game) {
+
+        simulateUpToFinalTrick(match, game, 0);
+
+        log.info("SIM. SimulateGameToLastTrick done");
+        Game originalGame = game;
+
+        int loopCounter = 1;
+        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
+
+        while (getMaxScore(match, game) < match.getMatchGoal() - 10) {
+            log.info("     SIM. Loop #{}", loopCounter);
+
+            Game newGame = new Game(game);
+            match.addGame(newGame);
+
+            game.setHeartsBroken(true);
+            game.setCurrentPlayOrder(52);
+            game.setPhase(GamePhase.FINISHED);
+
+            newGame.setGameNumber(game.getGameNumber() + 1);
+            newGame.setMatch(match);
+
+            List<Integer> randomScores = generateRandomScores();
+            log.info("     SIM. Generated scoreString: {}", randomScores);
+
+            game.setGameScoresList(randomScores);
+            gameRepository.save(game);
+            gameRepository.save(newGame);
+
+            for (int i = 0; i < matchPlayers.size(); i++) {
+                MatchPlayer tmp = matchPlayers.get(i);
+                tmp.addToMatchScore(randomScores.get(i));
+                matchPlayerRepository.save(tmp);
+            }
+
+            game = newGame;
+
+            if (loopCounter++ > 15) {
+                log.warn("Simulation loop exited after reaching limit.");
+                break;
+            }
+        }
+
+        // Move stats to latest game
+        List<GameStats> statsToUpdate = gameStatsRepository.findAllByGame(originalGame);
+        for (GameStats stats : statsToUpdate) {
+            stats.setGame(game);
+            gameStatsRepository.save(stats);
+        }
+    }
+
     public static List<Integer> generateRandomScores() {
         final int TOTAL = 26;
         Random random = new Random();

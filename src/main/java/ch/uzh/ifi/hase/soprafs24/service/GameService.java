@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 
 import javax.persistence.EntityNotFoundException;
@@ -371,11 +372,20 @@ public class GameService {
             matchPlayerRepository.save(mp);
         }
 
-        //// MAKE SUMMARY HERE!
+        gameScores = match.getMatchPlayers().stream()
+                .sorted(Comparator.comparingInt(MatchPlayer::getMatchPlayerSlot))
+                .map(MatchPlayer::getMatchScore)
+                .toList();
+
+        match.setMatchScoresList(gameScores);
+
+        ///// MAKE SUMMARY HERE!
         log.info("finalizeGameScores calling buildGameResultHtml");
         matchSummaryService.saveGameResultHtml(match, game, newsFlash);
-        ///
+        ////
 
+        //// Is BETWEEN_GAMES still in use?
+        // match.setPhase(MatchPhase.BETWEEN_GAMES);
         matchRepository.save(match);
     }
 
