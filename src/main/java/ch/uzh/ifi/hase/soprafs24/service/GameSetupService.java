@@ -1,6 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import java.util.List;
+import java.util.Random;
 
 import javax.persistence.EntityNotFoundException;
 
@@ -146,6 +147,26 @@ public class GameSetupService {
             distributeCards(match, game, matchRepository, gameRepository, null);
         }, error -> {
             log.error("Failed to fetch deck from external API", error);
+
+            Match match = matchRepository.findMatchByMatchId(matchId);
+            if (match == null) {
+                throw new EntityNotFoundException("Match not found");
+            }
+            List<Game> games = gameRepository.findWaitingGameByMatchid(matchId);
+            if (games.size() != 1) {
+                throw new IllegalStateException(
+                        "Expected one game in WAITING_FOR_EXTERNAL_API, found: " + games.size());
+            }
+
+            log.info("  🦑 GameSetupService: Cards are determined internally.");
+
+            Game game = games.get(0);
+
+            Random random = new Random();
+            long seed = random.nextLong();
+
+            game.setDeckId(ExternalApiClientService.buildSeedString(seed));
+            distributeCards(match, game, matchRepository, gameRepository, seed);
         });
     }
 
@@ -193,6 +214,28 @@ public class GameSetupService {
             List<CardResponse> responseCards = response.getCards();
             log.info("  🦑 GameSetupService: About to distributeFullDeckToPlayers");
             distributeFullDeckToPlayers(refreshedMatch, refreshedGame, matchRepository, gameRepository, responseCards);
+        }, error -> {
+            log.error("Failed to fetch deck from external API", error);
+
+            Match refreshedMatch = matchRepository.findMatchByMatchId(matchId);
+            if (refreshedMatch == null) {
+                throw new EntityNotFoundException("Match not found");
+            }
+            List<Game> games = gameRepository.findWaitingGameByMatchid(matchId);
+            if (games.size() != 1) {
+                throw new IllegalStateException(
+                        "Expected one game in WAITING_FOR_EXTERNAL_API, found: " + games.size());
+            }
+
+            log.info("  🦑 GameSetupService: Cards are determined internally.");
+
+            Game refreshedGame = games.get(0);
+
+            Random random = new Random();
+            long randomSeed = random.nextLong();
+
+            game.setDeckId(ExternalApiClientService.buildSeedString(randomSeed));
+            distributeCards(match, game, matchRepository, gameRepository, randomSeed);
         });
     }
 
