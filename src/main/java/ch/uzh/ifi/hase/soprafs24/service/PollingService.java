@@ -62,6 +62,9 @@ public class PollingService {
             MatchPlayerRepository matchPlayerRepository) {
         // MATCH [1], [2], [3], [4]
         // GAME [11], [12]
+
+        // If game is no longer active, the Game object and the MatchPlayers are no
+        // longer available!
         if (match.getPhase() == MatchPhase.RESULT) {
             return matchResultMessage(match);
         } else if (match.getPhase() == MatchPhase.FINISHED) {
@@ -290,40 +293,30 @@ public class PollingService {
 
     private PollingDTO matchResultMessage(Match match) {
         PollingDTO dto = new PollingDTO();
+        dto.setHostId(match.getHostId());
+        dto.setMatchId(match.getMatchId());
+        dto.setMatchGoal(match.getMatchGoal());
+        dto.setMatchPlayers(match.getMatchPlayerNames());
+        dto.setMatchGoal(match.getMatchGoal());
+        dto.setPlayerPoints(match.getMatchScoresMap());
+        dto.setGamePhase(GamePhase.FINISHED);
+        dto.setGamePhase(GamePhase.FINISHED);
+        dto.setMatchPhase(MatchPhase.RESULT);
         MatchSummary matchSummary = match.getMatchSummary();
         if (matchSummary != null) {
             dto.setResultHtml(matchSummary.getMatchSummaryHtml());
         } else {
             dto.setResultHtml("<div>This match is over.</div>");
         }
-        dto.setGamePhase(GamePhase.FINISHED);
-        dto.setGamePhase(GamePhase.FINISHED);
-        dto.setMatchPhase(MatchPhase.RESULT);
         return dto;
     }
 
     private PollingDTO matchFinishedMessage(Match match) {
-        PollingDTO dto = new PollingDTO();
-        if (match.getMatchSummary() != null) {
-            dto.setResultHtml(match.getMatchSummary().getMatchSummaryHtml());
-        } else {
-            dto.setResultHtml("<div>This match is over.</div>");
-        }
-        dto.setGamePhase(GamePhase.FINISHED);
-        dto.setMatchPhase(MatchPhase.FINISHED);
-        return dto;
+        return matchResultMessage(match);
     }
 
     private PollingDTO matchAbortedMessage(Match match) {
-        PollingDTO dto = new PollingDTO();
-        if (match.getMatchSummary() != null) {
-            dto.setResultHtml(match.getMatchSummary().getMatchSummaryHtml());
-        } else {
-            dto.setResultHtml("<div>This match is over.</div>");
-        }
-        dto.setGamePhase(GamePhase.FINISHED);
-        dto.setMatchPhase(MatchPhase.ABORTED);
-        return dto;
+        return matchResultMessage(match);
     }
 
     public PollingDTO getSpectatorPolling(User user, Match match) {

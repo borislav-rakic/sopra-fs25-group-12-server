@@ -8,6 +8,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
@@ -76,12 +77,12 @@ public class MatchSetupService {
     public Match createNewMatch(String playerToken) {
         User user = userService.getUserByToken(playerToken);
         if (user == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+            throw new GameplayException("Invalid token");
         }
 
         List<Match> activeMatches = matchRepository.findActiveMatchesByHostId(user.getId());
         if (!activeMatches.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+            throw new GameplayException(
                     "User is already hosting a match. Match ID: " + activeMatches.get(0).getMatchId());
         }
 
@@ -104,6 +105,13 @@ public class MatchSetupService {
         match.setPlayer1(user);
 
         matchRepository.saveAndFlush(match);
+
+        // Remember player's names for much later
+        List<String> playerNames = match.getMatchPlayers().stream()
+                .map(mp -> mp.getUser() != null ? mp.getUser().getUsername() : "AI")
+                .toList();
+
+        match.setMatchPlayerNames(playerNames);
         return match;
     }
 

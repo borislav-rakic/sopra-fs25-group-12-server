@@ -111,7 +111,7 @@ public class GameSimulationService {
         int loopCounter = 1;
         List<MatchPlayer> matchPlayers = match.getMatchPlayers();
 
-        while (getMaxScore(match, game) < match.getMatchGoal() - 10) {
+        while (getMaxScore(match, game) < match.getMatchGoal() - 2) {
             log.info("     SIM. Loop #{}", loopCounter);
 
             Game newGame = new Game(game);
@@ -157,7 +157,7 @@ public class GameSimulationService {
         int loopCounter = 1;
         List<MatchPlayer> matchPlayers = match.getMatchPlayers();
 
-        while (getMaxScore(match, game) < match.getMatchGoal() - 10) {
+        while (getMaxScore(match, game) < match.getMatchGoal() - 2) {
             log.info("     SIM. Loop #{}", loopCounter);
 
             Game newGame = new Game(game);

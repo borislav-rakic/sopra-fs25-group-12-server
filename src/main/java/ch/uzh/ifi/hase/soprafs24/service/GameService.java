@@ -363,6 +363,14 @@ public class GameService {
         game.setGameScoresList(gameScores);
         gameRepository.save(game);
 
+        // Remember the Titans' names
+
+        List<String> playerNames = match.getMatchPlayers().stream()
+                .map(mp -> mp.getUser() != null ? mp.getUser().getUsername() : "AI")
+                .toList();
+
+        match.setMatchPlayerNames(playerNames);
+
         for (MatchPlayer mp : match.getMatchPlayers()) {
             mp.setMatchScore(mp.getMatchScore() + mp.getGameScore());
             mp.setGameScore(0);

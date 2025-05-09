@@ -93,6 +93,9 @@ public class Match implements Serializable {
     @Column(name = "match_scores_csv")
     private String matchScoresCsv = "0,0,0,0"; // Example: "4,5,3,13"
 
+    @Column(name = "match_player_names_csv")
+    private String matchPlayerNames = "_,_,_,_"; // Example: "a,b,c,d"
+
     public void setFastForwardMode(boolean fastForwardMode) {
         this.fastForwardMode = fastForwardMode;
     }
@@ -247,6 +250,16 @@ public class Match implements Serializable {
                 .collect(Collectors.toList());
     }
 
+    @Transient
+    public Map<Integer, Integer> getMatchScoresMap() {
+        List<Integer> scores = getMatchScoresList();
+        Map<Integer, Integer> scoreMap = new HashMap<>();
+        for (int i = 0; i < scores.size(); i++) {
+            scoreMap.put(i, scores.get(i)); // index (0-based) -> score
+        }
+        return scoreMap;
+    }
+
     public void setMatchScoresList(List<Integer> scores) {
         this.matchScoresCsv = scores.stream()
                 .map(String::valueOf)
@@ -259,6 +272,32 @@ public class Match implements Serializable {
             throw new IllegalArgumentException("Invalid player slot: " + matchPlayerSlot);
         }
         return scores.get(matchPlayerSlot - 1);
+    }
+
+    // ======== MatchPlayerNames ======= //
+
+    @Transient
+    public List<String> getMatchPlayerNames() {
+        if (matchPlayerNames == null || matchPlayerNames.isBlank()) {
+            return new ArrayList<>();
+        }
+        return Arrays.stream(matchPlayerNames.split(","))
+                .map(String::trim)
+                .collect(Collectors.toList());
+    }
+
+    public void setMatchPlayerNames(List<String> names) {
+        this.matchPlayerNames = names.stream()
+                .map(String::trim)
+                .collect(Collectors.joining(","));
+    }
+
+    public String getNameForSlot(int matchPlayerSlot) {
+        List<String> names = getMatchPlayerNames();
+        if (matchPlayerSlot < 1 || matchPlayerSlot > names.size()) {
+            throw new IllegalArgumentException("Invalid player slot: " + matchPlayerSlot);
+        }
+        return names.get(matchPlayerSlot - 1);
     }
 
     // ======== SOME HELPERS =========== //
