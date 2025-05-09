@@ -1,23 +1,44 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
+
 import org.springframework.stereotype.Service;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.List;
 
 @Service
 public class MatchSummaryService {
 
-  private GameStatsService gameStatsService;
+  private static final Logger log = LoggerFactory.getLogger(MatchSummaryService.class);
+  private MatchRepository matchRepository;
 
-  public MatchSummaryService(GameStatsService gameStatsService) {
-    this.gameStatsService = gameStatsService;
+  public MatchSummaryService(
+      MatchRepository matchRepository) {
+    this.matchRepository = matchRepository;
   }
 
-  public String buildGameResultHtml(Match match, Game game) {
+  public void saveGameResultHtml(Match match, Game game, String newsFlash) {
+    String gameResultHtml = buildGameResultHtml(match, game, newsFlash);
+    log.info("gameResultHtml{}", gameResultHtml);
+    MatchSummary matchSummary = match.getMatchSummary();
+    if (matchSummary == null) {
+      throw new GameplayException("Could not update matchSummary (save game result).");
+    }
+    matchSummary.setGameSummaryHtml(buildGameResultHtml(match, game, newsFlash));
+    log.info("saved GameResult");
+    matchRepository.save(match);
+  }
+
+  public String buildGameResultHtml(Match match, Game game, String newsFlash) {
     String html = "<div className=\"modalMessage modalMessageGameResult\">";
     html += "<table>";
     List<Game> games = match.getGames();
@@ -33,7 +54,7 @@ public class MatchSummaryService {
       Game someGame = games.get(i);
       List<Integer> gameScores = someGame.getGameScoresList();
       html += "<tr>";
-      html += "<td>" + i + "</td>";
+      html += "<td>" + someGame.getGameNumber() + "</td>";
       for (int j = 0; j < gameScores.size(); j++) {
         html += "<td>" + gameScores.get(j) + "</td>";
       }
@@ -47,6 +68,7 @@ public class MatchSummaryService {
     html += "<th>" + mp.get(3).getMatchScore() + "</th>";
     html += "</tr>";
     html += "</table>";
+    html += "<div class=\"modalMessageNewsFlash\">" + newsFlash + "</div>";
     html += "</div>";
     return html;
   }
@@ -80,27 +102,27 @@ public class MatchSummaryService {
     matchWinner.setMatchScore(1000);
 
     for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
-        // Checks if this player has a lower score than the one before
-        if (matchPlayer.getMatchScore() < matchWinner.getMatchScore()) {
-            matchWinner = matchPlayer;
-        }
+      // Checks if this player has a lower score than the one before
+      if (matchPlayer.getMatchScore() < matchWinner.getMatchScore()) {
+        matchWinner = matchPlayer;
+      }
 
-        // Adds the username
-        html = html.concat(String.format("""
+      // Adds the username
+      html = html.concat(String.format("""
                       <tr>
                           <td>%s</td>
           """, matchPlayer.getUser().getUsername()));
 
-        // Adds the score for each game
-        for (int i = 0; i < games.size(); i++) {
-            int matchPlayerScore = games.get(i).getGameScoresList().get(matchPlayer.getMatchPlayerSlot() - 1);
-            html = html.concat(String.format("""
+      // Adds the score for each game
+      for (int i = 0; i < games.size(); i++) {
+        int matchPlayerScore = games.get(i).getGameScoresList().get(matchPlayer.getMatchPlayerSlot() - 1);
+        html = html.concat(String.format("""
                             <td>%s</td>
             """, matchPlayerScore));
-        }
+      }
 
-        // Adds the total score, amount of perfect rounds, and amount of moon shots
-        html = html.concat(String.format("""
+      // Adds the total score, amount of perfect rounds, and amount of moon shots
+      html = html.concat(String.format("""
                           <td>%s</td>
                           <td>%s</td>
                           <td>%s</td>

@@ -306,6 +306,7 @@ public class GameService {
     @Transactional
     public void finalizeGameScores(Game game) {
         Match match = game.getMatch();
+        String newsFlash = "";
         List<MatchPlayer> players = matchPlayerRepository.findByMatch(match);
         int totalGameScore = players.stream()
                 .mapToInt(MatchPlayer::getGameScore)
@@ -328,6 +329,19 @@ public class GameService {
                 moonShot = true;
                 mp.setGameScore(-1);
                 mp.setShotTheMoonCount(mp.getShotTheMoonCount() + 1);
+                newsFlash += String.format("<div class=\"modalMessageNewsFlashItem\">Congrats: %s shot the Moon!</div>",
+                        mp.getUser().getUsername());
+            }
+        }
+
+        // Handle perfect games (only if nobody shot the moon, though)
+        if (!moonShot) {
+            for (MatchPlayer mp : match.getMatchPlayers()) {
+                if (mp.getGameScore() == 0) {
+                    mp.setPerfectGames(mp.getPerfectGames() + 1);
+                    newsFlash += String.format("<div class=\"modalMessageNewsFlashItem\">A perfect game for %s!</div>",
+                            mp.getUser().getUsername());
+                }
             }
         }
 
@@ -356,6 +370,11 @@ public class GameService {
             }
             matchPlayerRepository.save(mp);
         }
+
+        //// MAKE SUMMARY HERE!
+        log.info("finalizeGameScores calling buildGameResultHtml");
+        matchSummaryService.saveGameResultHtml(match, game, newsFlash);
+        ///
 
         matchRepository.save(match);
     }

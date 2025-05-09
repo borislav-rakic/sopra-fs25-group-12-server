@@ -22,6 +22,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 //import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
@@ -224,8 +225,13 @@ public class PollingService {
         dto.setCurrentTrickDTO(gameTrickService.prepareTrickDTO(match, game, matchPlayer)); // [14]
         dto.setPreviousTrickDTO(gameTrickService.preparePreviousTrickDTO(match, game, matchPlayer));
 
-        dto.setMatchMessages(matchMessageService.messages(match, game, matchPlayer)); // [18c]
+        // During GamePhase.RESULT show prepared game summary
 
+        if (game.getPhase() == GamePhase.RESULT) {
+            MatchSummary matchSummary = match.getMatchSummary();
+            dto.setResultHtml(matchSummary.getGameSummaryHtml());
+        }
+        dto.setMatchMessages(matchMessageService.messages(match, game, matchPlayer)); // [18c]
         // Info about the other players
         dto.setMatchPlayers(matchPlayers); // [21]
         dto.setAvatarUrls(avatarUrls); // [22]
@@ -284,8 +290,9 @@ public class PollingService {
 
     private PollingDTO matchResultMessage(Match match) {
         PollingDTO dto = new PollingDTO();
-        if (match.getMatchSummary() != null) {
-            dto.setResultHtml(match.getMatchSummary().getMatchSummaryHtml());
+        MatchSummary matchSummary = match.getMatchSummary();
+        if (matchSummary != null) {
+            dto.setResultHtml(matchSummary.getMatchSummaryHtml());
         } else {
             dto.setResultHtml("<div>This match is over.</div>");
         }
