@@ -308,6 +308,10 @@ public class Match implements Serializable {
 
     // ======== SOME HELPERS =========== //
 
+    public void removeAllAiPlayers() {
+        this.aiPlayers.clear();
+    }
+
     public int getSlotByPlayerId(Long playerId) {
         if (player1 != null && player1.getId().equals(playerId))
             return 1;

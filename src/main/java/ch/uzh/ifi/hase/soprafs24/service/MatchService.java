@@ -324,6 +324,12 @@ public class MatchService {
                     // Having done that, let us check if the game is perhaps over.
                     if (gameService.finalizeGameIfComplete(game)) {
                         wrapUpCompletedGame(game); // Already defined in MatchService
+                        return pollingService.getPlayerPollingForPostMatchPhase(
+                                requestingUser,
+                                match,
+                                true // showGameResult
+                        );
+
                     }
                 }
             }
@@ -396,7 +402,7 @@ public class MatchService {
 
     /**
      * Handles completed Match and deletes all dependencies (games, matchPlayers,
-     * messages, passedCards) while keeping the Match itself.
+     * messages, passedCards etc.) while keeping the Match and MatchSummary itself.
      *
      * @param match the match to shut down
      */
@@ -404,27 +410,47 @@ public class MatchService {
     public void handleMatchInResultPhaseOrAborted(Match match) {
         log.info("MatchPhase is set to FINISHED.");
 
-        // Sever parent-child references for games so orphan removal works
+        // 1. Sever parent-child references for games so orphan removal works
         for (Game game : match.getGames()) {
             game.setMatch(null);
         }
         match.getGames().clear();
+        log.info("Clean-up of Match {}: Removed references to match in all related games.", match.getMatchId());
+        log.info("Clean-up: Deleted all related games.");
 
+        // 2. Remove MatchPlayers
         for (MatchPlayer player : match.getMatchPlayers()) {
             player.setMatch(null);
         }
         match.getMatchPlayers().clear();
+        log.info("Clean-up: Deleted all related matchplayers.");
 
+        // 3. Remove Matchmessages
         for (MatchMessage message : match.getMessages()) {
             message.setMatch(null);
         }
         match.getMessages().clear();
+        log.info("Clean-up: Deleted all related messages.");
 
+        // 4. Remove Invites
         match.getInvites().clear();
+        log.info("Clean-up: Deleted all related invites.");
+
+        // 5. Remove JoinRequests
         match.getJoinRequests().clear();
+        log.info("Clean-up: Deleted all related joinrequests.");
+
+        // 6. Remove AiPlayers
         match.getAiPlayers().clear();
+        log.info("Clean-up: Deleted all related aiplayers.");
+
+        // 7. GameStats
+        gameService.clearAllMatchStatsForGame(match);
+        log.info("Clean-up: Deleted all related matchstats.");
 
         matchRepository.saveAndFlush(match);
+        log.info("Clean-up: saved and flushed match {}.", match.getMatchId());
+
     }
 
     public void checkGameAndStartNextIfNeeded(Match match) {
@@ -470,13 +496,14 @@ public class MatchService {
             }
 
             if (!match.getSlotDidConfirmLastGame().contains(slot)) {
-                match.getSlotDidConfirmLastGame().add(slot);
+                match.addSlotDidConfirm(slot);
                 log.info("MatchPlayer in slot {} confirmed match result.", slot);
 
                 // Transition to FINISHED after first confirmation
                 match.setPhase(MatchPhase.FINISHED);
                 matchRepository.save(match);
                 log.info("Match marked as FINISHED.");
+                handleMatchInResultPhaseOrAborted(match);
             }
             return;
         }
@@ -512,6 +539,17 @@ public class MatchService {
         if (user.getId().equals(match.getPlayer4().getId()))
             return 4;
         return null;
+    }
+
+    public void autoPlayFastForwardPoints(Long matchId, int pts) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        List<MatchPlayer> mps = match.getMatchPlayers();
+        for (int i = 0; i < mps.size(); i++) {
+            MatchPlayer mp = mps.get(i);
+            mp.setMatchScore(pts);
+            matchPlayerRepository.save(mp);
+        }
+
     }
 
     public boolean shouldEndMatch(Match match) {

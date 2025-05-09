@@ -412,6 +412,11 @@ public class GameService {
         matchRepository.save(match);
     }
 
+    public void clearAllMatchStatsForGame(Match match) {
+        gameStatsService.deleteGameStatsForMatch(match);
+        matchRepository.save(match);
+    }
+
     @Transactional
     public void resetNonAiPlayersReady(Game game) {
         Match match = game.getMatch();

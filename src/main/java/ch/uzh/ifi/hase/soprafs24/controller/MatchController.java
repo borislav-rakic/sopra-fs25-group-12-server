@@ -345,6 +345,15 @@ public class MatchController {
         matchService.autoPlayToLastTrickOfGame(matchId, 1);
     }
 
+    @PostMapping("/matches/{matchId}/pts/{pts}")
+    @ResponseStatus(HttpStatus.OK)
+    public void autoPlayFastForwardPoints(@PathVariable Long matchId, @PathVariable int pts) {
+        if (pts > 100) {
+            pts = 99;
+        }
+        matchService.autoPlayFastForwardPoints(matchId, pts);
+    }
+
     @PostMapping("/matches/{matchId}/game/sim/match")
     @ResponseStatus(HttpStatus.OK)
     public void autoPlayToEndOfMatch(@PathVariable Long matchId) {
