@@ -1,6 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.PriorEngagement;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
@@ -315,6 +316,19 @@ public class UserService {
     // Convert User to UserPrivateDTO and set participantOfActiveMatchId
     UserPrivateDTO userDTO = DTOMapper.INSTANCE.convertEntityToUserPrivateDTO(user);
     userDTO.setParticipantOfActiveMatchId(participantOfActiveMatchId);
+
+    // "wäre es möglich beim userPrivateDTO noch mitzugeben, ob der player in einem
+    // aktiven match oder in einem matchcreation (also start/{matched}) ist?"
+
+    List<Long> matchIdList1 = matchRepository.findActiveMatchIdsWithUserId(userId);
+    List<Long> matchIdList2 = matchRepository.findMatchIdsInSetupWithUserId(userId);
+    if (matchIdList1.size() > 0) {
+      userDTO.setParticipantOfActiveMatchPhase(PriorEngagement.MATCH);
+    } else if (matchIdList2.size() > 0) {
+      userDTO.setParticipantOfActiveMatchPhase(PriorEngagement.START);
+    } else {
+      userDTO.setParticipantOfActiveMatchPhase(PriorEngagement.NULL);
+    }
 
     return userDTO;
   }

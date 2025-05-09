@@ -101,6 +101,7 @@ public interface DTOMapper {
   UserAuthDTO convertEntityToUserAuthDTO(User user);
 
   @Mapping(target = "participantOfActiveMatchId", ignore = true) // Ignore this field during normal mapping
+  @Mapping(target = "participantOfActiveMatchPhase", ignore = true) // Ignore this field during normal mapping
   UserPrivateDTO convertEntityToUserPrivateDTO(User user);
 
   // Add a custom method to set participantOfActiveMatchId

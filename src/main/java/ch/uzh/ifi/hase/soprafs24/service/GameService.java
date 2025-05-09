@@ -259,15 +259,17 @@ public class GameService {
             game.setTrickPhase(TrickPhase.PROCESSINGTRICK);
             gameRepository.save(game);
             log.info("Trick marked READY for clearing on next poll.");
-            return;
-        }
-        if (game.getTrickPhase() == TrickPhase.PROCESSINGTRICK) {
-            if (cardRulesService.trickConsistsOnlyOfHearts(game.getCurrentTrick())) {
+            if (cardRulesService.trickConsistsOnlyOfHearts(game.getCurrentTrick())
+                    && game.getPhase() != GamePhase.FINALTRICK) {
                 matchMessageService.addMessage(
                         game.getMatch(),
                         MatchMessageType.ALL_HEARTS_TRICK,
                         matchMessageService.getFunMessage(MatchMessageType.ALL_HEARTS_TRICK));
             }
+            return;
+        }
+        if (game.getTrickPhase() == TrickPhase.PROCESSINGTRICK) {
+
             gameTrickService.clearTrick(game.getMatch(), game);
             gameTrickService.updateGamePhaseBasedOnPlayOrder(game);
 
