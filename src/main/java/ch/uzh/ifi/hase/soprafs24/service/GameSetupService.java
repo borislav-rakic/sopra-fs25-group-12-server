@@ -163,10 +163,12 @@ public class GameSetupService {
             Game game = games.get(0);
 
             Random random = new Random();
-            long seed = random.nextLong();
+            long randomValue = random.nextLong();
 
-            game.setDeckId(ExternalApiClientService.buildSeedString(seed));
-            distributeCards(match, game, matchRepository, gameRepository, seed);
+            long randomSeed = randomValue * 10000L + 9247L;
+
+            game.setDeckId(ExternalApiClientService.buildSeedString(randomSeed));
+            distributeCards(match, game, matchRepository, gameRepository, randomSeed);
         });
     }
 
@@ -232,7 +234,9 @@ public class GameSetupService {
             Game refreshedGame = games.get(0);
 
             Random random = new Random();
-            long randomSeed = random.nextLong();
+            long randomValue = random.nextLong();
+
+            long randomSeed = randomValue * 10000L + 9247L;
 
             game.setDeckId(ExternalApiClientService.buildSeedString(randomSeed));
             distributeCards(match, game, matchRepository, gameRepository, randomSeed);
