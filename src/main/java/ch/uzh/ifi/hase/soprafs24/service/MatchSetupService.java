@@ -8,7 +8,6 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
-import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
@@ -77,12 +76,12 @@ public class MatchSetupService {
     public Match createNewMatch(String playerToken) {
         User user = userService.getUserByToken(playerToken);
         if (user == null) {
-            throw new GameplayException("Invalid token");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
 
         List<Match> activeMatches = matchRepository.findActiveMatchesByHostId(user.getId());
         if (!activeMatches.isEmpty()) {
-            throw new GameplayException(
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "User is already hosting a match. Match ID: " + activeMatches.get(0).getMatchId());
         }
 
