@@ -163,7 +163,7 @@ public class GameSetupService {
             Game game = games.get(0);
 
             Random random = new Random();
-            long randomValue = random.nextLong();
+            long randomValue = Math.abs(random.nextInt());
 
             long randomSeed = randomValue * 10000L + 9247L;
 
@@ -234,7 +234,7 @@ public class GameSetupService {
             Game refreshedGame = games.get(0);
 
             Random random = new Random();
-            long randomValue = random.nextLong();
+            long randomValue = Math.abs(random.nextInt());
 
             long randomSeed = randomValue * 10000L + 9247L;
 
