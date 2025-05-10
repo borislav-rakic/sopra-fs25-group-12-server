@@ -8,5 +8,6 @@ public enum MatchMessageType {
     LAST_TRICK_STARTED,
     ALL_HEARTS_TRICK,
     QUEEN_WARNING,
-    GAME_ENDED
+    GAME_ENDED,
+    HOST_CHANGED
 }

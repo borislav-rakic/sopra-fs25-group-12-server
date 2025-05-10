@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.AiMatchPlayerState;
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchMessageType;
@@ -27,6 +28,7 @@ import org.springframework.web.server.ResponseStatusException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 import ch.uzh.ifi.hase.soprafs24.util.MatchUtils;
@@ -37,9 +39,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Match Service
  * This class is the "worker" and responsible for all functionality related to
- * matches
- * (e.g., it creates, modifies, deletes, finds). The result will be passed back
- * to the caller.
+ * matches (e.g., it creates, modifies, deletes, finds). The result will be
+ * passed back to the caller.
  */
 @Service
 @Transactional
@@ -107,6 +108,146 @@ public class MatchService {
         return (int) (i - 1);
     }
 
+    /**
+     * Replaces current host of match with other human MatchPlayer or aborts Match.
+     * 
+     * @param match Match Object in which a change of host should take place.
+     */
+    @Transactional
+    public void findNewHumanHostOrAbortMatch(Match match) {
+        // 1. Identify current host
+        Long previousHostId = match.getHostId();
+        User previousHostUser = userRepository.findUserById(previousHostId);
+        if (previousHostUser == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Could not identify match host.");
+        }
+
+        MatchPlayer previousHostMatchPlayer = matchPlayerRepository.findByUserAndMatch(previousHostUser, match);
+        if (previousHostMatchPlayer == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Could not identify hosting MatchPlayer.");
+        }
+
+        // 2. Find a new human host (other than the current one)
+        MatchPlayer newHumanHostMatchPlayer = match.getMatchPlayers().stream()
+                .filter(mp -> !mp.getIsAiPlayer() && !mp.getUser().getId().equals(previousHostId))
+                .findFirst()
+                .orElse(null);
+
+        if (newHumanHostMatchPlayer == null) {
+            abortMatch(match);
+            return;
+        }
+
+        // 3. Transfer host responsibility
+        previousHostMatchPlayer.setIsHost(false);
+        newHumanHostMatchPlayer.setIsHost(true);
+        match.setHostId(newHumanHostMatchPlayer.getUser().getId());
+        match.setHostUsername(newHumanHostMatchPlayer.getUser().getUsername());
+
+        gameService.relayMessageToMatchMessageService(match, MatchMessageType.PLAYER_LEFT,
+                previousHostUser.getUsername());
+        gameService.relayMessageToMatchMessageService(match, MatchMessageType.HOST_CHANGED,
+                newHumanHostMatchPlayer.getUser().getUsername());
+
+        // 4. Replace former host with AI player in their slot
+        int slotToBeReplaced = previousHostMatchPlayer.getMatchPlayerSlot();
+        replaceMatchPlayerSlotWithAiPlayer(match, slotToBeReplaced); // ← Delegated to utility method
+
+        // 5. Persist updated host
+        matchPlayerRepository.save(newHumanHostMatchPlayer);
+        matchRepository.save(match);
+
+        log.info("Host transferred from MatchPlayerSlot {} to {}.",
+                slotToBeReplaced, newHumanHostMatchPlayer.getMatchPlayerSlot());
+    }
+
+    /**
+     * Finds the UserId:Long of a currently unemployed AI Player in this match
+     * 
+     * @param match Match in which the AI Player might need to particpate.
+     * @return Long with UserId of available AI Player.
+     */
+    public Long findUserIdOfUnoccupiedAiPlayer(Match match) {
+        List<MatchPlayer> mps = match.getMatchPlayers();
+
+        // Collect all user IDs already in use
+        Set<Long> usedIds = mps.stream()
+                .map(mp -> mp.getUser().getId())
+                .collect(Collectors.toSet());
+
+        // Check for the first unoccupied AI player ID (1 to 9)
+        for (long candidate = 1L; candidate < 10L; candidate++) {
+            if (!usedIds.contains(candidate)) {
+                return candidate;
+            }
+        }
+
+        // No available AI user ID
+        return null;
+    }
+
+    /**
+     * A human MatchPlayer needs to be replaced by an AI Player.
+     * 
+     * @param match the Current Match Object.
+     * @matchPlayerSlot the position of the player that is replaced.
+     */
+
+    @Transactional
+    public void replaceMatchPlayerSlotWithAiPlayer(Match match, int matchPlayerSlot) {
+        // Find unoccupied AI Player
+        Long newAiPlayerId = findUserIdOfUnoccupiedAiPlayer(match);
+        User newAiUser = userRepository.findUserById(newAiPlayerId);
+        if (newAiUser == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "No available AI player.");
+        }
+
+        // Find the MatchPlayer by slot
+        MatchPlayer replaced = match.getMatchPlayers().stream()
+                .filter(mp -> mp.getMatchPlayerSlot() == matchPlayerSlot)
+                .findFirst()
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No player in that slot."));
+
+        // Swap in AI player
+        replaced.setUser(newAiUser);
+        replaced.setIsAiPlayer(true);
+        replaced.setAiMatchPlayerState(AiMatchPlayerState.READY);
+        replaced.setIsHost(false); // Ensure AI doesn't remain host accidentally
+
+        // Update player reference in Match
+        switch (matchPlayerSlot) {
+            case 1:
+                match.setPlayer1(newAiUser);
+                break;
+            case 2:
+                match.setPlayer2(newAiUser);
+                break;
+            case 3:
+                match.setPlayer3(newAiUser);
+                break;
+            case 4:
+                match.setPlayer4(newAiUser);
+                break;
+            default:
+                throw new IllegalArgumentException("Invalid MatchPlayerSlot: " + matchPlayerSlot);
+        }
+
+        // Notify system
+        gameService.relayMessageToMatchMessageService(match, MatchMessageType.PLAYER_JOINED, newAiUser.getUsername());
+
+        matchPlayerRepository.save(replaced);
+        matchRepository.save(match);
+
+        log.info("Slot {} replaced with AI Player (UserId={}).", matchPlayerSlot, newAiUser.getId());
+    }
+
+    /**
+     * Deal with a user signalling they want to leave the Match.
+     *
+     * @param matchId ID of the match the user wants to leave.
+     * @param token   Authentication token of the user.
+     */
+    @Transactional
     public void leaveMatch(Long matchId, String token) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         if (match == null) {
@@ -118,30 +259,28 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
 
-        // Don't allow the host to leave
+        // Host wants to leave
         if (match.getHostId().equals(user.getId())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Host cannot leave the match.");
+            if (!GameConstants.HOSTS_ARE_ALLOWED_TO_LEAVE_THE_MATCH) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Host cannot leave the match.");
+            }
+            findNewHumanHostOrAbortMatch(match);
+            return;
         }
 
-        // Find the MatchPlayer entry
-        MatchPlayer toRemove = match.getMatchPlayers().stream()
+        // Regular player wants to leave → replace with AI
+        MatchPlayer leavingMatchPlayer = match.getMatchPlayers().stream()
                 .filter(mp -> mp.getUser().equals(user))
                 .findFirst()
                 .orElseThrow(
                         () -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "You are not part of this match."));
 
-        match.getMatchPlayers().remove(toRemove);
+        int slot = leavingMatchPlayer.getMatchPlayerSlot();
+        replaceMatchPlayerSlotWithAiPlayer(match, slot);
 
-        // Remove from matchPlayerSlot reference
-        if (match.getPlayer2() != null && match.getPlayer2().equals(user)) {
-            match.setPlayer2(null);
-        } else if (match.getPlayer3() != null && match.getPlayer3().equals(user)) {
-            match.setPlayer3(null);
-        } else if (match.getPlayer4() != null && match.getPlayer4().equals(user)) {
-            match.setPlayer4(null);
-        }
+        gameService.relayMessageToMatchMessageService(match, MatchMessageType.PLAYER_LEFT, user.getUsername());
 
-        matchRepository.save(match);
+        log.info("Player at slot {} left the match and was replaced by an AI player.", slot);
     }
 
     public void passingAcceptCards(Long matchId, GamePassingDTO passingDTO, String token, Boolean pickRandomly) {

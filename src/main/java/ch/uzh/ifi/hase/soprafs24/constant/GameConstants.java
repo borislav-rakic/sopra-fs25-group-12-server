@@ -13,7 +13,8 @@ public final class GameConstants {
 
     public static final int POLLING_INTERVAL_MS = 1000;
 
-    public static final boolean PREVENT_OVERPOLLING = false;
+    // This is not final, because it may change
+    public static boolean PREVENT_OVERPOLLING = false;
 
     public static final int MAX_TRICK_SIZE = 4;
 
@@ -26,6 +27,9 @@ public final class GameConstants {
     public static final int HOST_TIME_OUT_SECONDS = 30;
 
     public static final int TRICK_DELAY_MS = 1500;
+
+    // This is not final, because it may change.
+    public static boolean HOSTS_ARE_ALLOWED_TO_LEAVE_THE_MATCH = true;
 
     private GameConstants() {
         // Prevent instantiation

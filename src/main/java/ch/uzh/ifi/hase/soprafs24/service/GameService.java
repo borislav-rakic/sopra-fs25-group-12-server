@@ -436,6 +436,20 @@ public class GameService {
         matchRepository.save(match); // Ensure changes are persisted
     }
 
+    public void relayMessageToMatchMessageService(
+            Match match,
+            MatchMessageType matchMessageType,
+            String who) {
+
+        if (who == null || who.isBlank()) {
+            matchMessageService.addMessage(match, matchMessageType,
+                    matchMessageService.getFunMessage(matchMessageType));
+        } else {
+            matchMessageService.addMessage(match, matchMessageType,
+                    matchMessageService.getFunMessage(matchMessageType, who));
+        }
+    }
+
     @Transactional
     public void passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO,
             Boolean pickRandomly) {
