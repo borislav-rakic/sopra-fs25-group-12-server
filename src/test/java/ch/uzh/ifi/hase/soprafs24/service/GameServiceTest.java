@@ -1,9 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
-import ch.uzh.ifi.hase.soprafs24.constant.AiMatchPlayerState;
-import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
-import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
-import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
+import ch.uzh.ifi.hase.soprafs24.constant.*;
 import ch.uzh.ifi.hase.soprafs24.entity.*;
 import ch.uzh.ifi.hase.soprafs24.repository.*;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
@@ -12,11 +9,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
-import java.util.ArrayList;
-import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Optional;
+
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.eq;
@@ -87,6 +87,7 @@ public class GameServiceTest {
         matchPlayer.setUser(user);
         matchPlayer.setMatch(match);
         matchPlayer.setMatchPlayerSlot(1);
+        matchPlayer.setGameScore(26);
 
         matchPlayer.addCardCodeToHand("5C");
         matchPlayer.addCardCodeToHand("KH");
@@ -179,4 +180,249 @@ public class GameServiceTest {
         verify(gameRepository).saveAndFlush(game);
     }
 
+    @Test
+    public void testAdvanceTrickPhaseIfOwnerPollingTrickJustCompleted() {
+        game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
+        game.setPhase(GamePhase.NORMALTRICK);
+        game.setTrickJustCompletedTime(Instant.now());
+
+        try {
+            Thread.sleep(1501);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+
+        given(gameRepository.save(Mockito.any())).willReturn(game);
+        given(cardRulesService.trickConsistsOnlyOfHearts(Mockito.any())).willReturn(true);
+        doNothing().when(matchMessageService).addMessage(Mockito.any(), Mockito.any(), Mockito.any());
+
+        gameService.advanceTrickPhaseIfOwnerPolling(game);
+
+        verify(gameRepository).save(Mockito.any());
+        verify(cardRulesService).trickConsistsOnlyOfHearts(Mockito.any());
+        verify(matchMessageService).addMessage(Mockito.any(), Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    public void testAdvanceTrickPhaseIfOwnerPollingProcessingTrick() {
+        game.setTrickPhase(TrickPhase.PROCESSINGTRICK);
+        game.setPhase(GamePhase.NORMALTRICK);
+        game.setCurrentPlayOrder(48);
+
+        doNothing().when(gameTrickService).clearTrick(Mockito.any(), Mockito.any());
+        doNothing().when(gameTrickService).updateGamePhaseBasedOnPlayOrder(Mockito.any());
+        doNothing().when(matchMessageService).addMessage(Mockito.any(), Mockito.any(), Mockito.any());
+
+        given(gameRepository.save(Mockito.any())).willReturn(game);
+
+        gameService.advanceTrickPhaseIfOwnerPolling(game);
+
+        verify(gameTrickService).clearTrick(Mockito.any(), Mockito.any());
+        verify(gameTrickService).updateGamePhaseBasedOnPlayOrder(Mockito.any());
+        verify(matchMessageService).addMessage(Mockito.any(), Mockito.any(), Mockito.any());
+        verify(gameRepository).save(Mockito.any());
+    }
+
+    @Test
+    public void testFinalizeGameIfCompleteNotResultPhase() {
+        game.setPhase(GamePhase.NORMALTRICK);
+
+        boolean expected = false;
+
+        boolean result = gameService.finalizeGameIfComplete(game);
+
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void testFinalizeGameIfCompleteResultPhase() {
+        game.setPhase(GamePhase.RESULT);
+        game.setCurrentPlayOrder(4);
+
+        boolean expected = false;
+
+        boolean result = gameService.finalizeGameIfComplete(game);
+
+        assertEquals(expected, result);
+    }
+
+    @Test
+    public void testFinalizeGameScoresMoonShot() {
+        given(matchPlayerRepository.findByMatch(Mockito.any())).willReturn(match.getMatchPlayers());
+        given(gameRepository.save(Mockito.any())).willReturn(game);
+        given(matchPlayerRepository.save(Mockito.any())).willReturn(matchPlayer);
+
+        doNothing().when(matchSummaryService).saveGameResultHtml(Mockito.any(), Mockito.any(), Mockito.any());
+
+        given(matchRepository.save(Mockito.any())).willReturn(match);
+
+        gameService.finalizeGameScores(game);
+
+        verify(matchPlayerRepository).findByMatch(Mockito.any());
+        verify(gameRepository).save(Mockito.any());
+        verify(matchPlayerRepository).save(Mockito.any());
+        verify(matchSummaryService).saveGameResultHtml(Mockito.any(), Mockito.any(), Mockito.any());
+        verify(matchRepository).save(Mockito.any());
+    }
+
+    @Test
+    public void testResetNonAiPlayersReady() {
+        match.getMatchPlayers().get(0).setReady(true);
+
+        given(matchRepository.save(Mockito.any())).willReturn(match);
+
+        boolean expected = false;
+
+        gameService.resetNonAiPlayersReady(game);
+
+        verify(matchRepository).save(Mockito.any());
+        assertEquals(expected, match.getMatchPlayers().get(0).getIsReady());
+    }
+
+    @Test
+    public void testPassingAcceptCards() {
+        GamePassingDTO gamePassingDTO = new GamePassingDTO();
+        List<String> cards = Arrays.asList("6C", "7C", "8C");
+        gamePassingDTO.setCards(cards);
+        gamePassingDTO.setPlayerId(1L);
+
+        matchPlayer.addCardCodeToHand("2C");
+
+        given(cardPassingService.passingAcceptCards(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean()))
+                .willReturn(12);
+
+        doNothing().when(cardPassingService).collectPassedCards(Mockito.any());
+
+        given(gameRepository.save(Mockito.any())).willReturn(game);
+        given(gameRepository.saveAndFlush(Mockito.any())).willReturn(game);
+
+        gameService.passingAcceptCards(game, matchPlayer, gamePassingDTO, true);
+
+        verify(cardPassingService).passingAcceptCards(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean());
+        verify(cardPassingService).collectPassedCards(Mockito.any());
+        verify(gameRepository).save(Mockito.any());
+        verify(gameRepository).saveAndFlush(Mockito.any());
+    }
+
+    @Test
+    public void testAssignTwoOfClubsLeaderError() {
+        assertThrows(
+                IllegalStateException.class,
+                () -> gameService.assignTwoOfClubsLeader(game),
+                "Expected IllegalStateException to be thrown"
+        );
+    }
+
+    @Test
+    public void testGetActiveGameByMatchId() {
+        given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
+        given(gameRepository.findActiveGameByMatchId(Mockito.any())).willReturn(game);
+
+        Game result = gameService.getActiveGameByMatchId(1L);
+
+        assertEquals(game, result);
+    }
+
+    @Test
+    public void testResetAllPlayersReady() {
+        List<MatchPlayer> matchPlayers = Arrays.asList(new MatchPlayer(), new MatchPlayer(), new MatchPlayer());
+        match.getMatchPlayers().addAll(matchPlayers);
+
+        given(matchRepository.findById(Mockito.any())).willReturn(Optional.ofNullable(match));
+
+        gameService.resetAllPlayersReady(1L);
+
+        verify(matchRepository).findById(Mockito.any());
+    }
+
+    @Test
+    public void testAssertConsistentGameStateError1() {
+        game.setPhase(GamePhase.NORMALTRICK);
+        match.setPhase(MatchPhase.RESULT);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> gameService.assertConsistentGameState(game),
+                "Expected IllegalStateException to be thrown"
+        );
+    }
+
+    @Test
+    public void testAssertConsistentGameStateError2() {
+        game.setPhase(GamePhase.NORMALTRICK);
+        match.setPhase(MatchPhase.IN_PROGRESS);
+        game.setCurrentPlayOrder(2);
+        game.setCurrentPlayOrder(3);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> gameService.assertConsistentGameState(game),
+                "Expected IllegalStateException to be thrown"
+        );
+    }
+
+    @Test
+    public void testDoPlayOrderAndTrickPhaseMatchFirstTrickError() {
+        game.setPhase(GamePhase.FIRSTTRICK);
+        game.setCurrentPlayOrder(-1);
+        game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> gameService.doPlayOrderAndTrickPhaseMatch(game),
+                "Expected IllegalStateException to be thrown"
+        );
+    }
+
+    @Test
+    public void testDoPlayOrderAndTrickPhaseMatchNormalTrickError() {
+        game.setPhase(GamePhase.NORMALTRICK);
+        game.setCurrentPlayOrder(-1);
+        game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> gameService.doPlayOrderAndTrickPhaseMatch(game),
+                "Expected IllegalStateException to be thrown"
+        );
+    }
+
+    @Test
+    public void testDoPlayOrderAndTrickPhaseFinalTrickError() {
+        game.setPhase(GamePhase.FINALTRICK);
+        game.setCurrentPlayOrder(-1);
+        game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> gameService.doPlayOrderAndTrickPhaseMatch(game),
+                "Expected IllegalStateException to be thrown"
+        );
+    }
+
+    @Test
+    public void testDoPlayOrderAndTrickPhaseResultError2() {
+        game.setPhase(GamePhase.RESULT);
+        game.setCurrentPlayOrder(-1);
+        game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> gameService.doPlayOrderAndTrickPhaseMatch(game),
+                "Expected IllegalStateException to be thrown"
+        );
+    }
+
+    @Test
+    public void testDoPlayOrderAndTrickPhasePassingError3() {
+        game.setPhase(GamePhase.PASSING);
+        game.setCurrentPlayOrder(-1);
+        game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
+
+        assertThrows(
+                IllegalStateException.class,
+                () -> gameService.doPlayOrderAndTrickPhaseMatch(game),
+                "Expected IllegalStateException to be thrown"
+        );
+    }
 }
