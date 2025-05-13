@@ -1,10 +1,14 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
+import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
@@ -13,11 +17,26 @@ import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import reactor.core.publisher.Mono;
 
 import java.util.*;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class GameSetupServiceTest {
     @Mock
@@ -79,32 +98,108 @@ public class GameSetupServiceTest {
     }
 
     @Test
+    public void testDetermineNextGameNumber() {
+        // Create mock Game objects
+        Match match = mock(Match.class);
+        Game game1 = mock(Game.class);
+        when(game1.getGameNumber()).thenReturn(1);
+        Game game2 = mock(Game.class);
+        when(game2.getGameNumber()).thenReturn(2);
+
+        // Mocking match.getGames() to return the list of mock games
+        when(match.getGames()).thenReturn(Arrays.asList(game1, game2));
+
+        // Calculate next game number
+        int nextGameNumber = gameSetupService.determineNextGameNumber(match);
+
+        assertEquals(3, nextGameNumber); // We expect the next game number to be 3
+    }
+
+
+    // @Test
+    // void testCreateAndStartGameForMatch_Success() {
+    //     Match match = mock(Match.class);
+    //     when(match.getPhase()).thenReturn(MatchPhase.READY);
+    //     when(match.getGames()).thenReturn(Collections.emptyList()); // No active games
+
+    //     // Mocking repository behavior
+    //     Game game = mock(Game.class);
+    //     when(gameRepository.save(any(Game.class))).thenReturn(game); // Save and return the same game
+
+    //     Game resultGame = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, 1234L);
+
+    //     assertNotNull(resultGame); // Assert that a game was created
+    //     verify(gameRepository, times(1)).save(any(Game.class)); // Ensure save was called
+    // }
+
+
+    // @Test
+    // public void testCreateAndStartGameForMatch_Failure_InvalidPhase() {
+    //     // Setup: Match with incorrect phase
+    //     when(match.getPhase()).thenReturn(MatchPhase.IN_PROGRESS);
+
+    //     // Mock void method with doNothing() (if no exception is expected)
+    //     doNothing().when(gameStatsService).updateGameStatsFromPlayers(any());
+
+    //     // Try to create a game, expecting an exception
+    //     ResponseStatusException thrown = assertThrows(ResponseStatusException.class, () -> {
+    //         gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
+    //     });
+
+    //     assertEquals(HttpStatus.FORBIDDEN, thrown.getStatus());
+    //     assertTrue(thrown.getMessage().contains("Game cannot be created if match is in phase IN_PROGRESS"));
+    // }
+
+
+    @Test
+    void testCreateAndStartGameForMatch_Failure_ActiveGameExists() {
+        Match match = mock(Match.class);
+        when(match.getPhase()).thenReturn(MatchPhase.READY);
+        // Ensure no active game is present (stubbing correctly)
+        when(match.getGames()).thenReturn(Arrays.asList(mock(Game.class))); // Simulate active game exists
+
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
+            gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
+        });
+
+        assertEquals(HttpStatus.CONFLICT, exception.getStatus());
+        assertEquals("Cannot create new game: match 0 already has an active game.", exception.getReason());
+    }
+
+
+
+    @Test
     public void testFetchAndDistributeCardsAsync() {
+        // Simulating a RuntimeException for API failure
         RuntimeException apiError = new RuntimeException("Simulated exception");
+
+        // Mocking the external API client to return an error
         given(externalApiClientService.createNewDeck()).willReturn(Mono.error(apiError));
 
+        // Mocking the necessary repository methods
         given(matchRepository.findMatchByMatchId(Mockito.anyLong())).willReturn(match);
-
         given(gameRepository.findWaitingGameByMatchid(Mockito.anyLong())).willReturn(match.getGames());
 
-        given(matchPlayerRepository.saveAndFlush(Mockito.any())).willReturn(match.getMatchPlayers().get(0));
-
+        // Simulate the fetch and distribute cards method
         gameSetupService.fetchDeckAndDistributeCardsAsync(matchRepository, gameRepository, 1L);
     }
 
     @Test
-    public void testDistributeCards() {
-        RuntimeException apiError = new RuntimeException("Simulated exception");
-        given(externalApiClientService.drawCard(Mockito.any(), Mockito.anyInt())).willReturn(Mono.error(apiError));
+    void testDistributeCards() {
+        // Create mock Game and Match objects
+        Game game = mock(Game.class);
+        Match match = mock(Match.class);
 
-        given(matchRepository.findMatchByMatchId(Mockito.anyLong())).willReturn(match);
+        // Mock the externalApiClientService to throw an exception
+        Mono<DrawCardResponse> drawCardResponseMono = Mono.error(new RuntimeException("Simulated exception"));
+        when(externalApiClientService.drawCard(anyString(), anyInt())).thenReturn(drawCardResponseMono);
 
-        given(gameRepository.findWaitingGameByMatchid(Mockito.anyLong())).willReturn(match.getGames());
-
-        given(matchPlayerRepository.saveAndFlush(Mockito.any())).willReturn(match.getMatchPlayers().get(0));
-
-        gameSetupService.distributeCards(match, game, matchRepository, gameRepository, null);
+        // Call the method under test and handle the error
+        assertThrows(RuntimeException.class, () -> {
+            gameSetupService.distributeCards(match, game, matchRepository, gameRepository, null);
+        });
     }
+
 
     private List<CardResponse> generateDeckHelper(int deckSize, Long seed) {
         List<CardResponse> deck = new ArrayList<>();
@@ -129,4 +224,29 @@ public class GameSetupServiceTest {
 
         return deck;
     }
+
+    // @Test
+    // void testAssignTwoOfClubsLeader_Success() {
+    //     // Create a mock Match object
+    //     Match match = mock(Match.class);
+    //     MatchPlayer player = mock(MatchPlayer.class);
+        
+    //     // Mock the behavior of getting players
+    //     when(player.hasCardCodeInHand(GameConstants.TWO_OF_CLUBS)).thenReturn(true);
+    //     when(match.getMatchPlayers()).thenReturn(Collections.singletonList(player));
+
+    //     // Create a mock Game object
+    //     Game game = mock(Game.class);
+
+    //     // Call the method under test
+    //     gameSetupService.assignTwoOfClubsLeader(game);
+
+    //     // Verify the behavior
+    //     verify(game, times(1)).setCurrentMatchPlayerSlot(anyInt());
+    //     verify(game, times(1)).setTrickLeaderMatchPlayerSlot(anyInt());
+    // }
+
+
+
 }
+
