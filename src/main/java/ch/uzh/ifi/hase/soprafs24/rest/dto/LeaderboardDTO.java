@@ -5,14 +5,18 @@ public class LeaderboardDTO {
     private String username;
     private boolean isGuest;
     private boolean isAiPlayer;
-    private float avgPlacement;
+    private float avgGameRanking;
+    private float avgMatchRanking;
     private float scoreTotal;
     private int gamesPlayed;
+    private int matchesPlayed;
     private int moonShots;
     private int perfectGames;
     private int perfectMatches;
-    private int currentStreak;
-    private int longestStreak;
+    private int currentMatchStreak;
+    private int longestMatchStreak;
+    private int currentGameStreak;
+    private int longestGameStreak;
 
     // Getters & Setters
     public Long getId() {
@@ -47,12 +51,20 @@ public class LeaderboardDTO {
         this.isAiPlayer = isAiPlayer;
     }
 
-    public float getAvgPlacement() {
-        return avgPlacement;
+    public float getAvgGameRanking() {
+        return avgGameRanking;
     }
 
-    public void setAvgPlacement(float avgPlacement) {
-        this.avgPlacement = avgPlacement;
+    public void setAvgGameRanking(float avgGameRanking) {
+        this.avgGameRanking = avgGameRanking;
+    }
+
+    public float getAvgMatchRanking() {
+        return avgMatchRanking;
+    }
+
+    public void setAvgMatchRanking(float avgMatchRanking) {
+        this.avgMatchRanking = avgMatchRanking;
     }
 
     public float getScoreTotal() {
@@ -69,6 +81,14 @@ public class LeaderboardDTO {
 
     public void setGamesPlayed(int gamesPlayed) {
         this.gamesPlayed = gamesPlayed;
+    }
+
+    public int getMatchesPlayed() {
+        return matchesPlayed;
+    }
+
+    public void setMatchesPlayed(int matchesPlayed) {
+        this.matchesPlayed = matchesPlayed;
     }
 
     public int getMoonShots() {
@@ -95,19 +115,35 @@ public class LeaderboardDTO {
         this.perfectMatches = perfectMatches;
     }
 
-    public int getCurrentStreak() {
-        return currentStreak;
+    public int getCurrentGameStreak() {
+        return currentGameStreak;
     }
 
-    public void setCurrentStreak(int currentStreak) {
-        this.currentStreak = currentStreak;
+    public void setCurrentGameStreak(int currentGameStreak) {
+        this.currentGameStreak = currentGameStreak;
     }
 
-    public int getLongestStreak() {
-        return longestStreak;
+    public int getCurrentMatchStreak() {
+        return currentMatchStreak;
     }
 
-    public void setLongestStreak(int longestStreak) {
-        this.longestStreak = longestStreak;
+    public void setCurrentMatchStreak(int currentMatchStreak) {
+        this.currentMatchStreak = currentMatchStreak;
+    }
+
+    public int getLongestGameStreak() {
+        return longestGameStreak;
+    }
+
+    public void setLongestGameStreak(int longestGameStreak) {
+        this.longestGameStreak = longestGameStreak;
+    }
+
+    public int getLongestMatchStreak() {
+        return longestMatchStreak;
+    }
+
+    public void setLongestMatchStreak(int longestMatchStreak) {
+        this.longestMatchStreak = longestMatchStreak;
     }
 }

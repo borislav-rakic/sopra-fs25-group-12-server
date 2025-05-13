@@ -27,9 +27,11 @@ import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
+import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
@@ -56,6 +58,7 @@ public class GameService {
     private final MatchMessageService matchMessageService;
     private final MatchPlayerRepository matchPlayerRepository;
     private final MatchSummaryService matchSummaryService;
+    private final UserRepository userRepository;
 
     // or via constructor injection
 
@@ -70,7 +73,8 @@ public class GameService {
             @Qualifier("matchMessageService") MatchMessageService matchMessageService,
             @Qualifier("matchRepository") MatchRepository matchRepository,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
-            @Qualifier("matchSummaryService") MatchSummaryService matchSummaryService) {
+            @Qualifier("matchSummaryService") MatchSummaryService matchSummaryService,
+            @Qualifier("userRepository") UserRepository userRepository) {
         this.aiPlayingService = aiPlayingService;
         this.cardPassingService = cardPassingService;
         this.cardRulesService = cardRulesService;
@@ -81,6 +85,7 @@ public class GameService {
         this.matchRepository = matchRepository;
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchSummaryService = matchSummaryService;
+        this.userRepository = userRepository;
 
     }
 
@@ -301,6 +306,13 @@ public class GameService {
         }
     }
 
+    /**
+     * Finalizes the game if it has reached the RESULT phase and all cards have been
+     * played.
+     * 
+     * @param game the game to check and finalize
+     * @return true if the game was finalized, false if it was not yet complete
+     */
     @Transactional
     public boolean finalizeGameIfComplete(Game game) {
         if (game.getPhase() != GamePhase.RESULT) {
@@ -319,6 +331,14 @@ public class GameService {
         return true;
     }
 
+    /**
+     * Finalizes the scores for the given game by applying game results to each
+     * player,
+     * handling moon shots and perfect games, updating match scores, and saving
+     * game and match state.
+     *
+     * @param game the completed game to finalize scores for
+     */
     @Transactional
     public void finalizeGameScores(Game game) {
         Match match = game.getMatch();
@@ -412,6 +432,106 @@ public class GameService {
         matchRepository.save(match);
     }
 
+    /**
+     * Updates user stats after a finished game.
+     *
+     * @param match The relevant Match object.
+     * @param game  The relevant Game object.
+     */
+    public void updateUserStatsAfterGame(Match match, Game game) {
+        // SCORES GIVEN OUT FOR GAME ACTION (more is awarded once the match is finished)
+        // A. Establish rank in game
+        // B. Update Game count
+        // C. Average game ranking
+        // D. Total Score: +1 for winners, -1 for losers, neutral for others
+        // E. Game streak
+        // F. Update moon shots.
+        // G. Update perfect games.
+
+        // First, rank players in this specific game
+        establishRankingOfMatchPlayersInGame(match, game); // sets rankingInGame for each MatchPlayer
+
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            User user = mp.getUser();
+            // A.Establish rank in game.
+            int rankInGame = mp.getRankingInGame();
+
+            // B. Update game count
+            int oldGamesPlayed = user.getGamesPlayed();
+            user.setGamesPlayed(oldGamesPlayed + 1);
+
+            // C. Average game ranking
+            float newAvgRanking = (user.getAvgGameRanking() * oldGamesPlayed + rankInGame) / (oldGamesPlayed + 1);
+            user.setAvgGameRanking(newAvgRanking);
+
+            // Adjust score based on game rank
+            if (rankInGame == 1) {
+                // D. Total Score
+                user.setScoreTotal(user.getScoreTotal() + 1.0f);
+                // E. Game Streak
+                user.setCurrentGameStreak(user.getCurrentGameStreak() + 1);
+                if (user.getCurrentGameStreak() > user.getLongestGameStreak()) {
+                    user.setLongestGameStreak(user.getCurrentGameStreak());
+                }
+            } else if (rankInGame == match.getMatchPlayers().size()) {
+                user.setScoreTotal(user.getScoreTotal() - 1.0f);
+                user.setCurrentGameStreak(0);
+                // Streak broken
+            } else {
+                user.setCurrentGameStreak(0);
+                // Mid-rank breaks streak too, but is point-neutral.
+            }
+
+            // F. Update moon shots.
+            user.setMoonShots(user.getMoonShots() + mp.getShotTheMoonCount());
+            // G. Update perfect games.
+            user.setPerfectGames(user.getPerfectGames() + mp.getPerfectGames());
+
+            userRepository.save(user);
+        }
+    }
+
+    /**
+     * Establish ranks for all matchplayers and save it in the
+     * matchPlayer entity
+     * 
+     * @param Match The relevant Match object
+     * @param Game  The relevant Game object
+     */
+    public void establishRankingOfMatchPlayersInGame(Match match, Game game) {
+        List<MatchPlayer> players = match.getMatchPlayers();
+
+        // Sort players by ascending game score (lower is better)
+        List<MatchPlayer> sorted = players.stream()
+                .sorted(Comparator.comparingInt(MatchPlayer::getGameScore))
+                .toList();
+
+        int rank = 1;
+        int currentScore = -1;
+        int currentRank = 1;
+
+        for (MatchPlayer player : sorted) {
+            int score = player.getGameScore();
+
+            if (score != currentScore) {
+                currentScore = score;
+                currentRank = rank;
+            }
+
+            player.setRankingInGame(currentRank);
+            matchPlayerRepository.save(player);
+
+            rank++;
+        }
+
+        log.info("Assigned game ranking for {} match players.", players.size());
+    }
+
+    /**
+     * Given a a match, deletes all gamestats for that match.
+     * 
+     * @param match The relevant Match object.
+     */
     public void clearAllMatchStatsForGame(Match match) {
         gameStatsService.deleteGameStatsForMatch(match);
         matchRepository.save(match);
@@ -611,6 +731,14 @@ public class GameService {
         throw new IllegalStateException("No player has the 2♣ — invalid game state.");
     }
 
+    /**
+     * Fast-forwards the game state by skipping delays between trick phases.
+     * 
+     * If a trick has just completed, it processes and clears it immediately,
+     * updates the game phase, and finalizes the game if all cards have been played.
+     *
+     * @param game the game to fast-forward internally
+     */
     @Transactional
     public void fastForwardGameInternally(Game game) {
         Match match = game.getMatch();

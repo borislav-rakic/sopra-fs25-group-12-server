@@ -100,10 +100,24 @@ public class MatchService {
         return match;
     }
 
+    /*
+     * Convert playerSlot (0-3) to matchPlayerSlot (1-4)
+     * 
+     * @param i playerSlot
+     * 
+     * @return corresponding matchPlayerSlot
+     */
     public int playerSlotToMatchPlayerSlot(Integer i) {
         return (int) (i + 1);
     }
 
+    /*
+     * Convert matchPlayerSlot to playerSlot
+     * 
+     * @param i matchPlayerSlot
+     * 
+     * @return corresponding playerSlot
+     */
     public int matchPlayerSlotToPlayerSlot(Integer i) {
         return (int) (i - 1);
     }
@@ -288,6 +302,16 @@ public class MatchService {
         log.info("Player at slot {} left the match and was replaced by an AI player.", slot);
     }
 
+    /**
+     * Processes cards sent for passing
+     * 
+     * @param matchId      ID of match
+     * @param passingDTO   Cards that are to be passed
+     * @param token        Token identifying user
+     * @param pickRandomly if set to true overrides any passed card of the
+     *                     passingDTO and selects three cards at random
+     */
+
     public void passingAcceptCards(Long matchId, GamePassingDTO passingDTO, String token, Boolean pickRandomly) {
         Match match = requireMatchByMatchId(matchId);
         User user = userService.requireUserByToken(token);
@@ -308,12 +332,26 @@ public class MatchService {
         gameService.passingAcceptCards(game, matchPlayer, passingDTO, pickRandomly);
     };
 
+    /**
+     * Returns Match object to given matchId or throws
+     * 
+     * @param matchId
+     * @returns Match object
+     * @throws ResponseStatusException if matchId could not be identified.
+     */
     public Match requireMatchByMatchId(Long matchId) {
         return matchRepository.findById(matchId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.NOT_FOUND, "Match not found with id: " + matchId));
     }
 
+    /**
+     * Play the given card as part of the given match identified by matchId
+     * 
+     * @param token   Token identifying user.
+     * @param matchId ID of releveant match.
+     * @param dto     PlayedCardDTO with played card.
+     */
     public void playCardAsHuman(String token, Long matchId, PlayedCardDTO dto) {
         Match match = requireMatchByMatchId(matchId);
         Game game = requireActiveGameByMatch(match);
@@ -324,6 +362,11 @@ public class MatchService {
 
     }
 
+    /**
+     * Processes a completed game
+     * 
+     * @param game Game object of game that was just completed
+     */
     public void wrapUpCompletedGame(Game game) {
         Match match = game.getMatch();
 
@@ -340,6 +383,7 @@ public class MatchService {
         // Decide next match phase
         if (shouldEndMatch(match)) {
             match.setPhase(MatchPhase.RESULT);
+            awardScoresToUsersOfFinishedMatch(match);
             log.info("💄 MatchPhase is set to RESULT.");
         } else {
             match.setPhase(MatchPhase.BETWEEN_GAMES);
@@ -347,6 +391,139 @@ public class MatchService {
         }
 
         matchRepository.save(match);
+    }
+
+    /**
+     * Establishes the rank of MatchPlayers in a match and saves it in
+     * the MatchPlayer entity.
+     * 
+     * @param match the Match object
+     */
+    public void establishRankingOfMatchPlayersInMatch(Match match) {
+        List<MatchPlayer> players = match.getMatchPlayers();
+
+        // Sort players by ascending score
+        List<MatchPlayer> sorted = players.stream()
+                .sorted(Comparator.comparingInt(MatchPlayer::getGameScore))
+                .toList();
+
+        int rank = 1;
+        int currentScore = -1;
+        int currentRank = 1;
+
+        for (MatchPlayer player : sorted) {
+            int score = player.getGameScore();
+
+            if (score != currentScore) {
+                currentScore = score;
+                currentRank = rank;
+            }
+
+            player.setRankingInMatch(currentRank);
+            matchPlayerRepository.save(player);
+
+            rank++;
+        }
+
+        log.info("Established ranking for {} match players.", players.size());
+    }
+
+    /**
+     * Awards scores to users of a finished match
+     * 
+     * @param match Relevant Match object
+     */
+    public void awardScoresToUsersOfFinishedMatch(Match match) {
+        establishRankingOfMatchPlayersInMatch(match);
+        // MATCH-related points
+        // A.
+        // First place in match: 10 points (ex aequo same)
+        // Second place in match: 6 points
+        // Third place in match: 3 points
+        // Fourth place in match: -1 point
+        // B. AI Bonus
+        // Winning (only first place) against at least one difficult AI player: +4
+        // Winning (only first place) against at least one medium AI player +2
+        // C. Perfect match
+        // Scoring 0 points in an entire match: + 20 points
+        // D. Number of matches played
+        // E. Average match ranking
+
+        for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
+            float newlyGainedPoints = 0.0f;
+            User user = matchPlayer.getUser();
+            int ranking = matchPlayer.getRankingInMatch();
+            // A. Points for Ranking
+            if (ranking == 1) {
+                newlyGainedPoints += 10.0f;
+            } else if (ranking == 2) {
+                newlyGainedPoints += 6.0f;
+            } else if (ranking == 3) {
+                newlyGainedPoints += 2.0f;
+            } else if (ranking == 4) {
+                newlyGainedPoints += 1.0f;
+            }
+            // B. AI bonus, only for human players
+            if (matchPlayer.getIsAiPlayer()) {
+                newlyGainedPoints += highestLevelOfAiPlayers(match) * 2.0f;
+            }
+
+            // C. Points for perfect match
+            if (matchPlayer.getMatchScore() == 0) {
+                user.setPerfectMatches(user.getPerfectMatches() + 1);
+                newlyGainedPoints += 20.0f;
+            }
+            // D. number of matches played
+            int oldMatchesPlayed = user.getMatchesPlayed();
+            int newMatchesPlayed = oldMatchesPlayed + 1;
+            user.setMatchesPlayed(newMatchesPlayed);
+
+            // E. Average Match Ranking
+            float oldAverageMatchRanking = user.getAvgMatchRanking();
+            float newAverageMatchRanking = (oldMatchesPlayed * oldAverageMatchRanking + ranking) / newMatchesPlayed;
+            user.setAvgMatchRanking(newAverageMatchRanking);
+
+            // F. Current Match Streak and Longest Match Streak
+            if (ranking == 1) {
+                user.setCurrentMatchStreak(user.getCurrentMatchStreak() + 1);
+                if (user.getCurrentMatchStreak() > user.getLongestMatchStreak()) {
+                    user.setLongestMatchStreak(user.getCurrentMatchStreak());
+                }
+            } else {
+                user.setCurrentMatchStreak(0);
+            }
+            // G. Update Total Score
+            user.setScoreTotal(user.getScoreTotal() + newlyGainedPoints);
+            userRepository.save(user);
+        }
+
+    }
+
+    public int highestLevelOfAiPlayers(Match match) {
+        int highestLevel = 0;
+
+        for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
+            if (matchPlayer.getIsAiPlayer()) {
+                long userId = matchPlayer.getUser().getId();
+                int aiLevel;
+
+                if (userId >= 1 && userId <= 3) {
+                    aiLevel = 0; // easy
+                } else if (userId >= 4 && userId <= 6) {
+                    aiLevel = 1; // medium
+                } else if (userId >= 7 && userId <= 9) {
+                    aiLevel = 2; // difficult
+                } else {
+                    aiLevel = 0; // default/fallback
+                }
+
+                if (aiLevel > highestLevel) {
+                    highestLevel = aiLevel;
+                }
+            }
+        }
+
+        return highestLevel;
     }
 
     @Transactional

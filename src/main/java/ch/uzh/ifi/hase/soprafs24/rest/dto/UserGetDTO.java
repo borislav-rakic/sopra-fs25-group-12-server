@@ -16,20 +16,25 @@ public class UserGetDTO {
   private boolean isAiPlayer;
   private float scoreTotal;
   private int gamesPlayed;
-  private float avgPlacement;
+  private int matchesPlayed;
+  private float avgGameRanking;
+  private float avgMatchRanking;
   private int moonShots;
   private int perfectGames;
   private int perfectMatches;
-  private int currentStreak;
-  private int longestStreak;
+  private int currentGameStreak;
+  private int longestGameStreak;
+  private int currentMatchStreak;
+  private int longestMatchStreak;
 
   public UserGetDTO() {
     // default constructor required by mapping libraries
   }
 
   public UserGetDTO(Long id, String username, UserStatus status, int avatar, LocalDate birthday,
-      int scoreTotal, int gamesPlayed, int avgPlacement, int moonShots,
-      int perfectGames, int perfectMatches, int currentStreak, int longestStreak,
+      int scoreTotal, int gamesPlayed, int avgGameRanking, int avgMatchRanking, int moonShots,
+      int perfectGames, int perfectMatches, int currentGameStreak, int longestGameStreak, int currentMatchStreak,
+      int longestMatchStreak,
       boolean isAiPlayer, boolean isGuest) {
     this.id = id;
     this.username = username;
@@ -38,12 +43,15 @@ public class UserGetDTO {
     this.birthday = birthday;
     this.scoreTotal = scoreTotal;
     this.gamesPlayed = gamesPlayed;
-    this.avgPlacement = avgPlacement;
+    this.avgGameRanking = avgGameRanking;
+    this.avgMatchRanking = avgMatchRanking;
     this.moonShots = moonShots;
     this.perfectGames = perfectGames;
     this.perfectMatches = perfectMatches;
-    this.currentStreak = currentStreak;
-    this.longestStreak = longestStreak;
+    this.currentMatchStreak = currentMatchStreak;
+    this.longestMatchStreak = longestMatchStreak;
+    this.currentGameStreak = currentGameStreak;
+    this.longestGameStreak = longestGameStreak;
     this.isAiPlayer = isAiPlayer;
     this.isGuest = isGuest;
   }
@@ -121,12 +129,28 @@ public class UserGetDTO {
     this.gamesPlayed = gamesPlayed;
   }
 
-  public float getAvgPlacement() {
-    return avgPlacement;
+  public int getMatchesPlayed() {
+    return matchesPlayed;
   }
 
-  public void setAvgPlacement(float avgPlacement) {
-    this.avgPlacement = avgPlacement;
+  public void setMatchesPlayed(int matchesPlayed) {
+    this.matchesPlayed = matchesPlayed;
+  }
+
+  public float getAvgGameRanking() {
+    return avgGameRanking;
+  }
+
+  public void setAvgGameRanking(float avgGameRanking) {
+    this.avgGameRanking = avgGameRanking;
+  }
+
+  public float getAvgMatchRanking() {
+    return avgMatchRanking;
+  }
+
+  public void setAvgMatchRanking(float avgMatchRanking) {
+    this.avgMatchRanking = avgMatchRanking;
   }
 
   public int getMoonShots() {
@@ -153,19 +177,35 @@ public class UserGetDTO {
     this.perfectMatches = perfectMatches;
   }
 
-  public int getCurrentStreak() {
-    return currentStreak;
+  public int getCurrentGameStreak() {
+    return currentGameStreak;
   }
 
-  public void setCurrentStreak(int currentStreak) {
-    this.currentStreak = currentStreak;
+  public void setCurrentGameStreak(int currentGameStreak) {
+    this.currentGameStreak = currentGameStreak;
   }
 
-  public int getLongestStreak() {
-    return longestStreak;
+  public int getLongestGameStreak() {
+    return longestGameStreak;
   }
 
-  public void setLongestStreak(int longestStreak) {
-    this.longestStreak = longestStreak;
+  public void setLongestGameStreak(int longestGameStreak) {
+    this.longestGameStreak = longestGameStreak;
+  }
+
+  public int getCurrentMatchStreak() {
+    return currentMatchStreak;
+  }
+
+  public void setCurrentMatchStreak(int currentMatchStreak) {
+    this.currentMatchStreak = currentMatchStreak;
+  }
+
+  public int getLongestMatchStreak() {
+    return longestMatchStreak;
+  }
+
+  public void setLongestMatchStreak(int longestMatchStreak) {
+    this.longestMatchStreak = longestMatchStreak;
   }
 }

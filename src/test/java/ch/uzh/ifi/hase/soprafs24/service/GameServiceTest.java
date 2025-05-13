@@ -54,6 +54,9 @@ public class GameServiceTest {
     @Mock
     private MatchSummaryService matchSummaryService = Mockito.mock(MatchSummaryService.class);
 
+    @Mock
+    private UserRepository userRepository = Mockito.mock(UserRepository.class);
+
     @InjectMocks
     private GameService gameService = new GameService(
 
@@ -66,7 +69,8 @@ public class GameServiceTest {
             matchMessageService,
             matchRepository,
             matchPlayerRepository,
-            matchSummaryService);
+            matchSummaryService,
+            userRepository);
 
     private Match match;
     private User user;
@@ -298,7 +302,8 @@ public class GameServiceTest {
 
         gameService.passingAcceptCards(game, matchPlayer, gamePassingDTO, true);
 
-        verify(cardPassingService).passingAcceptCards(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean());
+        verify(cardPassingService).passingAcceptCards(Mockito.any(), Mockito.any(), Mockito.any(),
+                Mockito.anyBoolean());
         verify(cardPassingService).collectPassedCards(Mockito.any());
         verify(gameRepository).save(Mockito.any());
         verify(gameRepository).saveAndFlush(Mockito.any());
@@ -309,8 +314,7 @@ public class GameServiceTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> gameService.assignTwoOfClubsLeader(game),
-                "Expected IllegalStateException to be thrown"
-        );
+                "Expected IllegalStateException to be thrown");
     }
 
     @Test
@@ -343,8 +347,7 @@ public class GameServiceTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> gameService.assertConsistentGameState(game),
-                "Expected IllegalStateException to be thrown"
-        );
+                "Expected IllegalStateException to be thrown");
     }
 
     @Test
@@ -357,8 +360,7 @@ public class GameServiceTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> gameService.assertConsistentGameState(game),
-                "Expected IllegalStateException to be thrown"
-        );
+                "Expected IllegalStateException to be thrown");
     }
 
     @Test
@@ -370,8 +372,7 @@ public class GameServiceTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> gameService.doPlayOrderAndTrickPhaseMatch(game),
-                "Expected IllegalStateException to be thrown"
-        );
+                "Expected IllegalStateException to be thrown");
     }
 
     @Test
@@ -383,8 +384,7 @@ public class GameServiceTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> gameService.doPlayOrderAndTrickPhaseMatch(game),
-                "Expected IllegalStateException to be thrown"
-        );
+                "Expected IllegalStateException to be thrown");
     }
 
     @Test
@@ -396,8 +396,7 @@ public class GameServiceTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> gameService.doPlayOrderAndTrickPhaseMatch(game),
-                "Expected IllegalStateException to be thrown"
-        );
+                "Expected IllegalStateException to be thrown");
     }
 
     @Test
@@ -409,8 +408,7 @@ public class GameServiceTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> gameService.doPlayOrderAndTrickPhaseMatch(game),
-                "Expected IllegalStateException to be thrown"
-        );
+                "Expected IllegalStateException to be thrown");
     }
 
     @Test
@@ -422,7 +420,6 @@ public class GameServiceTest {
         assertThrows(
                 IllegalStateException.class,
                 () -> gameService.doPlayOrderAndTrickPhaseMatch(game),
-                "Expected IllegalStateException to be thrown"
-        );
+                "Expected IllegalStateException to be thrown");
     }
 }

@@ -61,8 +61,14 @@ public class User implements Serializable {
   @Column(name = "games_played", nullable = false)
   private int gamesPlayed = 0;
 
-  @Column(name = "avg_placement", nullable = false)
-  private float avgPlacement = 0.0f;
+  @Column(name = "matches_played", nullable = false)
+  private int matchesPlayed = 0;
+
+  @Column(name = "avg_game_ranking", nullable = false)
+  private float avgGameRanking = 0.0f;
+
+  @Column(name = "avg_match_ranking", nullable = false)
+  private float avgMatchRanking = 0.0f;
 
   @Column(name = "moon_shots", nullable = false)
   private int moonShots = 0;
@@ -73,11 +79,17 @@ public class User implements Serializable {
   @Column(name = "perfect_matches", nullable = false)
   private int perfectMatches = 0;
 
-  @Column(name = "current_streak", nullable = false)
-  private int currentStreak = 0;
+  @Column(name = "current_game_streak", nullable = false)
+  private int currentGameStreak = 0;
 
-  @Column(name = "longest_streak", nullable = false)
-  private int longestStreak = 0;
+  @Column(name = "longest_game_streak", nullable = false)
+  private int longestGameStreak = 0;
+
+  @Column(name = "current_match_streak", nullable = false)
+  private int currentMatchStreak = 0;
+
+  @Column(name = "longest_match_streak", nullable = false)
+  private int longestMatchStreak = 0;
 
   // GETTERS AND SETTERS
 
@@ -177,12 +189,28 @@ public class User implements Serializable {
     this.gamesPlayed = gamesPlayed;
   }
 
-  public float getAvgPlacement() {
-    return avgPlacement;
+  public int getMatchesPlayed() {
+    return matchesPlayed;
   }
 
-  public void setAvgPlacement(float avgPlacement) {
-    this.avgPlacement = avgPlacement;
+  public void setMatchesPlayed(int matchesPlayed) {
+    this.matchesPlayed = matchesPlayed;
+  }
+
+  public float getAvgGameRanking() {
+    return avgGameRanking;
+  }
+
+  public void setAvgGameRanking(float avgGameRanking) {
+    this.avgGameRanking = avgGameRanking;
+  }
+
+  public float getAvgMatchRanking() {
+    return avgMatchRanking;
+  }
+
+  public void setAvgMatchRanking(float avgMatchRanking) {
+    this.avgMatchRanking = avgMatchRanking;
   }
 
   public int getMoonShots() {
@@ -209,19 +237,35 @@ public class User implements Serializable {
     this.perfectMatches = perfectMatches;
   }
 
-  public int getCurrentStreak() {
-    return currentStreak;
+  public int getCurrentGameStreak() {
+    return currentGameStreak;
   }
 
-  public void setCurrentStreak(int currentStreak) {
-    this.currentStreak = currentStreak;
+  public void setCurrentGameStreak(int currentGameStreak) {
+    this.currentGameStreak = currentGameStreak;
   }
 
-  public int getLongestStreak() {
-    return longestStreak;
+  public int getLongestGameStreak() {
+    return longestGameStreak;
   }
 
-  public void setLongestStreak(int longestStreak) {
-    this.longestStreak = longestStreak;
+  public void setLongestGameStreak(int longestGameStreak) {
+    this.longestGameStreak = longestGameStreak;
+  }
+
+  public int getCurrentMatchStreak() {
+    return currentMatchStreak;
+  }
+
+  public void setCurrentMatchStreak(int currentMatchStreak) {
+    this.currentMatchStreak = currentMatchStreak;
+  }
+
+  public int getLongestMatchStreak() {
+    return longestMatchStreak;
+  }
+
+  public void setLongestMatchStreak(int longestMatchStreak) {
+    this.longestMatchStreak = longestMatchStreak;
   }
 }

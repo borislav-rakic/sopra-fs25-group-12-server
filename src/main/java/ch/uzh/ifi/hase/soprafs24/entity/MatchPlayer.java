@@ -82,6 +82,10 @@ public class MatchPlayer {
     @Transient // Not persisted in DB unless you want it to be
     private List<String> takenCards = new ArrayList<>();
 
+    private int rankingInMatch;
+
+    private int rankingInGame;
+
     // === Getter and Setter methods ===
 
     public Long getMatchPlayerId() {
@@ -410,6 +414,22 @@ public class MatchPlayer {
 
     public void addTakenCard(String cardCode) {
         this.takenCards.add(cardCode);
+    }
+
+    public int getRankingInMatch() {
+        return rankingInMatch;
+    }
+
+    public void setRankingInMatch(int rankingInMatch) {
+        this.rankingInMatch = rankingInMatch;
+    }
+
+    public int getRankingInGame() {
+        return rankingInGame;
+    }
+
+    public void setRankingInGame(int rankingInGame) {
+        this.rankingInGame = rankingInGame;
     }
 
 }
