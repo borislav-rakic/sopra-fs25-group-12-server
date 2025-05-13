@@ -7,7 +7,7 @@ public class LeaderboardDTO {
     private boolean isAiPlayer;
     private float avgGameRanking;
     private float avgMatchRanking;
-    private float scoreTotal;
+    private int scoreTotal;
     private int gamesPlayed;
     private int matchesPlayed;
     private int moonShots;
@@ -67,11 +67,11 @@ public class LeaderboardDTO {
         this.avgMatchRanking = avgMatchRanking;
     }
 
-    public float getScoreTotal() {
+    public int getScoreTotal() {
         return scoreTotal;
     }
 
-    public void setScoreTotal(float scoreTotal) {
+    public void setScoreTotal(int scoreTotal) {
         this.scoreTotal = scoreTotal;
     }
 
