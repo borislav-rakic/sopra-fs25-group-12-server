@@ -13,10 +13,10 @@ public class MatchMessageDTO {
     private Instant createdAt;
 
     public MatchMessageDTO(MatchMessage message) {
-        this.id = message.getId().toString();
-        this.type = message.getType();
-        this.content = message.getContent();
-        this.createdAt = message.getCreatedAt();
+        this.id = message.getId() != null ? message.getId().toString() : "0";
+        this.type = message.getType() != null ? message.getType() : MatchMessageType.GAME_STARTED;
+        this.content = message.getContent() != null ? message.getContent() : "";
+        this.createdAt = message.getCreatedAt() != null ? message.getCreatedAt() : Instant.now();
     }
 
     // --- Getters and Setters ---
