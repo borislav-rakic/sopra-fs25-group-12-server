@@ -58,8 +58,7 @@ public class GameSetupServiceTest {
     private GameSetupService gameSetupService = new GameSetupService(
             externalApiClientService,
             gameStatsService,
-            matchPlayerRepository
-    );
+            matchPlayerRepository);
 
     Match match;
     Game game;
@@ -115,41 +114,45 @@ public class GameSetupServiceTest {
         assertEquals(3, nextGameNumber); // We expect the next game number to be 3
     }
 
-
     // @Test
     // void testCreateAndStartGameForMatch_Success() {
-    //     Match match = mock(Match.class);
-    //     when(match.getPhase()).thenReturn(MatchPhase.READY);
-    //     when(match.getGames()).thenReturn(Collections.emptyList()); // No active games
+    // Match match = mock(Match.class);
+    // when(match.getPhase()).thenReturn(MatchPhase.READY);
+    // when(match.getGames()).thenReturn(Collections.emptyList()); // No active
+    // games
 
-    //     // Mocking repository behavior
-    //     Game game = mock(Game.class);
-    //     when(gameRepository.save(any(Game.class))).thenReturn(game); // Save and return the same game
+    // // Mocking repository behavior
+    // Game game = mock(Game.class);
+    // when(gameRepository.save(any(Game.class))).thenReturn(game); // Save and
+    // return the same game
 
-    //     Game resultGame = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, 1234L);
+    // Game resultGame = gameSetupService.createAndStartGameForMatch(match,
+    // matchRepository, gameRepository, 1234L);
 
-    //     assertNotNull(resultGame); // Assert that a game was created
-    //     verify(gameRepository, times(1)).save(any(Game.class)); // Ensure save was called
+    // assertNotNull(resultGame); // Assert that a game was created
+    // verify(gameRepository, times(1)).save(any(Game.class)); // Ensure save was
+    // called
     // }
-
 
     // @Test
     // public void testCreateAndStartGameForMatch_Failure_InvalidPhase() {
-    //     // Setup: Match with incorrect phase
-    //     when(match.getPhase()).thenReturn(MatchPhase.IN_PROGRESS);
+    // // Setup: Match with incorrect phase
+    // when(match.getPhase()).thenReturn(MatchPhase.IN_PROGRESS);
 
-    //     // Mock void method with doNothing() (if no exception is expected)
-    //     doNothing().when(gameStatsService).updateGameStatsFromPlayers(any());
+    // // Mock void method with doNothing() (if no exception is expected)
+    // doNothing().when(gameStatsService).updateGameStatsFromPlayers(any());
 
-    //     // Try to create a game, expecting an exception
-    //     ResponseStatusException thrown = assertThrows(ResponseStatusException.class, () -> {
-    //         gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
-    //     });
+    // // Try to create a game, expecting an exception
+    // ResponseStatusException thrown = assertThrows(ResponseStatusException.class,
+    // () -> {
+    // gameSetupService.createAndStartGameForMatch(match, matchRepository,
+    // gameRepository, null);
+    // });
 
-    //     assertEquals(HttpStatus.FORBIDDEN, thrown.getStatus());
-    //     assertTrue(thrown.getMessage().contains("Game cannot be created if match is in phase IN_PROGRESS"));
+    // assertEquals(HttpStatus.FORBIDDEN, thrown.getStatus());
+    // assertTrue(thrown.getMessage().contains("Game cannot be created if match is
+    // in phase IN_PROGRESS"));
     // }
-
 
     @Test
     void testCreateAndStartGameForMatch_Failure_ActiveGameExists() {
@@ -165,8 +168,6 @@ public class GameSetupServiceTest {
         assertEquals(HttpStatus.CONFLICT, exception.getStatus());
         assertEquals("Cannot create new game: match 0 already has an active game.", exception.getReason());
     }
-
-
 
     @Test
     public void testFetchAndDistributeCardsAsync() {
@@ -200,7 +201,6 @@ public class GameSetupServiceTest {
         });
     }
 
-
     private List<CardResponse> generateDeckHelper(int deckSize, Long seed) {
         List<CardResponse> deck = new ArrayList<>();
         String[] suits = { "C", "D", "H", "S" };
@@ -227,26 +227,23 @@ public class GameSetupServiceTest {
 
     // @Test
     // void testAssignTwoOfClubsLeader_Success() {
-    //     // Create a mock Match object
-    //     Match match = mock(Match.class);
-    //     MatchPlayer player = mock(MatchPlayer.class);
-        
-    //     // Mock the behavior of getting players
-    //     when(player.hasCardCodeInHand(GameConstants.TWO_OF_CLUBS)).thenReturn(true);
-    //     when(match.getMatchPlayers()).thenReturn(Collections.singletonList(player));
+    // // Create a mock Match object
+    // Match match = mock(Match.class);
+    // MatchPlayer player = mock(MatchPlayer.class);
 
-    //     // Create a mock Game object
-    //     Game game = mock(Game.class);
+    // // Mock the behavior of getting players
+    // when(player.hasCardCodeInHand(GameConstants.TWO_OF_CLUBS)).thenReturn(true);
+    // when(match.getMatchPlayers()).thenReturn(Collections.singletonList(player));
 
-    //     // Call the method under test
-    //     gameSetupService.assignTwoOfClubsLeader(game);
+    // // Create a mock Game object
+    // Game game = mock(Game.class);
 
-    //     // Verify the behavior
-    //     verify(game, times(1)).setCurrentMatchPlayerSlot(anyInt());
-    //     verify(game, times(1)).setTrickLeaderMatchPlayerSlot(anyInt());
+    // // Call the method under test
+    // gameSetupService.assignTwoOfClubsLeader(game);
+
+    // // Verify the behavior
+    // verify(game, times(1)).setCurrentMatchPlayerSlot(anyInt());
+    // verify(game, times(1)).setTrickLeaderMatchPlayerSlot(anyInt());
     // }
 
-
-
 }
-

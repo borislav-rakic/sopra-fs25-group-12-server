@@ -18,22 +18,10 @@ import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
-import ch.uzh.ifi.hase.soprafs24.util.StrategyRegistry;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-// Available Strategies
-// LEFTMOST, // Always take the leftmost card.
-// RANDOM, // Take any playable card.
-// DUMPHIGHESTFACEFIRST, // Try to get rid of QS,AH,KH,QH,JH,AS,AD,AC,KS, ... in that order.
-// GETRIDOFCLUBSTHENHEARTS, // Try to get rid of Clubs as quickly as possible, then hearts.
-// PREFERBLACK, // Try to keep black cards and discard red cards
-// VOIDSUIT, // Get rid of the suit with the fewest items first.
-// HYPATIA, // Think like Hypatia
-// GARY, // Think like Gary
-// ADA; // Think like Ada
 
 @Service
 @Qualifier("aiPassingService")
@@ -50,6 +38,7 @@ public class AiPassingService {
     }
 
     public List<String> selectCardsToPass(MatchPlayer matchPlayer, Strategy strategy) {
+
         String hand = matchPlayer.getHand();
         if (hand == null || hand.isBlank()) {
             throw new IllegalStateException("AI player has no cards to pass.");
@@ -268,12 +257,26 @@ public class AiPassingService {
         return selectedCards;
     }
 
+    public Strategy getStrategyForUserId(Long userId) {
+        return switch (userId.intValue()) {
+            case 1 -> Strategy.LEFTMOST;
+            case 2 -> Strategy.RANDOM;
+            case 3 -> Strategy.DUMPHIGHESTFACEFIRST;
+            case 4 -> Strategy.GETRIDOFCLUBSTHENHEARTS;
+            case 5 -> Strategy.PREFERBLACK;
+            case 6 -> Strategy.VOIDSUIT;
+            case 7 -> Strategy.HYPATIA;
+            case 8 -> Strategy.GARY;
+            case 9 -> Strategy.ADA;
+            default -> Strategy.LEFTMOST; // Fallback
+        };
+    }
+
     public void passForAllAiPlayers(Game game) {
         Match match = game.getMatch();
         if (match == null) {
             throw new IllegalStateException("Game does not belong to match.");
         }
-        Strategy strategy = Strategy.RANDOM;
         for (int matchPlayerSlot = 1; matchPlayerSlot <= 4; matchPlayerSlot++) {
             MatchPlayer matchPlayer = match.requireMatchPlayerBySlot(matchPlayerSlot);
             if (matchPlayer == null) {
@@ -282,9 +285,8 @@ public class AiPassingService {
                         String.format("There is no match player in playerSlot %d.", playerSlot));
             }
             if (Boolean.TRUE.equals(matchPlayer.getIsAiPlayer())) {
-                strategy = StrategyRegistry.getStrategyForUserId(matchPlayer.getUser().getId());
-                // For now we keep it predictability at LEFTMOST
-                strategy = Strategy.LEFTMOST;
+                Strategy strategy = getStrategyForUserId(matchPlayer.getUser().getId());
+
                 List<String> cardsToPass = selectCardsToPass(matchPlayer, strategy);
                 for (String cardCode : cardsToPass) {
                     if (!passedCardRepository.existsByGameAndRankSuit(game, cardCode)) {
