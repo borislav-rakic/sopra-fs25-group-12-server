@@ -148,6 +148,9 @@ public class CardRulesService {
         // Case 0. There are no cards in the player's hand
         if (handSize == 0) {
             // log.info(" ¦ Case 0.");
+            log.warn("Player in MatchPlayerSlot={} (MatchPlayerId={}) has no cards in his hands: `{}`.",
+                    matchPlayer.getMatchPlayerSlot(), matchPlayer.getMatchPlayerId(),
+                    hand);
             throw new GameplayException(
                     String.format(
                             "Player has no cards in his hands: %s.",

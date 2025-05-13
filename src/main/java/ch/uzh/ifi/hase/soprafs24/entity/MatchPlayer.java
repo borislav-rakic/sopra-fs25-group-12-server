@@ -1,6 +1,8 @@
 package ch.uzh.ifi.hase.soprafs24.entity;
 
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
 
 import javax.persistence.*;
 
@@ -76,6 +78,9 @@ public class MatchPlayer {
 
     @Column
     boolean isHost = false;
+
+    @Transient // Not persisted in DB unless you want it to be
+    private List<String> takenCards = new ArrayList<>();
 
     // === Getter and Setter methods ===
 
@@ -392,6 +397,19 @@ public class MatchPlayer {
 
     public void setIsHost(boolean isHost) {
         this.isHost = isHost;
+    }
+
+    ///////// TAKEN CARD HELPERS
+    public List<String> getTakenCards() {
+        return takenCards;
+    }
+
+    public void setTakenCards(List<String> takenCards) {
+        this.takenCards = takenCards;
+    }
+
+    public void addTakenCard(String cardCode) {
+        this.takenCards.add(cardCode);
     }
 
 }

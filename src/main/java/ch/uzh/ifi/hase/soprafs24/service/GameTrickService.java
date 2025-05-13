@@ -4,8 +4,10 @@ import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
+import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.TrickDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.TrickDTO.TrickCard;
@@ -30,11 +32,16 @@ public class GameTrickService {
 
     private final MatchPlayerRepository matchPlayerRepository;
     private final CardRulesService cardRulesService;
+    private final GameStatsRepository gameStatsRepository;
 
     @Autowired
-    public GameTrickService(MatchPlayerRepository matchPlayerRepository, CardRulesService cardRulesService) {
+    public GameTrickService(
+            MatchPlayerRepository matchPlayerRepository,
+            CardRulesService cardRulesService,
+            GameStatsRepository gameStatsRepository) {
         this.matchPlayerRepository = matchPlayerRepository;
         this.cardRulesService = cardRulesService;
+        this.gameStatsRepository = gameStatsRepository;
     }
 
     public void addCardToTrick(Match match, Game game, MatchPlayer matchPlayer, String cardCode) {
@@ -172,14 +179,28 @@ public class GameTrickService {
 
         log.info(" & Trick winnerMatchPlayerSlot {} ({} points)", winnerMatchPlayerSlot, points);
 
-        // Step A3: Archive the trick
+        // Step A3: Collect cards played in the current trick
+        // List<String> currentTrickCardCodes = game.getCurrentTrick();
+        List<GameStats> currentTrickStats = gameStatsRepository.findByGameAndTrickNumber(game,
+                game.getCurrentTrickNumber());
+
+        List<String> takenCardsThisTrick = currentTrickStats.stream()
+                .map(GameStats::getRankSuit)
+                .toList();
+
+        if (winnerMatchPlayer.getTakenCards() == null) {
+            winnerMatchPlayer.setTakenCards(new ArrayList<>());
+        }
+        winnerMatchPlayer.getTakenCards().addAll(takenCardsThisTrick);
+
+        // Step A4: Archive the trick
         // move current trick to previous, but do not clear it just yet.
         game.setPreviousTrick(game.getCurrentTrick());
         game.setPreviousTrickLeaderMatchPlayerSlot(game.getTrickLeaderMatchPlayerSlot());
         game.setPreviousTrickWinnerMatchPlayerSlot(winnerMatchPlayerSlot);
         game.setPreviousTrickPoints(points);
 
-        // Step A4: Make everything ready. All that remains is clearing the trick.
+        // Step A5: Make everything ready. All that remains is clearing the trick.
         game.setTrickLeaderMatchPlayerSlot(game.getPreviousTrickWinnerMatchPlayerSlot());
         game.setCurrentMatchPlayerSlot(game.getPreviousTrickWinnerMatchPlayerSlot());
 
@@ -187,7 +208,7 @@ public class GameTrickService {
                 game.getPreviousTrickLeaderMatchPlayerSlot(),
                 game.getTrickLeaderMatchPlayerSlot());
 
-        // Step A5:
+        // Step A6:
         game.setTrickJustCompletedTime(Instant.now());
         if (match.getFastForwardMode()) {
             clearTrick(match, game);
