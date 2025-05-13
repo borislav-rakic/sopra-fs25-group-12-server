@@ -248,17 +248,22 @@ public class MatchService {
      * @param token   Authentication token of the user.
      */
     @Transactional
-    public void leaveMatch(Long matchId, String token) {
+    public void leaveMatch(Long matchId, String token, User identifiedUser) {
         Match match = matchRepository.findMatchByMatchId(matchId);
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
 
-        User user = userRepository.findUserByToken(token);
+        // If an identified user was passed into the function
+        // then there is no need to check the token.
+
+        final User user = (identifiedUser != null)
+                ? identifiedUser
+                : userRepository.findUserByToken(token);
+
         if (user == null) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
-
         // Host wants to leave
         if (match.getHostId().equals(user.getId())) {
             if (!GameConstants.HOSTS_ARE_ALLOWED_TO_LEAVE_THE_MATCH) {
@@ -409,7 +414,7 @@ public class MatchService {
         // Are we still fine about the host being alive?
         if (secondsSinceHostsLastPolling(match) > GameConstants.HOST_TIME_OUT_SECONDS) {
             log.info("Host is not polling anymore.");
-            abortMatch(match);
+            findNewHumanHostOrAbortMatch(match);
         }
 
         // Is there an active game for this match?

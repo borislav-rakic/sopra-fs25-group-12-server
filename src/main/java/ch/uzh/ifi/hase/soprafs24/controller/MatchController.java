@@ -215,7 +215,8 @@ public class MatchController {
     @DeleteMapping("/matches/{matchId}/leave")
     @ResponseStatus(HttpStatus.NO_CONTENT)
     public void leaveMatch(@PathVariable Long matchId, @RequestHeader("Authorization") String authHeader) {
-        matchService.leaveMatch(matchId, authHeader.replace("Bearer ", ""));
+        // User will be identified by token.
+        matchService.leaveMatch(matchId, authHeader.replace("Bearer ", ""), null);
     }
 
     /**

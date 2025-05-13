@@ -205,7 +205,7 @@ public class MatchServiceTest {
 
         doNothing().when(gameService).relayMessageToMatchMessageService(Mockito.any(), Mockito.any(), Mockito.any());
 
-        matchService.leaveMatch(1L, "12342");
+        matchService.leaveMatch(1L, "12342", null);
 
         verify(matchRepository).findMatchByMatchId(Mockito.anyLong());
         verify(userRepository).findUserByToken(Mockito.any());
