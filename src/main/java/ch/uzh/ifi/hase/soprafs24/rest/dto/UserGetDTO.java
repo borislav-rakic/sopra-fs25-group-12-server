@@ -14,7 +14,7 @@ public class UserGetDTO {
   private LocalDate birthday;
   private boolean isGuest;
   private boolean isAiPlayer;
-  private float scoreTotal;
+  private int scoreTotal;
   private int gamesPlayed;
   private int matchesPlayed;
   private float avgGameRanking;
@@ -113,11 +113,11 @@ public class UserGetDTO {
     this.avatar = avatar;
   }
 
-  public float getScoreTotal() {
+  public int getScoreTotal() {
     return scoreTotal;
   }
 
-  public void setScoreTotal(float scoreTotal) {
+  public void setScoreTotal(int scoreTotal) {
     this.scoreTotal = scoreTotal;
   }
 

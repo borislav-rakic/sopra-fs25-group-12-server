@@ -450,7 +450,7 @@ public class MatchService {
         // E. Average match ranking
 
         for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
-            float newlyGainedPoints = 0.0f;
+            int newlyGainedPoints = 0;
             User user = matchPlayer.getUser();
             int ranking = matchPlayer.getRankingInMatch();
             // A. Points for Ranking
@@ -479,8 +479,9 @@ public class MatchService {
             user.setMatchesPlayed(newMatchesPlayed);
 
             // E. Average Match Ranking
-            float oldAverageMatchRanking = user.getAvgMatchRanking();
-            float newAverageMatchRanking = (oldMatchesPlayed * oldAverageMatchRanking + ranking) / newMatchesPlayed;
+            float oldAverageMatchRanking = 1.0f * user.getAvgMatchRanking();
+            float newAverageMatchRanking = 1.0f * (oldMatchesPlayed * oldAverageMatchRanking + ranking)
+                    / newMatchesPlayed;
             user.setAvgMatchRanking(newAverageMatchRanking);
 
             // F. Current Match Streak and Longest Match Streak

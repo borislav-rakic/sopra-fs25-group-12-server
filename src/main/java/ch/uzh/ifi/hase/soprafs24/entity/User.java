@@ -56,7 +56,7 @@ public class User implements Serializable {
 
   // NEW STATS FIELDS
   @Column(name = "score_total", nullable = false)
-  private float scoreTotal = 0.0f;
+  private int scoreTotal = 0;
 
   @Column(name = "games_played", nullable = false)
   private int gamesPlayed = 0;
@@ -173,11 +173,11 @@ public class User implements Serializable {
     this.userSettings = userSettings;
   }
 
-  public float getScoreTotal() {
+  public int getScoreTotal() {
     return scoreTotal;
   }
 
-  public void setScoreTotal(float scoreTotal) {
+  public void setScoreTotal(int scoreTotal) {
     this.scoreTotal = scoreTotal;
   }
 

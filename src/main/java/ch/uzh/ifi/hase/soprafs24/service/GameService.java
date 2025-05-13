@@ -461,20 +461,21 @@ public class GameService {
             user.setGamesPlayed(oldGamesPlayed + 1);
 
             // C. Average game ranking
-            float newAvgRanking = (user.getAvgGameRanking() * oldGamesPlayed + rankInGame) / (oldGamesPlayed + 1);
+            float newAvgRanking = 1.0f * (user.getAvgGameRanking() * oldGamesPlayed + rankInGame)
+                    / (oldGamesPlayed + 1);
             user.setAvgGameRanking(newAvgRanking);
 
             // Adjust score based on game rank
             if (rankInGame == 1) {
                 // D. Total Score
-                user.setScoreTotal(user.getScoreTotal() + 1.0f);
+                user.setScoreTotal(user.getScoreTotal() + 1);
                 // E. Game Streak
                 user.setCurrentGameStreak(user.getCurrentGameStreak() + 1);
                 if (user.getCurrentGameStreak() > user.getLongestGameStreak()) {
                     user.setLongestGameStreak(user.getCurrentGameStreak());
                 }
             } else if (rankInGame == match.getMatchPlayers().size()) {
-                user.setScoreTotal(user.getScoreTotal() - 1.0f);
+                user.setScoreTotal(user.getScoreTotal() - 1);
                 user.setCurrentGameStreak(0);
                 // Streak broken
             } else {
@@ -484,8 +485,12 @@ public class GameService {
 
             // F. Update moon shots.
             user.setMoonShots(user.getMoonShots() + mp.getShotTheMoonCount());
+            mp.setShotTheMoonCount(mp.getShotTheMoonCount() + 1);
+            user.setScoreTotal(user.getScoreTotal() + 3);
             // G. Update perfect games.
             user.setPerfectGames(user.getPerfectGames() + mp.getPerfectGames());
+            mp.setPerfectGames(mp.getPerfectGames() + 1);
+            user.setScoreTotal(user.getScoreTotal() + 1);
 
             userRepository.save(user);
         }
