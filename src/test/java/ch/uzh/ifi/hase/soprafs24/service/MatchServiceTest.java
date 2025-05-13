@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
@@ -12,6 +13,7 @@ import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -258,5 +260,62 @@ public class MatchServiceTest {
 
         verify(matchSummaryService).buildMatchResultHtml(match, game);
         verify(matchRepository, times(2)).save(Mockito.any());
+    }
+
+    @Test
+    public void testGetPlayerPolling() {
+        matchPlayer.setIsHost(true);
+        matchPlayer.setMatchScore(200);
+
+        match.setPhase(MatchPhase.IN_PROGRESS);
+
+        game.setPhase(GamePhase.NORMALTRICK);
+        game.setCurrentMatchPlayerSlot(1);
+        game.setTrickPhase(TrickPhase.RUNNINGTRICK);
+
+        given(matchRepository.findMatchByMatchId(Mockito.anyLong())).willReturn(match);
+        given(userRepository.findUserByToken(Mockito.any())).willReturn(user);
+        given(matchPlayerRepository.save(Mockito.any())).willReturn(matchPlayer);
+        given(gameRepository.save(Mockito.any())).willReturn(game);
+
+        doNothing().when(gameService).advanceTrickPhaseIfOwnerPolling(Mockito.any());
+
+        given(matchSummaryService.buildMatchResultHtml(Mockito.any(), Mockito.any())).willReturn("{test_content}");
+
+        given(matchRepository.saveAndFlush(Mockito.any())).willReturn(match);
+
+        given(gameService.playSingleAiTurn(Mockito.any(), Mockito.any(), Mockito.any())).willReturn(true);
+
+        given(gameService.finalizeGameIfComplete(Mockito.any())).willReturn(true);
+        given(matchRepository.save(Mockito.any())).willReturn(match);
+        given(pollingService.getPlayerPollingForPostMatchPhase(Mockito.any(), Mockito.any(), Mockito.anyBoolean()))
+                .willReturn(new PollingDTO());
+
+        matchService.getPlayerPolling("1234", 1L);
+
+        verify(matchRepository).findMatchByMatchId(Mockito.anyLong());
+        verify(userRepository).findUserByToken(Mockito.any());
+        verify(matchPlayerRepository).save(Mockito.any());
+        verify(gameService).advanceTrickPhaseIfOwnerPolling(Mockito.any());
+        verify(gameRepository).save(Mockito.any());
+        verify(matchSummaryService).buildMatchResultHtml(Mockito.any(), Mockito.any());
+        verify(matchRepository).saveAndFlush(Mockito.any());
+        verify(pollingService).getPlayerPollingForPostMatchPhase(Mockito.any(), Mockito.any(), Mockito.anyBoolean());
+    }
+
+    @Test
+    public void testHandleConfirmedGame() {
+        matchPlayer.setReady(true);
+        matchPlayer2.setReady(true);
+
+        given(gameRepository.save(Mockito.any())).willReturn(game);
+        given(matchRepository.save(Mockito.any())).willReturn(match);
+        given(gameSetupService.createAndStartGameForMatch(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any())).willReturn(game);
+
+        matchService.handleConfirmedGame(match, game);
+
+        verify(gameRepository).save(Mockito.any());
+        verify(matchRepository).save(Mockito.any());
+        verify(gameSetupService).createAndStartGameForMatch(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
     }
 }
