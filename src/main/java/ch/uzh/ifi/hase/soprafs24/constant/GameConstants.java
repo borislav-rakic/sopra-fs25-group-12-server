@@ -28,6 +28,8 @@ public final class GameConstants {
 
     public static final int HOST_TIME_OUT_SECONDS = 30;
 
+    public static final int NON_HOST_TIME_OUT_SECONDS = 25;
+
     public static final int TRICK_DELAY_MS = 1500;
 
     // This is not final, because it may change.

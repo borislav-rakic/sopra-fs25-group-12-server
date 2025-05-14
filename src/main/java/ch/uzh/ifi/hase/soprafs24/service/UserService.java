@@ -11,6 +11,8 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteGetDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPrivateDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 
+import java.util.concurrent.ThreadLocalRandom;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -148,7 +150,8 @@ public class UserService {
 
     newUser.setToken(UUID.randomUUID().toString());
     newUser.setStatus(UserStatus.ONLINE);
-    newUser.setAvatar(0); // default avatar is 0! (may change later)
+
+    newUser.setAvatar(randomAvatarGeneratorForUsers()); // default avatar is 0! (may change later)
     newUser.setIsGuest(false); // default
     newUser.setIsAiPlayer(false); // default
     newUser.setBirthday(null); // default date is null!
@@ -336,5 +339,22 @@ public class UserService {
   private boolean isActiveMatch(Match match) {
     // Check if the match phase is neither FINISHED nor ABORTED
     return match.getPhase() != MatchPhase.FINISHED && match.getPhase() != MatchPhase.ABORTED;
+  }
+
+  public static int randomAvatarGenerator(int offset) {
+    int randomNum = offset + ThreadLocalRandom.current().nextInt(1, 51); // upper bound exclusive
+    return randomNum;
+  }
+
+  public static int randomAvatarGeneratorForUsers() {
+    return randomAvatarGenerator(100);
+  }
+
+  public static int randomAvatarGeneratorForGuests() {
+    return randomAvatarGenerator(200);
+  }
+
+  public static int randomAvatarGeneratorForAis() {
+    return randomAvatarGenerator(300);
   }
 }

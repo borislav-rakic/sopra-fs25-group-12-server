@@ -592,6 +592,11 @@ public class MatchService {
         requestingMatchPlayer.updateLastPollTime();
         matchPlayerRepository.save(requestingMatchPlayer);
 
+        if (requestingMatchPlayer.getIsHost()) {
+            // Only host is in charge of feeling other human player's pulse.
+            feelAllHumanNonHostMatchPlayersPulse(match);
+        }
+
         // Are we still fine about the host being alive?
         if (secondsSinceHostsLastPolling(match) > GameConstants.HOST_TIME_OUT_SECONDS) {
             log.info("Host is not polling anymore.");
@@ -972,5 +977,29 @@ public class MatchService {
         match.getMatchSummary().setMatchSummaryHtml(
                 "<div>The Host Player was offline for more than 30 seconds. The match was disbanded before completion.</div>");
         handleMatchInResultPhaseOrAborted(match);
+    }
+
+    /**
+     * Only match host should check if all MatchPlayers are still polling.
+     * If last polling is longer ago than NON_HOST_TIME_OUT_SECONDS,
+     * MatchPlayer gets replaced by AI Player.
+     * 
+     * @param match Relevant Match object.
+     **/
+    private void feelAllHumanNonHostMatchPlayersPulse(Match match) {
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            if (!mp.getIsAiPlayer() && !mp.getIsHost()) {
+                Duration durationSinceLastPulse = Duration.between(mp.getLastPollTime(), Instant.now());
+                if (durationSinceLastPulse.toSeconds() > GameConstants.NON_HOST_TIME_OUT_SECONDS) {
+                    log.info(
+                            "MatchPlayerId={} in Match={} (MatchPlayerSlot={}) has not polled in more than {} s and is replaced by an AI Player.",
+                            mp.getMatchPlayerId(),
+                            match.getMatchId(),
+                            mp.getMatchPlayerSlot(),
+                            GameConstants.NON_HOST_TIME_OUT_SECONDS);
+                    replaceMatchPlayerSlotWithAiPlayer(match, mp.getMatchPlayerSlot());
+                }
+            }
+        }
     }
 }

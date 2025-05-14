@@ -19,7 +19,6 @@ import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -106,8 +105,7 @@ public class UserController {
     guest.setIsGuest(true);
     guest.setToken(UUID.randomUUID().toString());
     guest.setStatus(UserStatus.ONLINE);
-    int randomAvatar = 201 + new Random().nextInt(49);
-    guest.setAvatar(randomAvatar);
+    guest.setAvatar(UserService.randomAvatarGeneratorForGuests());
     String hashedRandomPassword = hashPassword(UUID.randomUUID().toString());
     guest.setPassword(hashedRandomPassword);
 
