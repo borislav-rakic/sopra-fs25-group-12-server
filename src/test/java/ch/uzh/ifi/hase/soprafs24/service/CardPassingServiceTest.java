@@ -80,6 +80,37 @@ public class CardPassingServiceTest {
         game.setGameNumber(1);
     }
 
+    @Test
+    void testCollectPassedCards_whenGameIsNull() {
+        assertThrows(ResponseStatusException.class, () -> {
+            cardPassingService.collectPassedCards(null);
+        });
+    }
+
+    @Test
+    void testCollectPassedCards_whenMatchIsNull() {
+        game.setMatch(null);
+        assertThrows(ResponseStatusException.class, () -> {
+            cardPassingService.collectPassedCards(game);
+        });
+    }
+
+    @Test
+    void testPassingAcceptCards_whenAllCardsPassed() {
+        GamePassingDTO dto = new GamePassingDTO();
+        dto.setCards(List.of("2C", "3H", "4D"));
+        
+        when(passedCardRepository.existsByGameAndFromMatchPlayerSlotAndRankSuit(game, 1, "2C")).thenReturn(false);
+        when(passedCardRepository.existsByGameAndRankSuit(game, "2C")).thenReturn(false);
+
+        // Act
+        cardPassingService.passingAcceptCards(game, matchPlayer, dto, false);
+
+        // Assert
+        verify(passedCardRepository).saveAll(anyList());
+        verify(passedCardRepository).flush();
+    }
+
     // @Test
     // public void testCollectPassedCards() {
     // Game game = mock(Game.class);
@@ -176,9 +207,23 @@ public class CardPassingServiceTest {
     }
 
     @Test
+    void testPlayerSlotToMatchPlayerSlot_whenInvalidSlot() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            cardPassingService.playerSlotToMatchPlayerSlot(5); // Invalid slot > 3
+        });
+    }
+
+    @Test
     public void testMatchPlayerSlotToPlayerSlot() {
         assertEquals(0, cardPassingService.matchPlayerSlotToPlayerSlot(1));
         assertEquals(3, cardPassingService.matchPlayerSlotToPlayerSlot(4));
+    }
+
+    @Test
+    void testMatchPlayerSlotToPlayerSlot_whenInvalidSlot() {
+        assertThrows(IllegalArgumentException.class, () -> {
+            cardPassingService.matchPlayerSlotToPlayerSlot(5); // Invalid slot > 4
+        });
     }
 
 }

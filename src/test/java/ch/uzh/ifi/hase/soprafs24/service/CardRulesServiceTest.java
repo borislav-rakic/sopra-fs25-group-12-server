@@ -3,6 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -195,11 +196,8 @@ public class CardRulesServiceTest {
     @Test
     public void testEnsureHeartBreak_HeartsAlreadyBroken() {
         Game game = mock(Game.class);
-
         when(game.getHeartsBroken()).thenReturn(true);
-
         boolean result = cardRulesService.ensureHeartBreak(game);
-
         assertFalse(result);
     }
 
@@ -254,5 +252,22 @@ public class CardRulesServiceTest {
 
         assertFalse(cardRulesService.trickConsistsOnlyOfHearts(mixedTrick));
     }
+
+    @Test
+    public void testGetPlayableCards_PlayerHasNoCards() {
+        Game game = mock(Game.class);
+        MatchPlayer player = mock(MatchPlayer.class);
+
+        when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
+        when(game.getCurrentMatchPlayerSlot()).thenReturn(1);
+        when(player.getMatchPlayerSlot()).thenReturn(1);
+        when(player.getHand()).thenReturn(""); // Player has no cards
+
+        assertThrows(GameplayException.class, () -> {
+            cardRulesService.getPlayableCardsForMatchPlayer(game, player, false); // Expect exception due to no cards
+        });
+    }
+
+
 
 }
