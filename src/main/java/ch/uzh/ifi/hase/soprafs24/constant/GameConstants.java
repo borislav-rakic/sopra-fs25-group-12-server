@@ -9,6 +9,8 @@ public final class GameConstants {
 
     public static final String CARD_CODE_REGEX = "^[02-9JQKA][CDHS]$";
 
+    public static final String CARD_CODE_HAND_REGEX = "^[02-9JQKA][CDHS](,[02-9JQKA][CDHS])*$";
+
     public static final String SEED_PREFIX = "seed--";
 
     public static final int POLLING_INTERVAL_MS = 1000;

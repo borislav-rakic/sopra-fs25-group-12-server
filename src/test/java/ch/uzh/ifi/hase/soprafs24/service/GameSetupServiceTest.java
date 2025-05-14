@@ -1,13 +1,10 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
-import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
-import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
-import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
@@ -27,13 +24,10 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -115,49 +109,6 @@ public class GameSetupServiceTest {
         assertEquals(3, nextGameNumber); // We expect the next game number to be 3
     }
 
-//     @Test
-//     public void testCreateAndStartGameForMatch_Success() {
-//     // Setup: Mock the phase to READY and empty list of games
-//     Match match = mock(Match.class);
-//     when(match.getPhase()).thenReturn(MatchPhase.READY);
-//     when(match.getGames()).thenReturn(Collections.emptyList());
-
-//     // Mock gameRepository and matchRepository behaviors
-//     Game savedGame = mock(Game.class);
-//     when(gameRepository.save(any(Game.class))).thenReturn(savedGame);
-
-//     // Mock void method flush to do nothing
-//     doNothing().when(gameRepository).flush();
-
-//     when(matchRepository.save(any(Match.class))).thenReturn(match);
-
-//     // Mock game number
-//     when(savedGame.getGameNumber()).thenReturn(1);
-
-//     // Call the method under test
-//     Game resultGame = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, 1234L);
-
-//     assertNotNull(resultGame);  // Ensure the game is not null
-//     assertEquals(GamePhase.WAITING_FOR_EXTERNAL_API, resultGame.getPhase());  // Ensure the phase is correct
-//     verify(gameRepository, times(1)).save(any(Game.class));  // Verify save was called
-//     verify(gameRepository, times(1)).flush();  // Verify flush was called
-// }
-
-    // @Test
-    // public void testCreateAndStartGameForMatch_Failure_InvalidMatchPhase() {
-    //     // Setup: Match in progress (invalid phase)
-    //     Match match = mock(Match.class);
-    //     when(match.getPhase()).thenReturn(MatchPhase.IN_PROGRESS);
-
-    //     // Attempt to create a game, should fail
-    //     ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
-    //         gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, 1234L);
-    //     });
-
-    //     assertEquals("Game cannot be created if match is in phase IN_PROGRESS", exception.getMessage());
-    //     assertEquals(403, exception.getStatus().value());  // Forbidden status
-    // }
-
     @Test
     void testCreateAndStartGameForMatch_Failure_ActiveGameExists() {
         Match match = mock(Match.class);
@@ -192,7 +143,8 @@ public class GameSetupServiceTest {
     @Test
     public void testFetchDeckAndDistributeCardsAsync_Failure() {
         // Simulate API failure
-        given(externalApiClientService.createNewDeck()).willReturn(Mono.error(new RuntimeException("Simulated API failure")));
+        given(externalApiClientService.createNewDeck())
+                .willReturn(Mono.error(new RuntimeException("Simulated API failure")));
 
         // Mock repository
         when(matchRepository.findMatchByMatchId(anyLong())).thenReturn(match);
@@ -202,8 +154,8 @@ public class GameSetupServiceTest {
         gameSetupService.fetchDeckAndDistributeCardsAsync(matchRepository, gameRepository, 1L);
 
         // Verify the error handling
-        verify(externalApiClientService, times(1)).createNewDeck();  // API call should still happen
-        assertNotNull(game.getDeckId());  // A fallback deck ID should be set
+        verify(externalApiClientService, times(1)).createNewDeck(); // API call should still happen
+        assertNotNull(game.getDeckId()); // A fallback deck ID should be set
     }
 
     @Test
@@ -221,70 +173,5 @@ public class GameSetupServiceTest {
             gameSetupService.distributeCards(match, game, matchRepository, gameRepository, null);
         });
     }
-
-    private List<CardResponse> generateDeckHelper(int deckSize, Long seed) {
-        List<CardResponse> deck = new ArrayList<>();
-        String[] suits = { "C", "D", "H", "S" };
-        String[] ranks = { "2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "A" };
-
-        for (String suit : suits) {
-            for (String rank : ranks) {
-                CardResponse card = new CardResponse();
-                card.setCode(rank + suit); // e.g., "2C"
-                deck.add(card);
-            }
-        }
-
-        Random rng = new Random(seed);
-        for (int i = deckSize - 1; i > 0; i--) {
-            int j = rng.nextInt(i + 1);
-            CardResponse temp = deck.get(i);
-            deck.set(i, deck.get(j));
-            deck.set(j, temp);
-        }
-
-        return deck;
-    }
-
-//     @Test
-//     public void testAssignTwoOfClubsLeader_Success() {
-//     // Setup: Mock a MatchPlayer with the 2♣ card
-//     MatchPlayer player = mock(MatchPlayer.class);
-//     when(player.hasCardCodeInHand(GameConstants.TWO_OF_CLUBS)).thenReturn(true);
-
-//     // Mock the match's list of players
-//     Match match = mock(Match.class);
-//     when(match.getMatchPlayers()).thenReturn(Arrays.asList(player));
-
-//     // Mock game object
-//     Game game = mock(Game.class);
-
-//     // Call the method under test
-//     gameSetupService.assignTwoOfClubsLeader(game);
-
-//     // Verify the behavior
-//     verify(game, times(1)).setCurrentMatchPlayerSlot(anyInt());
-//     verify(game, times(1)).setTrickLeaderMatchPlayerSlot(anyInt());
-// }
-
-
-//     @Test
-//     public void testAssignTwoOfClubsLeader_Failure() {
-//         // Setup: No player has 2♣ card
-//         Match match = mock(Match.class);
-//         MatchPlayer player = mock(MatchPlayer.class);
-//         when(player.hasCardCodeInHand(GameConstants.TWO_OF_CLUBS)).thenReturn(false);
-//         when(match.getMatchPlayers()).thenReturn(Collections.singletonList(player));
-
-//         // Create a mock game
-//         Game game = mock(Game.class);
-
-//         // Call the method under test and expect an exception
-//         assertThrows(IllegalStateException.class, () -> {
-//             gameSetupService.assignTwoOfClubsLeader(game);
-//         });
-//     }
-
-
 
 }

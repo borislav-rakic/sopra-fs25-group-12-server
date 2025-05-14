@@ -30,7 +30,7 @@ public class Application {
       @Override
       public void addCorsMappings(@NonNull CorsRegistry registry) {
         registry.addMapping("/**")
-            .allowedOrigins("http://localhost:3000", "https://sopra-fs25-group-12-client.vercel.app/")
+            .allowedOrigins("http://localhost:3000", "https://sopra-fs25-group-12-client.vercel.app")
             .allowedMethods("*");
       }
     };

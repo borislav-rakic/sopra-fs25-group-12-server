@@ -298,7 +298,7 @@ public class MatchPlayer {
         if (hand == null || hand.isBlank()) {
             return true; // Empty hand is OK
         }
-        return hand.matches(GameConstants.CARD_CODE_REGEX);
+        return hand.matches(GameConstants.CARD_CODE_HAND_REGEX);
     }
 
     public boolean hasNoDuplicateCards() {
