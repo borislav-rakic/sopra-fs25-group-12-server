@@ -1,5 +1,24 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+import java.util.Optional;
+import java.util.Set;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
@@ -19,18 +38,6 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteResponseDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.JoinRequestDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserGetDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.*;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Service handling all setup operations for a Match before it starts.
@@ -79,13 +86,16 @@ public class MatchSetupService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
 
+        // Prevent from creating if user is in *any* match setup
+        ensureUserNotInAnyOtherMatch(user);
+
+        // Already covered: prevent multiple matches hosted
         List<Match> activeMatches = matchRepository.findActiveMatchesByHostId(user.getId());
         if (!activeMatches.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "User is already hosting a match. Match ID: " + activeMatches.get(0).getMatchId());
         }
 
-        // Create a MatchSummary
         MatchSummary matchSummary = new MatchSummary();
 
         Match match = new Match();
@@ -106,27 +116,6 @@ public class MatchSetupService {
         matchRepository.saveAndFlush(match);
 
         return match;
-    }
-
-    /**
-     * Deletes a match if the requester is its host.
-     *
-     * @param matchId the ID of the match to delete
-     * @param token   the token of the requesting user
-     */
-    public void deleteMatchByHost(Long matchId, String token) {
-        Match match = getMatchOrThrow(matchId);
-        User user = userRepository.findUserByToken(token);
-
-        if (user == null) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
-        }
-
-        if (!match.getHostId().equals(user.getId())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can delete matches");
-        }
-
-        matchRepository.delete(match);
     }
 
     /**
@@ -240,11 +229,11 @@ public class MatchSetupService {
     }
 
     /**
-     * Sends an invitation to a user to join a specific slot in the match.
-     *
-     * @param matchId the ID of the match
-     * @param request the invitation details
-     */
+     * Invite a player to a match.
+     * 
+     * @param matchId MatchId of a Match object.
+     * @request InviteRequestDTO for the request
+     **/
     public void invitePlayerToMatch(Long matchId, InviteRequestDTO request) {
         Match match = getMatchOrThrow(matchId);
         Long userId = request.getUserId();
@@ -253,12 +242,43 @@ public class MatchSetupService {
         validateSlotAvailability(match, matchPlayerSlot);
         validateInvitationConditions(match, userId);
 
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
+        ensureUserNotInAnyOtherMatch(user); // <- Add this line
+
         if (match.getInvites() == null) {
             match.setInvites(new HashMap<>());
         }
 
         match.getInvites().put(matchPlayerSlot, userId);
         matchRepository.save(match);
+    }
+
+    /**
+     * Throws if user is already in a running match or in a match in setup
+     * 
+     * @param user User object.
+     * @throws ResponseStatusException
+     **/
+    private void ensureUserNotInAnyOtherMatch(User user) {
+        List<Match> allMatches = matchRepository.findAll();
+
+        boolean alreadyAssigned = allMatches.stream()
+                .filter(m -> EnumSet.of(
+                        MatchPhase.SETUP,
+                        MatchPhase.READY,
+                        MatchPhase.IN_PROGRESS,
+                        MatchPhase.BETWEEN_GAMES
+                // Optional: MatchPhase.RESULT
+                ).contains(m.getPhase()))
+                .flatMap(m -> m.getMatchPlayers().stream())
+                .anyMatch(mp -> mp.getUser() != null && user.getId().equals(mp.getUser().getId()));
+
+        if (alreadyAssigned) {
+            throw new ResponseStatusException(
+                    HttpStatus.BAD_REQUEST,
+                    "User is already participating in another active or setup match.");
+        }
     }
 
     /**
@@ -284,6 +304,9 @@ public class MatchSetupService {
                         () -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No invite found for this user."));
 
         if (responseDTO.isAccepted()) {
+            // Prevent user from being in multiple matches
+            ensureUserNotInAnyOtherMatch(user);
+
             MatchPlayer matchPlayer = new MatchPlayer();
             matchPlayer.setUser(user);
             matchPlayer.setMatch(match);

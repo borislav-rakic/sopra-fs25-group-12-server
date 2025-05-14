@@ -127,56 +127,6 @@ public class MatchSetupServiceTest {
     }
 
     @Test
-    public void testDeleteMatchByHostMatchNull() {
-        lenient().when(matchRepository.findMatchByMatchId(Mockito.any())).thenReturn(null);
-        lenient().when(userRepository.findUserByToken(Mockito.any())).thenReturn(user);
-
-        assertThrows(
-                ResponseStatusException.class,
-                () -> matchSetupService.deleteMatchByHost(1L, "1234"),
-                "Expected deleteMatchByHost to throw an exception");
-    }
-
-    @Test
-    public void testDeleteMatchByHostUserNull() {
-        lenient().when(matchRepository.findMatchByMatchId(Mockito.any())).thenReturn(match);
-        lenient().when(userRepository.findUserByToken(Mockito.any())).thenReturn(null);
-
-        assertThrows(
-                ResponseStatusException.class,
-                () -> matchSetupService.deleteMatchByHost(1L, "1234"),
-                "Expected deleteMatchByHost to throw an exception");
-    }
-
-    @Test
-    public void testDeleteMatchByHostUserNotHost() {
-        // Arrange
-        user.setId(99L); // Not the host!
-        match.setHostId(11L); // Real host has ID 11
-
-        lenient().when(matchRepository.findMatchByMatchId(Mockito.any())).thenReturn(match);
-        lenient().when(userRepository.findUserByToken(Mockito.any())).thenReturn(user);
-
-        // Act & Assert
-        assertThrows(
-                ResponseStatusException.class,
-                () -> matchSetupService.deleteMatchByHost(1L, "1234"),
-                "Expected deleteMatchByHost to throw an exception when user is not host");
-    }
-
-    @Test
-    public void testDeleteMatchByHostSuccess() {
-        when(matchRepository.findById(Mockito.any())).thenReturn(Optional.of(match));
-        when(userRepository.findUserByToken(Mockito.any())).thenReturn(user);
-
-        doNothing().when(matchRepository).delete(match);
-
-        matchSetupService.deleteMatchByHost(1L, "1234");
-
-        verify(matchRepository).delete(Mockito.any());
-    }
-
-    @Test
     public void testInvitePlayerToMatchError() {
         InviteRequestDTO inviteRequestDTO = new InviteRequestDTO();
         inviteRequestDTO.setPlayerSlot(1);

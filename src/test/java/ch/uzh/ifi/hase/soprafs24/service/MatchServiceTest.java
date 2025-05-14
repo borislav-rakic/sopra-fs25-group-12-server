@@ -8,6 +8,7 @@ import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -387,4 +388,57 @@ public class MatchServiceTest {
         when(matchRepository.findMatchByMatchId(42L)).thenReturn(null);
         assertThrows(ResponseStatusException.class, () -> matchService.getMatchDTO(42L));
     }
+
+    @Test
+    public void testDeleteMatchByHostMatchNull() {
+        lenient().when(matchRepository.findMatchByMatchId(Mockito.any())).thenReturn(null);
+        lenient().when(userRepository.findUserByToken(Mockito.any())).thenReturn(user);
+
+        assertThrows(
+                ResponseStatusException.class,
+                () -> matchService.deleteMatchByHost(1L, "1234"),
+                "Expected deleteMatchByHost to throw an exception");
+    }
+
+    @Test
+    public void testDeleteMatchByHostUserNull() {
+        lenient().when(matchRepository.findMatchByMatchId(Mockito.any())).thenReturn(match);
+        lenient().when(userRepository.findUserByToken(Mockito.any())).thenReturn(null);
+
+        assertThrows(
+                ResponseStatusException.class,
+                () -> matchService.deleteMatchByHost(1L, "1234"),
+                "Expected deleteMatchByHost to throw an exception");
+    }
+
+    @Test
+    public void testDeleteMatchByHostUserNotHost() {
+        // Arrange
+        user.setId(99L); // Not the host!
+        match.setHostId(11L); // Real host has ID 11
+
+        lenient().when(matchRepository.findMatchByMatchId(Mockito.any())).thenReturn(match);
+        lenient().when(userRepository.findUserByToken(Mockito.any())).thenReturn(user);
+
+        // Act & Assert
+        assertThrows(
+                ResponseStatusException.class,
+                () -> matchService.deleteMatchByHost(1L, "1234"),
+                "Expected deleteMatchByHost to throw an exception when user is not host");
+    }
+
+    @Test
+    public void testDeleteMatchByHostSuccess() {
+        // Arrange
+        when(matchRepository.findMatchByMatchId(Mockito.any())).thenReturn(match);
+        when(userRepository.findUserByToken(Mockito.any())).thenReturn(user);
+
+        // Act
+        matchService.deleteMatchByHost(1L, "1234");
+
+        // Assert
+        verify(matchRepository).saveAndFlush(match);
+        verify(matchRepository).delete(match);
+    }
+
 }

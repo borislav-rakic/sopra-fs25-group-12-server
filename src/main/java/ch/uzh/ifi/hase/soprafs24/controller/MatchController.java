@@ -91,7 +91,7 @@ public class MatchController {
             @RequestHeader("Authorization") String authHeader) {
         // remove "Bearer " prefix from token
         String token = authHeader.replace("Bearer ", "");
-        matchSetupService.deleteMatchByHost(matchId, token);
+        matchService.deleteMatchByHost(matchId, token);
     }
 
     /**

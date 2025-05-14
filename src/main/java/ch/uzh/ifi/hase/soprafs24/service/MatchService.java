@@ -579,7 +579,7 @@ public class MatchService {
         if (match.getPhase() == MatchPhase.RESULT
                 || match.getPhase() == MatchPhase.FINISHED
                 || match.getPhase() == MatchPhase.ABORTED) {
-            Integer slot = getSlotForUser(match, requestingUser);
+            Integer slot = getMatchPlayerSlotForUser(match, requestingUser);
 
             boolean isMatchPlayer = slot != null;
 
@@ -757,68 +757,130 @@ public class MatchService {
     @Transactional
     public void handleMatchInResultPhaseOrAborted(Match match) {
         log.info("MatchPhase is set to FINISHED.");
+        cleanupAndOptionallyDeleteMatch(match, false);
+    }
 
-        // 1. Sever parent-child references for games so orphan removal works
-        for (Game game : match.getGames()) {
-            game.setMatch(null);
+    /**
+     * Deletes a match if the requester is its host.
+     *
+     * @param matchId the ID of the match to delete
+     * @param token   the token of the requesting user
+     */
+    public void deleteMatchByHost(Long matchId, String token) {
+        Match match = matchRepository.findMatchByMatchId(matchId);
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found.");
         }
-        match.getGames().clear();
-        log.info("Clean-up of Match {}: Removed references to match in all related games.", match.getMatchId());
-        log.info("Clean-up: Deleted all related games.");
+        User user = userRepository.findUserByToken(token);
+
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
+        }
+
+        if (match.getHostId() == null || !match.getHostId().equals(user.getId())) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can delete matches");
+        }
+        cleanupAndOptionallyDeleteMatch(match, true);
+    }
+
+    /**
+     * Cleans up all associated entities of a Match such as games, match players,
+     * messages, invites, join requests, AI players, and stats.
+     * Optionally deletes the Match entity itself after cleanup.
+     *
+     * @param match       the Match to clean up
+     * @param deleteMatch if true, deletes the match after cleanup
+     */
+    @Transactional
+    public void cleanupAndOptionallyDeleteMatch(Match match, boolean deleteMatch) {
+        log.info("Starting cleanup for Match ID {}", match.getMatchId());
+
+        // 1. Sever child references from Games
+        if (match.getGames() != null) {
+            for (Game game : match.getGames()) {
+                game.setMatch(null);
+            }
+            match.getGames().clear();
+            log.info("Cleared games for Match {}", match.getMatchId());
+        }
 
         // 2. Remove MatchPlayers
         for (MatchPlayer player : match.getMatchPlayers()) {
             player.setMatch(null);
         }
         match.getMatchPlayers().clear();
-        log.info("Clean-up: Deleted all related matchplayers.");
+        log.info("Cleared match players for Match {}", match.getMatchId());
 
-        // 3. Remove Matchmessages
+        // 3. Remove Messages
         for (MatchMessage message : match.getMessages()) {
             message.setMatch(null);
         }
         match.getMessages().clear();
-        log.info("Clean-up: Deleted all related messages.");
+        log.info("Cleared messages for Match {}", match.getMatchId());
 
         // 4. Remove Invites
-        match.getInvites().clear();
-        log.info("Clean-up: Deleted all related invites.");
+        if (match.getInvites() != null) {
+            match.getInvites().clear();
+        }
 
-        // 5. Remove JoinRequests
-        match.getJoinRequests().clear();
-        log.info("Clean-up: Deleted all related joinrequests.");
+        // 5. Remove Join Requests
+        if (match.getJoinRequests() != null) {
+            match.getJoinRequests().clear();
+        }
 
-        // 6. Remove AiPlayers
-        match.getAiPlayers().clear();
-        log.info("Clean-up: Deleted all related aiplayers.");
+        // 6. Remove AI Players tracking
+        if (match.getAiPlayers() != null) {
+            match.getAiPlayers().clear();
+        }
 
-        // 7. GameStats
-        gameService.clearAllMatchStatsForGame(match);
-        log.info("Clean-up: Deleted all related matchstats.");
+        // 7. Remove Stats
+        gameService.clearAllMatchStatsForGame(match); // Optional but helpful
+        log.info("Cleared stats for Match {}", match.getMatchId());
 
         matchRepository.saveAndFlush(match);
-        log.info("Clean-up: saved and flushed match {}.", match.getMatchId());
+        log.info("Match {} saved and flushed after cleanup.", match.getMatchId());
 
+        if (deleteMatch) {
+            matchRepository.delete(match);
+            log.info("Match {} has been deleted.", match.getMatchId());
+        }
     }
 
+    /**
+     * Starts the next game in a match if the match is in BETWEEN_GAMES phase
+     * and no active game is currently running.
+     *
+     * Does nothing if the match is not in BETWEEN_GAMES or if an active game
+     * exists.
+     *
+     * @param match the match to check and possibly start a new game for
+     */
     public void checkGameAndStartNextIfNeeded(Match match) {
-        // If the match is already in RESULT or FINISHED, nothing to do
         if (!match.getPhase().equals(MatchPhase.BETWEEN_GAMES)) {
             return;
         }
 
-        // Defensive: make sure no active game exists before creating a new one
         Game activeGame = requireActiveGameByMatch(match);
         if (activeGame != null) {
             log.info("Active game still present, not starting new one.");
             return;
         }
 
-        // Start next game
         log.info("Starting next game in BETWEEN_GAMES phase.");
         gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
     }
 
+    /**
+     * Confirms the result of the current or last game for a user in a match.
+     * 
+     * - If the match is in RESULT phase, the user confirms the final result,
+     * and the match transitions to FINISHED.
+     * - If the match is in a normal game phase, the user is marked as ready.
+     * If all human players are ready, the match progresses.
+     *
+     * @param token   the authentication token of the user
+     * @param matchId the ID of the match
+     */
     public void confirmGameResult(String token, Long matchId) {
         Match match = requireMatchByMatchId(matchId);
         User user = userRepository.findUserByToken(token);
@@ -837,7 +899,7 @@ public class MatchService {
 
         // Handle match result confirmation
         if (phase == MatchPhase.RESULT) {
-            Integer slot = getSlotForUser(match, user);
+            Integer slot = getMatchPlayerSlotForUser(match, user);
             if (slot == null) {
                 log.info("User {} is not a match participant. Ignoring.", user.getId());
                 return;
@@ -877,7 +939,7 @@ public class MatchService {
         }
     }
 
-    private Integer getSlotForUser(Match match, User user) {
+    private Integer getMatchPlayerSlotForUser(Match match, User user) {
         if (user.getId().equals(match.getPlayer1().getId()))
             return 1;
         if (user.getId().equals(match.getPlayer2().getId()))

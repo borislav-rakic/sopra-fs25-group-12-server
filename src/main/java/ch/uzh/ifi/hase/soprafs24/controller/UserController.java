@@ -9,7 +9,6 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPutDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserLoginDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteGetDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
-import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.service.UserService;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
@@ -32,11 +31,9 @@ import java.util.stream.Collectors;
 @RestController
 public class UserController {
   private final UserService userService;
-  private final MatchRepository matchRepository;
 
-  UserController(UserService userService, MatchRepository matchRepository) {
+  UserController(UserService userService) {
     this.userService = userService;
-    this.matchRepository = matchRepository;
   }
 
   public String hashPassword(String plainPassword) {
