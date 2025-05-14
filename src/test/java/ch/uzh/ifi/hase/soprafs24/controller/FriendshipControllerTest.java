@@ -157,4 +157,19 @@ class FriendshipControllerTest {
         mockMvc.perform(get("/users/me/friends"))
                 .andExpect(status().isUnauthorized());
     }
+
+    @Test
+    void getUserFriends_success() throws Exception {
+        UserGetDTO friend = new UserGetDTO();
+        friend.setId(5L);
+        friend.setUsername("publicFriend");
+
+        Mockito.when(friendshipService.getFriends(otherUserId)).thenReturn(List.of(friend));
+
+        mockMvc.perform(get("/users/{userId}/friends", otherUserId))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$", hasSize(1)))
+                .andExpect(jsonPath("$[0].username", is("publicFriend")));
+    }
+
 }
