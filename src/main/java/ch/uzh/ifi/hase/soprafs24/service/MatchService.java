@@ -358,8 +358,11 @@ public class MatchService {
         MatchPlayer matchPlayer = match.requireMatchPlayerByToken(token);
 
         String cardCode = "XX".equals(dto.getCard()) ? "XX" : CardUtils.requireValidCardFormat(dto.getCard());
-        gameService.playCardAsHuman(game, matchPlayer, cardCode);
-
+        try {
+            gameService.playCardAsHuman(game, matchPlayer, cardCode);
+        } catch (IllegalArgumentException | IllegalStateException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, e.getMessage(), e);
+        }
     }
 
     /**

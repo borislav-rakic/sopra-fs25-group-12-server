@@ -20,6 +20,7 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
@@ -28,6 +29,8 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -310,12 +313,68 @@ public class MatchServiceTest {
 
         given(gameRepository.save(Mockito.any())).willReturn(game);
         given(matchRepository.save(Mockito.any())).willReturn(match);
-        given(gameSetupService.createAndStartGameForMatch(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any())).willReturn(game);
+        given(gameSetupService.createAndStartGameForMatch(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
+                .willReturn(game);
 
         matchService.handleConfirmedGame(match, game);
 
         verify(gameRepository).save(Mockito.any());
         verify(matchRepository).save(Mockito.any());
         verify(gameSetupService).createAndStartGameForMatch(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+    }
+
+    @Test
+    void handleConfirmedGame_allReady_triggersGameStart() {
+        matchPlayer.setReady(true);
+        matchPlayer2.setReady(true);
+
+        when(gameSetupService.createAndStartGameForMatch(any(), any(), any(), any())).thenReturn(game);
+        when(gameRepository.save(any())).thenReturn(game);
+        when(matchRepository.save(any())).thenReturn(match);
+
+        matchService.handleConfirmedGame(match, game);
+
+        verify(gameSetupService).createAndStartGameForMatch(any(), any(), any(), any());
+        verify(matchRepository, atLeastOnce()).save(any());
+    }
+
+    @Test
+    void handleConfirmedGame_notAllReady_doesNotTriggerGameStart() {
+        matchPlayer.setReady(true);
+        matchPlayer2.setReady(false);
+
+        matchService.handleConfirmedGame(match, game);
+
+        verify(gameSetupService, never()).createAndStartGameForMatch(any(), any(), any(), any());
+    }
+
+    @Test
+    void playCardAsHuman_invalidToken_throwsResponseStatusException() {
+        PlayedCardDTO dto = new PlayedCardDTO();
+        dto.setCard("AS");
+
+        Match mockMatch = mock(Match.class); // mock the match
+        when(matchRepository.findById(anyLong())).thenReturn(Optional.of(mockMatch));
+        when(gameRepository.findActiveGameByMatchId(anyLong())).thenReturn(game);
+
+        doThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token"))
+                .when(mockMatch).requireMatchPlayerByToken("invalidToken");
+
+        assertThrows(ResponseStatusException.class, () -> {
+            matchService.playCardAsHuman("invalidToken", 1L, dto);
+        });
+    }
+
+    @Test
+    void wrapUpCompletedGame_summaryServiceFails_throws() {
+        when(matchSummaryService.buildMatchResultHtml(match, game)).thenThrow(RuntimeException.class);
+
+        assertThrows(RuntimeException.class, () -> matchService.wrapUpCompletedGame(game));
+    }
+
+    @Test
+    void getMatchDTO_notFound_throws() {
+        when(matchRepository.findMatchByMatchId(42L)).thenReturn(null);
+        assertThrows(ResponseStatusException.class, () -> matchService.getMatchDTO(42L));
     }
 }
