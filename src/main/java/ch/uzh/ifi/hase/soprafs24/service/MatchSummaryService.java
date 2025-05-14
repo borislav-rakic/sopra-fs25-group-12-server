@@ -43,7 +43,7 @@ public class MatchSummaryService {
     String html = "<div className=\"modalMessage modalMessageGameResult\">";
     html += "<table>";
     List<Game> games = match.getGames();
-    List<MatchPlayer> mp = match.getMatchPlayers();
+    List<MatchPlayer> mp = match.getMatchPlayersSortedBySlot();
     html += "<tr>";
     html += "<th>Game</th>";
     html += "<th>" + mp.get(0).getUser().getUsername() + "</th>";
@@ -78,7 +78,7 @@ public class MatchSummaryService {
     String html = "<div className=\"modalMessage modalMessageMatchResult\">";
     html += "<table>";
     List<Game> games = match.getGames();
-    List<MatchPlayer> mp = match.getMatchPlayers();
+    List<MatchPlayer> mp = match.getMatchPlayersSortedBySlot();
     html += "<tr>";
     html += "<th>Game</th>";
     html += "<th>" + mp.get(0).getUser().getUsername() + "</th>";

@@ -1,5 +1,32 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.BDDMockito.given;
+import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.Mockito;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
+
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
@@ -14,25 +41,6 @@ import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.springframework.boot.test.mock.mockito.MockBean;
-import org.springframework.http.HttpStatus;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Optional;
-
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.BDDMockito.given;
-import static org.mockito.Mockito.*;
 
 public class MatchServiceTest {
 
@@ -94,52 +102,50 @@ public class MatchServiceTest {
 
     @BeforeEach
     public void setup() {
-        user = new User();
-        user.setUsername("username");
-        user.setPassword("password");
-        user.setId(11L); // Users up to id 10 are reserverd for AI Players.
-        user.setToken("1234");
-        user.setIsAiPlayer(false);
-        user.setStatus(UserStatus.ONLINE);
-
-        user2 = new User();
-        user2.setUsername("username2");
-        user2.setPassword("password2");
-        user2.setId(12L); // Users up to id 10 are reserverd for AI Players.
-        user2.setToken("12342");
-        user2.setIsAiPlayer(false);
-        user2.setStatus(UserStatus.ONLINE);
-
         match = new Match();
         match.setPhase(MatchPhase.SETUP);
+        match.setMatchGoal(100);
+        match.setStarted(false);
+
+        List<MatchPlayer> matchPlayers = new ArrayList<>();
+
+        for (int i = 0; i < 4; i++) {
+            User u = new User();
+            u.setId(11L + i);
+            u.setUsername("username" + i);
+            u.setPassword("password" + i);
+            u.setToken("token" + i);
+            u.setIsAiPlayer(false);
+            u.setStatus(UserStatus.ONLINE);
+
+            MatchPlayer mp = new MatchPlayer();
+            mp.setMatch(match);
+            mp.setUser(u);
+            mp.setMatchPlayerId((long) (i + 1));
+            mp.setMatchPlayerSlot(i + 1);
+            mp.setReady(true);
+
+            matchPlayers.add(mp);
+
+            if (i == 0) {
+                match.setPlayer1(u);
+                match.setHostId(u.getId());
+                user = u;
+                matchPlayer = mp;
+            }
+
+            if (i == 1) {
+                user2 = u;
+                matchPlayer2 = mp;
+            }
+        }
+
+        match.setMatchPlayers(matchPlayers);
 
         game = new Game();
         game.setGameId(1L);
         game.setMatch(match);
-
         match.getGames().add(game);
-
-        matchPlayer = new MatchPlayer();
-        matchPlayer.setMatch(match);
-        matchPlayer.setUser(user);
-        matchPlayer.setMatchPlayerId(1L);
-        matchPlayer.setMatchPlayerSlot(1);
-
-        matchPlayer2 = new MatchPlayer();
-        matchPlayer2.setMatch(match);
-        matchPlayer2.setUser(user2);
-        matchPlayer2.setMatchPlayerId(2L);
-        matchPlayer2.setMatchPlayerSlot(2);
-
-        List<MatchPlayer> matchPlayers = new ArrayList<>();
-        matchPlayers.add(matchPlayer);
-        matchPlayers.add(matchPlayer2);
-
-        match.setMatchPlayers(matchPlayers);
-        match.setHostId(user.getId());
-        match.setMatchGoal(100);
-        match.setStarted(false);
-        match.setPlayer1(user);
     }
 
     @Test
@@ -194,23 +200,29 @@ public class MatchServiceTest {
 
     @Test
     public void testLeaveMatch() {
+        // Replace one of the existing 4 players with an AI
+        MatchPlayer toReplace = match.getMatchPlayers().get(2); // Slot 3
         User aiPlayer = new User();
         aiPlayer.setUsername("ai");
         aiPlayer.setIsAiPlayer(true);
         aiPlayer.setId(1L);
+        aiPlayer.setToken("ai-token");
 
         MatchPlayer aiMatchPlayer = new MatchPlayer();
-        aiMatchPlayer.setMatchPlayerId(3L);
-        aiMatchPlayer.setMatchPlayerSlot(3);
+        aiMatchPlayer.setMatchPlayerId(toReplace.getMatchPlayerId());
+        aiMatchPlayer.setMatchPlayerSlot(toReplace.getMatchPlayerSlot()); // Keep slot 3
+        aiMatchPlayer.setMatch(match);
         aiMatchPlayer.setUser(aiPlayer);
 
+        match.getMatchPlayers().set(2, aiMatchPlayer); // Replace at index 2 (slot 3)
+
         given(matchRepository.findMatchByMatchId(Mockito.anyLong())).willReturn(match);
-        given(userRepository.findUserByToken(Mockito.any())).willReturn(user2);
+        given(userRepository.findUserByToken(Mockito.any())).willReturn(user2); // The leaver
         given(userRepository.findUserById(Mockito.anyLong())).willReturn(aiPlayer);
 
         doNothing().when(gameService).relayMessageToMatchMessageService(Mockito.any(), Mockito.any(), Mockito.any());
 
-        matchService.leaveMatch(1L, "12342", null);
+        matchService.leaveMatch(1L, "token1", null); // token1 = user2
 
         verify(matchRepository).findMatchByMatchId(Mockito.anyLong());
         verify(userRepository).findUserByToken(Mockito.any());
@@ -242,12 +254,14 @@ public class MatchServiceTest {
         PlayedCardDTO playedCardDTO = new PlayedCardDTO();
         playedCardDTO.setCard("XX");
 
-        given(matchRepository.findById(Mockito.anyLong())).willReturn(Optional.ofNullable(match));
+        given(matchRepository.findById(Mockito.anyLong())).willReturn(Optional.of(match));
         given(gameRepository.findActiveGameByMatchId(Mockito.any())).willReturn(game);
+        given(userRepository.findUserByToken("token0")).willReturn(user); // Fix
+        given(matchPlayerRepository.findByUserAndMatch(user, match)).willReturn(matchPlayer);
 
         doNothing().when(gameService).playCardAsHuman(Mockito.any(), Mockito.any(), Mockito.any());
 
-        matchService.playCardAsHuman("1234", 1L, playedCardDTO);
+        matchService.playCardAsHuman("token0", 1L, playedCardDTO);
 
         verify(matchRepository).findById(Mockito.anyLong());
         verify(gameRepository).findActiveGameByMatchId(Mockito.any());
@@ -277,24 +291,21 @@ public class MatchServiceTest {
         game.setTrickPhase(TrickPhase.RUNNINGTRICK);
 
         given(matchRepository.findMatchByMatchId(Mockito.anyLong())).willReturn(match);
-        given(userRepository.findUserByToken(Mockito.any())).willReturn(user);
+        given(userRepository.findUserByToken("token0")).willReturn(user);
+        given(matchPlayerRepository.findByUserAndMatch(user, match)).willReturn(matchPlayer);
         given(matchPlayerRepository.save(Mockito.any())).willReturn(matchPlayer);
         given(gameRepository.save(Mockito.any())).willReturn(game);
 
         doNothing().when(gameService).advanceTrickPhaseIfOwnerPolling(Mockito.any());
-
         given(matchSummaryService.buildMatchResultHtml(Mockito.any(), Mockito.any())).willReturn("{test_content}");
-
         given(matchRepository.saveAndFlush(Mockito.any())).willReturn(match);
-
         given(gameService.playSingleAiTurn(Mockito.any(), Mockito.any(), Mockito.any())).willReturn(true);
-
         given(gameService.finalizeGameIfComplete(Mockito.any())).willReturn(true);
         given(matchRepository.save(Mockito.any())).willReturn(match);
         given(pollingService.getPlayerPollingForPostMatchPhase(Mockito.any(), Mockito.any(), Mockito.anyBoolean()))
                 .willReturn(new PollingDTO());
 
-        matchService.getPlayerPolling("1234", 1L);
+        matchService.getPlayerPolling("token0", 1L); // Fix token here
 
         verify(matchRepository).findMatchByMatchId(Mockito.anyLong());
         verify(userRepository).findUserByToken(Mockito.any());
@@ -313,8 +324,7 @@ public class MatchServiceTest {
 
         given(gameRepository.save(Mockito.any())).willReturn(game);
         given(matchRepository.save(Mockito.any())).willReturn(match);
-        given(gameSetupService.createAndStartGameForMatch(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
-                .willReturn(game);
+        when(gameSetupService.createAndStartGameForMatch(any(), any(), any(), any())).thenReturn(game);
 
         matchService.handleConfirmedGame(match, game);
 

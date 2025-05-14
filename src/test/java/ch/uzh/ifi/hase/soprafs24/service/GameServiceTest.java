@@ -79,38 +79,45 @@ public class GameServiceTest {
 
     @BeforeEach
     public void setup() {
-        user = new User();
-        user.setUsername("username");
-        user.setPassword("password");
-        user.setId(4L);
-        user.setToken("1234");
-
         match = new Match();
-
-        matchPlayer = new MatchPlayer();
-        matchPlayer.setUser(user);
-        matchPlayer.setMatch(match);
-        matchPlayer.setMatchPlayerSlot(1);
-        matchPlayer.setGameScore(26);
-
-        matchPlayer.addCardCodeToHand("5C");
-        matchPlayer.addCardCodeToHand("KH");
-        matchPlayer.addCardCodeToHand("7S");
-
-        List<MatchPlayer> matchPlayers = new ArrayList<>();
-        matchPlayers.add(matchPlayer);
-
-        match.setMatchPlayers(matchPlayers);
         match.setHostId(4L);
         match.setMatchGoal(100);
         match.setStarted(false);
-        match.setPlayer1(user);
+
+        List<MatchPlayer> matchPlayersList = new ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            User user = new User();
+            user.setId((long) i + 1);
+            user.setUsername("Person" + i);
+
+            MatchPlayer mp = new MatchPlayer();
+            mp.setUser(user);
+            mp.setMatch(match);
+            mp.setIsAiPlayer(false);
+            mp.setMatchPlayerSlot(i + 1);
+            mp.setGameScore(i == 0 ? 26 : 0); // Simulate a moon shot by first player
+
+            if (i == 0) {
+                mp.addCardCodeToHand("5C");
+                mp.addCardCodeToHand("KH");
+                mp.addCardCodeToHand("7S");
+            }
+
+            matchPlayersList.add(mp);
+
+            if (i == 0) {
+                matchPlayer = mp; // Save for reference in test
+                match.setPlayer1(user); // Optional depending on game logic
+            }
+        }
+
+        match.setMatchPlayers(matchPlayersList);
 
         game = new Game();
         game.setGameId(1L);
         game.setPhase(GamePhase.NORMALTRICK);
         game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
-        game.setTrickJustCompletedTime(Instant.now().minusMillis(1600)); // so no need to Thread.sleep
+        game.setTrickJustCompletedTime(Instant.now().minusMillis(1600));
         game.setCurrentTrick(new ArrayList<>());
         game.setPreviousTrick(new ArrayList<>());
         game.setMatch(match);
@@ -118,6 +125,10 @@ public class GameServiceTest {
         game.setCurrentMatchPlayerSlot(1);
 
         match.addGame(game);
+
+        user = matchPlayersList.get(0).getUser(); // if you still need `user` reference
+        user.setPassword("password");
+        user.setToken("1234");
     }
 
     @Test
@@ -247,19 +258,24 @@ public class GameServiceTest {
 
     @Test
     public void testFinalizeGameScoresMoonShot() {
+        // Mock repository and service calls using the already-initialized match and
+        // game
         given(matchPlayerRepository.findByMatch(Mockito.any())).willReturn(match.getMatchPlayers());
         given(gameRepository.save(Mockito.any())).willReturn(game);
-        given(matchPlayerRepository.save(Mockito.any())).willReturn(matchPlayer);
-
+        given(matchPlayerRepository.save(Mockito.any())).willAnswer(invocation -> invocation.getArgument(0)); // Return
+                                                                                                              // the
+                                                                                                              // saved
+                                                                                                              // player
+        given(matchRepository.save(Mockito.any())).willReturn(match);
         doNothing().when(matchSummaryService).saveGameResultHtml(Mockito.any(), Mockito.any(), Mockito.any());
 
-        given(matchRepository.save(Mockito.any())).willReturn(match);
-
+        // Act
         gameService.finalizeGameScores(game);
 
+        // Assert: Verify expected repository and service interactions
         verify(matchPlayerRepository).findByMatch(Mockito.any());
         verify(gameRepository).save(Mockito.any());
-        verify(matchPlayerRepository).save(Mockito.any());
+        verify(matchPlayerRepository, atLeastOnce()).save(Mockito.any()); // Usually each player is saved
         verify(matchSummaryService).saveGameResultHtml(Mockito.any(), Mockito.any(), Mockito.any());
         verify(matchRepository).save(Mockito.any());
     }
@@ -324,14 +340,22 @@ public class GameServiceTest {
 
     @Test
     public void testResetAllPlayersReady() {
-        List<MatchPlayer> matchPlayers = Arrays.asList(new MatchPlayer(), new MatchPlayer(), new MatchPlayer());
-        match.getMatchPlayers().addAll(matchPlayers);
+        // Use the existing match players set in @BeforeEach
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            mp.setReady(true); // Make them ready so the reset has something to change
+        }
 
-        given(matchRepository.findById(Mockito.any())).willReturn(Optional.ofNullable(match));
+        given(matchRepository.findById(Mockito.any())).willReturn(Optional.of(match));
 
+        // Act
         gameService.resetAllPlayersReady(1L);
 
+        // Verify
         verify(matchRepository).findById(Mockito.any());
+
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            assertFalse(mp.getIsReady(), "Player should be reset to not ready");
+        }
     }
 
     @Test

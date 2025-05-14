@@ -105,12 +105,6 @@ public class MatchSetupService {
 
         matchRepository.saveAndFlush(match);
 
-        // Remember player's names for much later
-        List<String> playerNames = match.getMatchPlayers().stream()
-                .map(mp -> mp.getUser() != null ? mp.getUser().getUsername() : "AI")
-                .toList();
-
-        match.setMatchPlayerNames(playerNames);
         return match;
     }
 
@@ -216,6 +210,13 @@ public class MatchSetupService {
         validateMatchIsStartable(match, user);
 
         match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
+
+        // Remember player's names for much later
+        List<String> playerNames = match.getMatchPlayers().stream()
+                .map(mp -> mp.getUser() != null ? mp.getUser().getUsername() : "AI")
+                .toList();
+
+        match.setMatchPlayerNames(playerNames);
 
         Game game = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, seed);
         gameRepository.save(game);

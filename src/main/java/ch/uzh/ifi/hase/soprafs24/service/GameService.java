@@ -349,7 +349,7 @@ public class GameService {
                 .sum();
 
         log.info("MatchPlayers at finalize: {}",
-                match.getMatchPlayers().stream()
+                match.getMatchPlayersSortedBySlot().stream()
                         .map(mp -> mp.getUser().getUsername() + ": " + mp.getGameScore())
                         .toList());
 
@@ -393,7 +393,7 @@ public class GameService {
 
         List<Integer> gameScores = match.getMatchPlayers().stream()
                 .map(MatchPlayer::getGameScore)
-                .toList(); // Java 16+, use collect(Collectors.toList()) for older versions
+                .toList();
 
         game.setGameScoresList(gameScores);
         gameRepository.save(game);

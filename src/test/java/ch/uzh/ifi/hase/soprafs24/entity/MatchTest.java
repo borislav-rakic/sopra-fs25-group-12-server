@@ -4,6 +4,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -50,23 +51,53 @@ class MatchTest {
 
     @Test
     void testMatchPlayerNamesParsing() {
-        match.setMatchPlayerNames(List.of("Alice", "Bob", "Charlie", "Diana"));
-        List<String> names = match.getMatchPlayerNames();
+        Match match = new Match();
+        List<MatchPlayer> players = new ArrayList<>();
 
-        assertEquals(4, names.size());
-        assertEquals("Charlie", names.get(2));
+        for (int i = 0; i < 4; i++) {
+            User user = new User();
+            user.setUsername("Player" + i);
+            user.setId((long) i + 1);
+
+            MatchPlayer mp = new MatchPlayer();
+            mp.setUser(user);
+            mp.setMatchPlayerSlot(i + 1);
+            mp.setMatch(match);
+            players.add(mp);
+        }
+
+        match.setMatchPlayers(players);
+
+        List<String> expected = List.of("Player0", "Player1", "Player2", "Player3");
+        assertEquals(expected, match.getMatchPlayerNames());
     }
 
     @Test
-    void testGetNameForSlot_valid() {
-        match.setMatchPlayerNames(List.of("A", "B", "C", "D"));
-        assertEquals("C", match.getNameForSlot(3));
+    void testGetNameForMatchPlayerSlot_valid() {
+        Match match = new Match();
+        List<MatchPlayer> players = new ArrayList<>();
+
+        for (int i = 1; i <= 4; i++) {
+            User user = new User();
+            user.setUsername(Character.toString((char) ('A' + i - 1)));
+
+            MatchPlayer mp = new MatchPlayer();
+            mp.setUser(user);
+            mp.setMatchPlayerSlot(i);
+            mp.setMatch(match);
+
+            players.add(mp);
+        }
+
+        match.setMatchPlayers(players);
+
+        assertEquals("C", match.getNameForMatchPlayerSlot(3));
     }
 
     @Test
-    void testGetNameForSlot_invalid() {
+    void testGetNameForMatchPlayerSlot_invalid() {
         match.setMatchPlayerNames(List.of("A", "B", "C", "D"));
-        assertThrows(IllegalArgumentException.class, () -> match.getNameForSlot(5));
+        assertThrows(IllegalArgumentException.class, () -> match.getNameForMatchPlayerSlot(5));
     }
 
     @Test

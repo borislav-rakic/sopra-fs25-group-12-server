@@ -322,10 +322,10 @@ public class GameSimulationService {
 
             game.setCurrentMatchPlayerSlot(0);
             gameRepository.saveAndFlush(game);
-            MatchPlayer m1 = match.getMatchPlayers().get(0);
-            MatchPlayer m2 = match.getMatchPlayers().get(1);
-            MatchPlayer m3 = match.getMatchPlayers().get(2);
-            MatchPlayer m4 = match.getMatchPlayers().get(3);
+            MatchPlayer m1 = match.getMatchPlayersSortedBySlot().get(0);
+            MatchPlayer m2 = match.getMatchPlayersSortedBySlot().get(1);
+            MatchPlayer m3 = match.getMatchPlayersSortedBySlot().get(2);
+            MatchPlayer m4 = match.getMatchPlayersSortedBySlot().get(3);
 
             List<List<String>> a = Arrays.asList(
                     Arrays.asList("5C", "6C", "7C", "8C"),

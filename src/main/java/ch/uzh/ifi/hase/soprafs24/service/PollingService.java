@@ -8,8 +8,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-//import org.slf4j.Logger;
-//import org.slf4j.LoggerFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -35,7 +35,7 @@ import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 @Qualifier("pollingService")
 public class PollingService {
 
-    // private final Logger log = LoggerFactory.getLogger(PollingService.class);
+    private final Logger log = LoggerFactory.getLogger(PollingService.class);
 
     private final CardRulesService cardRulesService;
     private final MatchMessageService matchMessageService;
@@ -249,6 +249,20 @@ public class PollingService {
         dto.setPlayerCardsAsString(hand); // [33b]
         dto.setPlayableCards(playableCardDTOList); // [34a]
         dto.setPlayableCardsAsString(playableCards); // [34b]
+        if (game.getPhase() == GamePhase.PASSING
+                || game.getPhase() == GamePhase.SKIP_PASSING) {
+            String passingInfo = cardRulesService.namePassingRecipient(
+                    match,
+                    game.getGameNumber(),
+                    matchPlayer.getMatchPlayerSlot());
+            dto.setPassingInfo(passingInfo); // [34c]
+            log.info("Getting info on my (MPSlot={}) passing in Game#{}, to: {}.",
+                    matchPlayer.getMatchPlayerSlot(),
+                    game.getGameNumber(),
+                    passingInfo);
+        } else {
+            dto.setPassingInfo("");
+        }
         return dto;
     }
 

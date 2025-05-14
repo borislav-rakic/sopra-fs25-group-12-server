@@ -142,12 +142,29 @@ public class MatchService {
         }
 
         // 2. Find a new human host (other than the current one)
-        MatchPlayer newHumanHostMatchPlayer = match.getMatchPlayers().stream()
-                .filter(mp -> !mp.getIsAiPlayer() && !mp.getUser().getId().equals(previousHostId))
-                .findFirst()
-                .orElse(null);
+        MatchPlayer newHumanHostMatchPlayer = null;
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            if (mp.getIsAiPlayer()) {
+                // only human players are eligible
+                continue;
+            }
+
+            if (mp.getUser().getId().equals(previousHostId)) {
+                // old host is not eligible, either
+                continue;
+            }
+            Duration durationSinceLastPulse = Duration.between(mp.getLastPollTime(), Instant.now());
+            if (durationSinceLastPulse.toSeconds() > 10) {
+                // this user has not polled in more than ten seconds,
+                // so that user is not a good choice
+                continue;
+            }
+            newHumanHostMatchPlayer = mp;
+            break;
+        }
 
         if (newHumanHostMatchPlayer == null) {
+            // no human MatchPlayer proved worthy of the role
             abortMatch(match);
             return;
         }
@@ -248,7 +265,8 @@ public class MatchService {
 
         // Notify system
         gameService.relayMessageToMatchMessageService(match, MatchMessageType.PLAYER_JOINED, newAiUser.getUsername());
-
+        // update AI Player's name in list of names for match.
+        match.setNameForMatchPlayerSlot(matchPlayerSlot, newAiUser.getUsername());
         matchPlayerRepository.save(replaced);
         matchRepository.save(match);
 
@@ -873,7 +891,7 @@ public class MatchService {
 
     public void autoPlayFastForwardPoints(Long matchId, int pts) {
         Match match = matchRepository.findMatchByMatchId(matchId);
-        List<MatchPlayer> mps = match.getMatchPlayers();
+        List<MatchPlayer> mps = match.getMatchPlayersSortedBySlot();
         for (int i = 0; i < mps.size(); i++) {
             MatchPlayer mp = mps.get(i);
             mp.setMatchScore(pts);

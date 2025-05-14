@@ -42,7 +42,8 @@ public class PollingDTO {
     private List<PlayerCardDTO> playerCards; // [33a]
     private String playerCardsAsString; // [33b]
     private List<PlayerCardDTO> playableCards; // [34a]
-    private String playableCardsAsString; // [34a]
+    private String playableCardsAsString; // [34b]
+    private String passingInfo; // [34c]
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -257,4 +258,11 @@ public class PollingDTO {
         this.matchMessages = matchMessages;
     }
 
+    public String getPassingInfo() {
+        return passingInfo;
+    }
+
+    public void setPassingInfo(String passingInfo) {
+        this.passingInfo = passingInfo;
+    }
 }

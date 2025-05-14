@@ -4,6 +4,7 @@ import javax.persistence.*;
 import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -282,26 +283,46 @@ public class Match implements Serializable {
 
     @Transient
     public List<String> getMatchPlayerNames() {
-        if (matchPlayerNames == null || matchPlayerNames.isBlank()) {
+        if (matchPlayers == null || matchPlayers.isEmpty()) {
             return new ArrayList<>();
         }
-        return Arrays.stream(matchPlayerNames.split(","))
-                .map(String::trim)
+
+        return matchPlayers.stream()
+                .sorted(Comparator.comparingInt(MatchPlayer::getMatchPlayerSlot))
+                .map(mp -> mp.getUser().getUsername())
                 .collect(Collectors.toList());
     }
 
     public void setMatchPlayerNames(List<String> names) {
+        if (names.size() != 4) {
+            throw new IllegalArgumentException("exactly 4 matchPlayerNames must be provided");
+        }
         this.matchPlayerNames = names.stream()
                 .map(String::trim)
                 .collect(Collectors.joining(","));
     }
 
-    public String getNameForSlot(int matchPlayerSlot) {
+    public String getNameForMatchPlayerSlot(int matchPlayerSlot) {
         List<String> names = getMatchPlayerNames();
         if (matchPlayerSlot < 1 || matchPlayerSlot > names.size()) {
-            throw new IllegalArgumentException("Invalid player slot: " + matchPlayerSlot);
+            throw new IllegalArgumentException("matchPlayerSlot must be between 1 and 4");
         }
         return names.get(matchPlayerSlot - 1);
+    }
+
+    public void setNameForMatchPlayerSlot(int matchPlayerSlot, String name) {
+        if (matchPlayerSlot < 1 || matchPlayerSlot > 4) {
+            throw new IllegalArgumentException("matchPlayerSlot must be between 1 and 4");
+        }
+
+        List<String> names = getMatchPlayerNames();
+        // Ensure the list has enough elements
+        while (names.size() < matchPlayerSlot) {
+            names.add("_");
+        }
+
+        names.set(matchPlayerSlot - 1, name.trim());
+        setMatchPlayerNames(names);
     }
 
     // ======== SOME HELPERS =========== //
@@ -395,6 +416,13 @@ public class Match implements Serializable {
                 .orElseThrow(() -> new IllegalArgumentException("No player in matchPlayerSlot " + matchPlayerSlot));
     }
 
+    @Transient
+    public List<MatchPlayer> getMatchPlayersSortedBySlot() {
+        return matchPlayers.stream()
+                .sorted(Comparator.comparingInt(MatchPlayer::getMatchPlayerSlot))
+                .collect(Collectors.toList());
+    }
+
     public Game getActiveGameOrThrow() {
         return this.getGames().stream()
                 .filter(game -> game.getPhase() != GamePhase.FINISHED && game.getPhase() != GamePhase.ABORTED)
@@ -425,7 +453,7 @@ public class Match implements Serializable {
 
     public Map<Integer, Integer> collectCurrentGameScores() {
         Map<Integer, Integer> pointsOfPlayers = new HashMap<>();
-        for (MatchPlayer mp : this.getMatchPlayers()) {
+        for (MatchPlayer mp : this.getMatchPlayersSortedBySlot()) {
             pointsOfPlayers.put(mp.getMatchPlayerSlot(), mp.getGameScore());
         }
         return pointsOfPlayers;

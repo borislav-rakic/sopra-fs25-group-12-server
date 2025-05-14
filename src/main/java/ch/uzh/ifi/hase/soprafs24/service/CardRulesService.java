@@ -244,7 +244,7 @@ public class CardRulesService {
 
         }
         log.info(
-                "   ¦ Playable cards (hand: [{}]) card #{} in trick #{}; cards in trick: [{}] ({}) and hearts are {}broken: {}. Verdict: [{}].",
+                "   ¦ Playable cards (hand: [{}]) card #{} in trick #{}; cards in trick: [{}] ({}) and hearts are {}broken; verdict: [{}].",
                 hand,
                 trickSize + 1,
                 trickNumber,
@@ -252,7 +252,6 @@ public class CardRulesService {
                 leadingSuit.isEmpty() ? "no leading suit" : "leading suit:" + leadingSuit,
                 heartsBroken ? "" : "not ",
                 playableCards);
-        // log.info(" ¦¦¦ VERDICT: {}.", playableCards);
         return CardUtils.normalizeCardCodeString(playableCards);
 
     }
@@ -442,7 +441,7 @@ public class CardRulesService {
             default: // No pass
                 break;
         }
-
+        log.info("the passMapp is that of case {}.", gameNumber % GameConstants.MAX_TRICK_SIZE);
         return passMap;
     }
 
@@ -512,6 +511,28 @@ public class CardRulesService {
         return String.format("Cards will be passed from matchPlayerSlot %s to matchPlayerSlot %s (%s)",
                 fromMatchPlayerSlot,
                 toMatchPlayerSlot, directionLabel);
+    }
+
+    /**
+     * Returns a message like "Your cards will be passed to X." or
+     * "No passing this round." for a particular player in a particular slot
+     * 
+     * @param match               Relevant Match object.
+     * @param gameNumber          Number of current game in this match.
+     * @param fromMatchPlayerSlot MatchPlayerSlot of MatchPlayer for whom the
+     *                            information is determined.
+     **/
+    public String namePassingRecipient(Match match, int gameNumber, int fromMatchPlayerSlot) {
+        Map<Integer, Integer> passMap = determinePassingDirection(gameNumber);
+        Integer toMatchPlayerSlot = passMap.get(fromMatchPlayerSlot);
+
+        if (toMatchPlayerSlot == null) {
+            return String.format("No passing this round (Game #%s).", gameNumber);
+        }
+        log.info("toMatchPlayerSlot is {}.", toMatchPlayerSlot);
+        return String.format("Your cards will be passed to %s (Game #%s).",
+                match.getNameForMatchPlayerSlot(toMatchPlayerSlot),
+                gameNumber);
     }
 
     public boolean trickConsistsOnlyOfHearts(List<String> currentTrick) {
