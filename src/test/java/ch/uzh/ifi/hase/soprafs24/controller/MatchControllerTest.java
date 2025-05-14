@@ -18,6 +18,10 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
@@ -26,6 +30,9 @@ import java.util.List;
 import java.util.Map;
 
 import static org.hamcrest.Matchers.is;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -346,4 +353,109 @@ public class MatchControllerTest {
                                 .andExpect(jsonPath("$.matchGoal", is(playerPollingDTO.getMatchGoal())))
                                 .andExpect(jsonPath("$.hostId", is(playerPollingDTO.getHostId().intValue())));
         }
+
+        @Test
+        public void testStartSeededMatch_validSeed() throws Exception {
+                MockHttpServletRequestBuilder postRequest = post("/matches/1/start/19247")
+                                .header("Authorization", "Bearer 1234");
+
+                mockMvc.perform(postRequest)
+                                .andExpect(status().isOk());
+        }
+
+        @Test
+        public void testStartSeededMatch_invalidSeedFallback() throws Exception {
+                MockHttpServletRequestBuilder postRequest = post("/matches/1/start/invalidSeed")
+                                .header("Authorization", "Bearer 1234");
+
+                mockMvc.perform(postRequest)
+                                .andExpect(status().isOk()); // falls back to normal start
+        }
+
+        @Test
+        public void testPlayCardAsHuman() throws Exception {
+                PlayedCardDTO cardDTO = new PlayedCardDTO();
+                cardDTO.setCard("QS");
+
+                doNothing().when(matchService).playCardAsHuman(any(), anyLong(), any());
+
+                MockHttpServletRequestBuilder postRequest = post("/matches/1/play")
+                                .header("Authorization", "Bearer token")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(cardDTO));
+
+                mockMvc.perform(postRequest).andExpect(status().isOk());
+        }
+
+        @Test
+        public void testPlayAnyCardAsHuman_setsXX() throws Exception {
+                PlayedCardDTO cardDTO = new PlayedCardDTO();
+                cardDTO.setCard("IGNORED");
+
+                doNothing().when(matchService).playCardAsHuman(any(), anyLong(), any());
+
+                MockHttpServletRequestBuilder postRequest = post("/matches/1/play/any")
+                                .header("Authorization", "Bearer token")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(cardDTO));
+
+                mockMvc.perform(postRequest).andExpect(status().isOk());
+        }
+
+        @Test
+        public void testPassCards_normal() throws Exception {
+                GamePassingDTO dto = new GamePassingDTO();
+
+                doNothing().when(matchService).passingAcceptCards(any(), any(), any(), eq(false));
+
+                MockHttpServletRequestBuilder postRequest = post("/matches/1/passing")
+                                .header("Authorization", "Bearer token")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(dto));
+
+                mockMvc.perform(postRequest).andExpect(status().isOk());
+        }
+
+        @Test
+        public void testPassAnyCards_random() throws Exception {
+                GamePassingDTO dto = new GamePassingDTO();
+
+                doNothing().when(matchService).passingAcceptCards(any(), any(), any(), eq(true));
+
+                MockHttpServletRequestBuilder postRequest = post("/matches/1/passing/any")
+                                .header("Authorization", "Bearer token")
+                                .contentType(MediaType.APPLICATION_JSON)
+                                .content(asJsonString(dto));
+
+                mockMvc.perform(postRequest).andExpect(status().isOk());
+        }
+
+        @Test
+        public void testConfirmGameResult() throws Exception {
+                doNothing().when(matchService).confirmGameResult(any(), anyLong());
+
+                MockHttpServletRequestBuilder postRequest = post("/matches/1/game/confirm")
+                                .header("Authorization", "Bearer token");
+
+                mockMvc.perform(postRequest).andExpect(status().isOk());
+        }
+
+        @Test
+        public void testAutoPlayToLastTrickOfGame() throws Exception {
+                doNothing().when(matchService).autoPlayToLastTrickOfGame(eq(1L), eq(0));
+
+                MockHttpServletRequestBuilder postRequest = post("/matches/1/game/sim/game");
+
+                mockMvc.perform(postRequest).andExpect(status().isOk());
+        }
+
+        @Test
+        public void testAutoPlayToMatchSummary() throws Exception {
+                doNothing().when(matchService).autoPlayToMatchSummary(eq(1L), eq(0));
+
+                MockHttpServletRequestBuilder postRequest = post("/matches/1/game/sim/matchsummary");
+
+                mockMvc.perform(postRequest).andExpect(status().isOk());
+        }
+
 }

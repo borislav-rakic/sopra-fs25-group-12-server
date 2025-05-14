@@ -108,11 +108,16 @@ public class GameServiceTest {
 
         game = new Game();
         game.setGameId(1L);
+        game.setPhase(GamePhase.NORMALTRICK);
+        game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
+        game.setTrickJustCompletedTime(Instant.now().minusMillis(1600)); // so no need to Thread.sleep
+        game.setCurrentTrick(new ArrayList<>());
+        game.setPreviousTrick(new ArrayList<>());
         game.setMatch(match);
         game.setGameNumber(1);
         game.setCurrentMatchPlayerSlot(1);
 
-        match.getGames().add(game);
+        match.addGame(game);
     }
 
     @Test
@@ -186,16 +191,6 @@ public class GameServiceTest {
 
     @Test
     public void testAdvanceTrickPhaseIfOwnerPollingTrickJustCompleted() {
-        game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
-        game.setPhase(GamePhase.NORMALTRICK);
-        game.setTrickJustCompletedTime(Instant.now());
-
-        try {
-            Thread.sleep(1501);
-        } catch (InterruptedException e) {
-            e.printStackTrace();
-        }
-
         given(gameRepository.save(Mockito.any())).willReturn(game);
         given(cardRulesService.trickConsistsOnlyOfHearts(Mockito.any())).willReturn(true);
         doNothing().when(matchMessageService).addMessage(Mockito.any(), Mockito.any(), Mockito.any());
