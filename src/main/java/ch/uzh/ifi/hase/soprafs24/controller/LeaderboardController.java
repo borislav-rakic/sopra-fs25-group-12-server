@@ -35,7 +35,7 @@ public class LeaderboardController {
             @RequestParam(defaultValue = "scoreTotal") String sortBy,
             @RequestParam(defaultValue = "desc") String order,
             @RequestParam(defaultValue = "") String filter) {
-
+        log.info("GET /leaderboard called.");
         Sort.Direction direction = Sort.Direction.fromString(order);
         Pageable pageable = PageRequest.of(page, pageSize, Sort.by(direction, sortBy));
 
