@@ -231,7 +231,7 @@ public class GameSetupService {
 
             log.info("  🦑 GameSetupService: Cards are determined internally.");
 
-            Game refreshedGame = games.get(0);
+            // Game refreshedGame = games.get(0);
 
             Random random = new Random();
             long randomValue = Math.abs(random.nextInt());
