@@ -10,7 +10,6 @@ import org.junit.jupiter.api.Test;
 import java.util.List;
 import java.util.Map;
 
-
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
@@ -34,7 +33,7 @@ public class CardRulesServiceTest {
         when(game.getCurrentMatchPlayerSlot()).thenReturn(1);
         when(player.getMatchPlayerSlot()).thenReturn(1);
         when(player.getHand()).thenReturn("2C,3C,4C,5C,6C");
-        
+
         String playable = cardRulesService.getPlayableCardsForMatchPlayerPolling(game, player);
         assertEquals("2C,3C,4C,5C,6C", playable);
     }
@@ -50,7 +49,7 @@ public class CardRulesServiceTest {
         when(player.getHand()).thenReturn("2C,3C,4C,5C,6C");
 
         String playable = cardRulesService.getPlayableCardsForMatchPlayerPlaying(game, player);
-        assertEquals("2C,3C,4C,5C,6C", playable); 
+        assertEquals("2C,3C,4C,5C,6C", playable);
     }
 
     @Test
@@ -70,7 +69,6 @@ public class CardRulesServiceTest {
         when(game.getHeartsBroken()).thenReturn(false);
 
         String playable = cardRulesService.getPlayableCardsForMatchPlayer(game, player, false);
-        System.out.println("Playable cards: " + playable);
         assertEquals("2C", playable);
     }
 
@@ -94,36 +92,36 @@ public class CardRulesServiceTest {
 
     // @Test
     // public void testValidateMatchPlayerCardCode() {
-    //     Game game = mock(Game.class);
-    //     MatchPlayer player = mock(MatchPlayer.class);
+    // Game game = mock(Game.class);
+    // MatchPlayer player = mock(MatchPlayer.class);
 
-    //     when(game.getCurrentTrickNumber()).thenReturn(1);
-    //     when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
-    //     when(player.getMatchPlayerSlot()).thenReturn(1);
-    //     when(player.getHand()).thenReturn("2C,3C,4C");
+    // when(game.getCurrentTrickNumber()).thenReturn(1);
+    // when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
+    // when(player.getMatchPlayerSlot()).thenReturn(1);
+    // when(player.getHand()).thenReturn("2C,3C,4C");
 
-    //     assertDoesNotThrow(() -> {
-    //         cardRulesService.validateMatchPlayerCardCode(game, player, "2C"); // Valid card in hand
-    //     });
+    // assertDoesNotThrow(() -> {
+    // cardRulesService.validateMatchPlayerCardCode(game, player, "2C"); // Valid
+    // card in hand
+    // });
     // }
-
 
     // @Test
     // public void testValidateMatchPlayerCardCode_IllegalCardPlayed() {
-    //     Game game = mock(Game.class);
-    //     MatchPlayer player = mock(MatchPlayer.class);
+    // Game game = mock(Game.class);
+    // MatchPlayer player = mock(MatchPlayer.class);
 
-    //     when(game.getCurrentTrickNumber()).thenReturn(1);
-    //     when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
-    //     when(player.getMatchPlayerSlot()).thenReturn(1);
-    //     when(player.getHand()).thenReturn("2C,3C,4C");
-    //     when(game.getCurrentTrickAsString()).thenReturn("5H");
+    // when(game.getCurrentTrickNumber()).thenReturn(1);
+    // when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
+    // when(player.getMatchPlayerSlot()).thenReturn(1);
+    // when(player.getHand()).thenReturn("2C,3C,4C");
+    // when(game.getCurrentTrickAsString()).thenReturn("5H");
 
-    //     assertThrows(ResponseStatusException.class, () -> {
-    //         cardRulesService.validateMatchPlayerCardCode(game, player, "3H"); // 3H is not playable in the current trick
-    //     });
+    // assertThrows(ResponseStatusException.class, () -> {
+    // cardRulesService.validateMatchPlayerCardCode(game, player, "3H"); // 3H is
+    // not playable in the current trick
+    // });
     // }
-
 
     @Test
     public void testDetermineTrickWinner() {
@@ -148,13 +146,14 @@ public class CardRulesServiceTest {
         when(game.getCurrentTrickNumber()).thenReturn(1);
 
         int points = cardRulesService.calculateTrickPoints(game, 1);
-        assertEquals(4, points);}
+        assertEquals(4, points);
+    }
 
     @Test
     public void testEnsureHeartBreak_HeartCardPlayed() {
         Game game = mock(Game.class);
 
-        when(game.getHeartsBroken()).thenReturn(false); 
+        when(game.getHeartsBroken()).thenReturn(false);
         when(game.getCurrentTrick()).thenReturn(List.of("2C", "3C", "4C", "5H"));
         boolean result = cardRulesService.ensureHeartBreak(game);
         assertTrue(result);
@@ -162,43 +161,42 @@ public class CardRulesServiceTest {
 
     @Test
     public void testDeterminePassingDirection_left() {
-    Map<Integer, Integer> passMapLeft = cardRulesService.determinePassingDirection(1);
-    assertEquals(2, passMapLeft.get(1));  
-    assertEquals(3, passMapLeft.get(2));  
-    assertEquals(4, passMapLeft.get(3));  
-    assertEquals(1, passMapLeft.get(4));  
+        Map<Integer, Integer> passMapLeft = cardRulesService.determinePassingDirection(1);
+        assertEquals(2, passMapLeft.get(1));
+        assertEquals(3, passMapLeft.get(2));
+        assertEquals(4, passMapLeft.get(3));
+        assertEquals(1, passMapLeft.get(4));
     }
 
     @Test
     public void testDeterminePassingDirection_across() {
-    Map<Integer, Integer> passMapAcross = cardRulesService.determinePassingDirection(2);
-    assertEquals(3, passMapAcross.get(1));  
-    assertEquals(4, passMapAcross.get(2));  
-    assertEquals(1, passMapAcross.get(3));  
-    assertEquals(2, passMapAcross.get(4));  
+        Map<Integer, Integer> passMapAcross = cardRulesService.determinePassingDirection(2);
+        assertEquals(3, passMapAcross.get(1));
+        assertEquals(4, passMapAcross.get(2));
+        assertEquals(1, passMapAcross.get(3));
+        assertEquals(2, passMapAcross.get(4));
     }
 
     @Test
     public void testDeterminePassingDirection_right() {
-    Map<Integer, Integer> passMapRight = cardRulesService.determinePassingDirection(3);
-    assertEquals(4, passMapRight.get(1));  
-    assertEquals(1, passMapRight.get(2));  
-    assertEquals(2, passMapRight.get(3));  
-    assertEquals(3, passMapRight.get(4));  
+        Map<Integer, Integer> passMapRight = cardRulesService.determinePassingDirection(3);
+        assertEquals(4, passMapRight.get(1));
+        assertEquals(1, passMapRight.get(2));
+        assertEquals(2, passMapRight.get(3));
+        assertEquals(3, passMapRight.get(4));
     }
 
     @Test
     public void testDeterminePassingDirection_nopass() {
-    Map<Integer, Integer> passMapNoPass = cardRulesService.determinePassingDirection(0);
-    assertTrue(passMapNoPass.isEmpty());  
+        Map<Integer, Integer> passMapNoPass = cardRulesService.determinePassingDirection(0);
+        assertTrue(passMapNoPass.isEmpty());
     }
-
 
     @Test
     public void testEnsureHeartBreak_HeartsAlreadyBroken() {
         Game game = mock(Game.class);
 
-        when(game.getHeartsBroken()).thenReturn(true); 
+        when(game.getHeartsBroken()).thenReturn(true);
 
         boolean result = cardRulesService.ensureHeartBreak(game);
 
@@ -218,7 +216,7 @@ public class CardRulesServiceTest {
         when(player1.getHand()).thenReturn("2C,3C");
         when(player2.getHand()).thenReturn("4C,5C");
 
-        assertFalse(cardRulesService.isGameReadyForResults(game)); 
+        assertFalse(cardRulesService.isGameReadyForResults(game));
     }
 
     @Test

@@ -74,7 +74,7 @@ public final class DebuggingService {
             try (BufferedWriter writer = new BufferedWriter(new FileWriter(dumpFile))) {
                 writer.write(buildHtml(info, userId, matchId, gameId));
             }
-            System.out.println("Fat dump created: " + dumpFile.getAbsolutePath());
+            log.info("Fat dump created: {}.", dumpFile.getAbsolutePath());
 
             cleanupOldDumps(folder);
             return filename;

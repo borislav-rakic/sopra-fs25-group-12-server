@@ -2,16 +2,11 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -25,7 +20,6 @@ import org.springframework.web.server.ResponseStatusException;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
-import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
@@ -88,22 +82,22 @@ public class CardPassingServiceTest {
 
     // @Test
     // public void testCollectPassedCards() {
-    //     Game game = mock(Game.class);
-    //     Match match = mock(Match.class);
-    //     when(game.getMatch()).thenReturn(match);
-        
-    //     List<PassedCard> passedCards = new ArrayList<>();
-    //     PassedCard card = mock(PassedCard.class);
-    //     passedCards.add(card);
-        
-    //     when(passedCardRepository.findByGame(game)).thenReturn(passedCards);
-    //     when(cardRulesService.determinePassingDirection(game.getGameNumber())).thenReturn(new HashMap<>());
-        
-    //     cardPassingService.collectPassedCards(game);
-        
-    //     verify(passedCardRepository, times(1)).deleteAll(passedCards);
-    // }
+    // Game game = mock(Game.class);
+    // Match match = mock(Match.class);
+    // when(game.getMatch()).thenReturn(match);
 
+    // List<PassedCard> passedCards = new ArrayList<>();
+    // PassedCard card = mock(PassedCard.class);
+    // passedCards.add(card);
+
+    // when(passedCardRepository.findByGame(game)).thenReturn(passedCards);
+    // when(cardRulesService.determinePassingDirection(game.getGameNumber())).thenReturn(new
+    // HashMap<>());
+
+    // cardPassingService.collectPassedCards(game);
+
+    // verify(passedCardRepository, times(1)).deleteAll(passedCards);
+    // }
 
     @Test
     void testPassingValidCards_successfullySavesCards() {
