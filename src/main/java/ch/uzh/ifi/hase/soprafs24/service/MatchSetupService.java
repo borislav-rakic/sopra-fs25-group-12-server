@@ -636,6 +636,7 @@ public class MatchSetupService {
         // Update request status
         match.getJoinRequests().put(userId, "accepted");
 
+        checkAndUpdateMatchPhaseIfReady(match);
         matchRepository.save(match);
     }
 
