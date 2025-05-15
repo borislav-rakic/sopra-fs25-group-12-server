@@ -738,10 +738,21 @@ public class MatchSetupService {
         // Get all users who are online and not AI
         List<User> eligibleUsers = userRepository.findByStatusAndIsAiPlayerFalse(UserStatus.ONLINE);
 
-        return eligibleUsers.stream()
-                .filter(user -> !excludedUserIds.contains(user.getId()))
+        // Exclude users who are already in an active match
+        List<UserGetDTO> availableUsers = eligibleUsers.stream()
+                .filter(user -> {
+                    // Ensure the user is not in any other match
+                    try {
+                        ensureUserNotInAnyOtherMatch(user); // This will throw if the user is in another match
+                        return !excludedUserIds.contains(user.getId());
+                    } catch (ResponseStatusException e) {
+                        return false; // If the user is in another match, exclude them
+                    }
+                })
                 .map(DTOMapper.INSTANCE::convertEntityToUserGetDTO)
                 .collect(Collectors.toList());
+
+        return availableUsers;
     }
 
     /**
