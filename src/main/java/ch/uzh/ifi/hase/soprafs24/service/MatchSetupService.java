@@ -576,6 +576,11 @@ public class MatchSetupService {
             case 3 -> match.setPlayer3(null);
             case 4 -> match.setPlayer4(null);
         }
+        
+        Long userId = toRemove.getUser().getId(); // adjust if your MatchPlayer stores user ID differently
+        if (match.getJoinRequests() != null) {
+            match.getJoinRequests().remove(userId);
+        }
 
         matchRepository.save(match);
     }

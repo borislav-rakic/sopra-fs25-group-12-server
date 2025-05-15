@@ -317,6 +317,10 @@ public class MatchService {
             return;
         }
 
+        if (match.getJoinRequests() != null) {
+            match.getJoinRequests().remove(user.getId());
+        }
+
         // Regular player wants to leave → replace with AI
         MatchPlayer leavingMatchPlayer = match.getMatchPlayers().stream()
                 .filter(mp -> mp.getUser().equals(user))
@@ -330,6 +334,7 @@ public class MatchService {
         gameService.relayMessageToMatchMessageService(match, MatchMessageType.PLAYER_LEFT, user.getUsername());
 
         log.info("Player at slot {} left the match and was replaced by an AI player.", slot);
+        matchRepository.save(match);
     }
 
     /**
