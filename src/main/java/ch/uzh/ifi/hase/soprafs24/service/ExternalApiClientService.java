@@ -34,7 +34,8 @@ public class ExternalApiClientService {
      * @return The information given by the deck of cards API.
      */
     public Mono<NewDeckResponse> createNewDeck() {
-        log.info("   🧬 externalApiClientService: calling GET /new/shuffle/?deck_count=1 to external API.");
+        // log.info(" 🧬 externalApiClientService: calling GET
+        // /new/shuffle/?deck_count=1 to external API.");
         return externalApiClient.get()
                 .uri("/new/shuffle/?deck_count=1")
                 .retrieve()
@@ -50,7 +51,7 @@ public class ExternalApiClientService {
      */
     public Mono<DrawCardResponse> drawCard(String deckId, int cardAmount) {
         String uri = "/" + deckId + "/draw/?count=" + cardAmount;
-        log.info("   🧬 externalApiClientService: calling {} to external API.", uri);
+        log.info(" 🧬 externalApiClientService: calling {} to external API.", uri);
         return externalApiClient.get()
                 .uri(uri)
                 .retrieve()
@@ -65,7 +66,8 @@ public class ExternalApiClientService {
      */
     public static Long extractSeedNumber(String seedString) {
 
-        log.info("   🧬 externalApiClientService: extracsSeedNumber from seedString {}.", seedString);
+        // log.info(" 🧬 externalApiClientService: extracsSeedNumber from seedString
+        // {}.", seedString);
         if (seedString != null && seedString.startsWith(GameConstants.SEED_PREFIX)) {
             String numberPart = seedString.substring(GameConstants.SEED_PREFIX.length());
             return Long.parseLong(numberPart);
@@ -80,7 +82,8 @@ public class ExternalApiClientService {
      * @return Prefixed version as String for DB use.
      */
     public static String buildSeedString(Long seed) {
-        log.info("   🧬 externalApiClientService: buildSeedString from seed {}.", seed);
+        // log.info(" 🧬 externalApiClientService: buildSeedString from seed {}.",
+        // seed);
         return GameConstants.SEED_PREFIX + seed;
     }
 
@@ -91,7 +94,8 @@ public class ExternalApiClientService {
      * @return Boolean
      */
     public static boolean isSeedString(String seedStringCandidate) {
-        log.info("   🧬 externalApiClientService: checking isSeedString {}.", seedStringCandidate);
+        // log.info(" 🧬 externalApiClientService: checking isSeedString {}.",
+        // seedStringCandidate);
 
         if (seedStringCandidate == null || !seedStringCandidate.startsWith(GameConstants.SEED_PREFIX)) {
             return false;
@@ -109,7 +113,8 @@ public class ExternalApiClientService {
      * 
      */
     public static List<CardResponse> generateDeterministicDeck(int deckSize, Long seed) {
-        log.info("   🧬 externalApiClientService: generatedDetermnisticDeck, deckSize={}, seed={}.", deckSize, seed);
+        // log.info(" 🧬 externalApiClientService: generatedDetermnisticDeck,
+        // deckSize={}, seed={}.", deckSize, seed);
 
         List<CardResponse> deck = new ArrayList<>();
         String[] suits = { "C", "D", "H", "S" };

@@ -165,6 +165,7 @@ public class MatchSetupService {
         for (Long invitedUserId : invites.values()) {
             String status = joinRequests.get(invitedUserId);
             if (!"accepted".equalsIgnoreCase(status)) {
+                log.info("Cannot start match: not all invited users have accepted the invitation.");
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Cannot start match: not all invited users have accepted the invitation.");
             }
@@ -429,7 +430,7 @@ public class MatchSetupService {
         if (match.getPlayer1() != null && match.getPlayer2() != null &&
                 match.getPlayer3() != null && match.getPlayer4() != null) {
             match.setPhase(MatchPhase.READY);
-            log.info("💄 MatchPhase is set to READY.");
+            // log.info("💄 MatchPhase is set to READY.");
         }
     }
 

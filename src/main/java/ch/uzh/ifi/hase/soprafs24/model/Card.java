@@ -8,7 +8,7 @@ public class Card {
     private String rank;
     private String suit;
     private int value;
-    private int cardOrder; // <- New field
+    private int cardOrder;
 
     public String getCode() {
         return code;

@@ -417,10 +417,10 @@ public class MatchService {
         if (shouldEndMatch(match)) {
             match.setPhase(MatchPhase.RESULT);
             awardScoresToUsersOfFinishedMatch(match);
-            log.info("💄 MatchPhase is set to RESULT.");
+            // log.info("💄 MatchPhase is set to RESULT.");
         } else {
             match.setPhase(MatchPhase.BETWEEN_GAMES);
-            log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
+            // log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
         }
 
         matchRepository.save(match);
@@ -739,11 +739,11 @@ public class MatchService {
 
         // Now that all humans have confirmed, the game is set to finished!
         finishedGame.setPhase(GamePhase.FINISHED);
-        log.info("💄 GamePhase is set to FINISHED.");
+        // log.info("💄 GamePhase is set to FINISHED.");
         gameRepository.save(finishedGame);
         match.setPhase(MatchPhase.BETWEEN_GAMES);
 
-        log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
+        // log.info("💄 MatchPhase is set to BETWEEN_GAMES.");
         matchRepository.save(match);
         gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
     }
@@ -756,7 +756,7 @@ public class MatchService {
      */
     @Transactional
     public void handleMatchInResultPhaseOrAborted(Match match) {
-        log.info("MatchPhase is set to FINISHED.");
+        // log.info("MatchPhase is set to FINISHED.");
         cleanupAndOptionallyDeleteMatch(match, false);
     }
 

@@ -182,34 +182,30 @@ public class GameSetupService {
 
     public void distributeCards(Match match, Game game, MatchRepository matchRepository, GameRepository gameRepository,
             Long seed) {
-        log.info("  🦑 GameSetupService distributeCards (seed=`{}´)", seed);
+        // log.info(" 🦑 GameSetupService distributeCards (seed=`{}´)", seed);
         if (seed != null && seed % 10000 == 9247) {
             List<CardResponse> deterministicDeck = ExternalApiClientService
                     .generateDeterministicDeck(GameConstants.FULL_DECK_CARD_COUNT, seed);
-            log.info("  🦑 GameSetupService distributeCards. Drew Cards internally");
+            // log.info(" 🦑 GameSetupService distributeCards. Drew Cards internally");
             distributeFullDeckToPlayers(match, game, matchRepository, gameRepository, deterministicDeck);
             return;
         }
         Long gameId = game.getGameId();
         Long matchId = match.getMatchId();
-        if (game.getDeckId().isEmpty()) {
-            log.info("GAMEGETDECKIDISEMPTY: {}.", game.getDeckId());
-        } else {
 
-            log.info("GAMEGETDECKIDIS NOT EMPTY: {}.", game.getDeckId());
-        }
         Mono<DrawCardResponse> drawCardResponseMono = externalApiClientService.drawCard(game.getDeckId(),
                 GameConstants.FULL_DECK_CARD_COUNT);
         drawCardResponseMono.subscribe(response -> {
             // Manually draw fresh game object from DB.
             Game refreshedGame = gameRepository.findById(gameId)
                     .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + gameId));
-            log.info("  🦑 GameSetupService: Drew refreshedGame from gameRepository inside subscribe block.");
+            // log.info(" 🦑 GameSetupService: Drew refreshedGame from gameRepository inside
+            // subscribe block.");
             // Manually draw fresh match object from DB:
             Match refreshedMatch = matchRepository.findById(matchId)
                     .orElseThrow(() -> new EntityNotFoundException("Match not found with id: " + matchId));
             List<CardResponse> responseCards = response.getCards();
-            log.info("  🦑 GameSetupService: About to distributeFullDeckToPlayers");
+            // log.info(" 🦑 GameSetupService: About to distributeFullDeckToPlayers");
             distributeFullDeckToPlayers(refreshedMatch, refreshedGame, matchRepository, gameRepository, responseCards);
         }, error -> {
             log.error("Failed to fetch deck from external API", error);
@@ -224,7 +220,7 @@ public class GameSetupService {
                         "Expected one game in WAITING_FOR_EXTERNAL_API, found: " + games.size());
             }
 
-            log.info("  🦑 GameSetupService: Cards are determined internally.");
+            // log.info(" 🦑 GameSetupService: Cards are determined internally.");
 
             // Game refreshedGame = games.get(0);
 
@@ -287,7 +283,7 @@ public class GameSetupService {
         }
 
         match.setPhase(MatchPhase.IN_PROGRESS);
-        log.info("💄 MatchPhase is set to IN_PROGRESS");
+        // log.info("💄 MatchPhase is set to IN_PROGRESS");
 
         int currentGameNumber = game.getGameNumber(); // or however you track it
 

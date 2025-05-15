@@ -28,14 +28,14 @@ public class MatchSummaryService {
   }
 
   public void saveGameResultHtml(Match match, Game game, String newsFlash) {
-    String gameResultHtml = buildGameResultHtml(match, game, newsFlash);
-    log.info("gameResultHtml{}", gameResultHtml);
+    // String gameResultHtml = buildGameResultHtml(match, game, newsFlash);
+    // log.info("gameResultHtml{}", gameResultHtml);
     MatchSummary matchSummary = match.getMatchSummary();
     if (matchSummary == null) {
       throw new GameplayException("Could not update matchSummary (save game result).");
     }
     matchSummary.setGameSummaryHtml(buildGameResultHtml(match, game, newsFlash));
-    log.info("saved GameResult");
+    // log.info("saved GameResult");
     matchRepository.save(match);
   }
 
@@ -71,6 +71,9 @@ public class MatchSummaryService {
     html += "</table>";
     html += "<div class=\"modalMessageNewsFlash\">" + newsFlash + "</div>";
     html += "</div>";
+    if (html.length() > 10000) {
+      log.info("Very long summary.");
+    }
     return html;
   }
 

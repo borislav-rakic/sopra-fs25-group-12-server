@@ -73,7 +73,13 @@ public class CardUtilsTest {
 
     @Test
     void requireValidCardFormat_invalidCard_throws() {
-        assertThrows(IllegalArgumentException.class, () -> CardUtils.requireValidCardFormat("Z1"));
+        String invalidCode = "Z1";
+
+        Exception exception = assertThrows(IllegalArgumentException.class, () -> {
+            CardUtils.requireValidCardFormat(invalidCode);
+        });
+
+        assertTrue(exception.getMessage().contains("invalid cardCode"));
     }
 
     @Test
