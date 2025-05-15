@@ -485,6 +485,24 @@ public class CardRulesService {
     }
 
     /**
+     * Returns the slot number of the player who will receive cards
+     * from the specified MatchPlayer slot during the given game number.
+     *
+     * @param gameNumber          The current game round
+     * @param fromMatchPlayerSlot The slot number of the player passing cards
+     * @return The slot number of the player receiving the passed cards
+     * @throws IllegalArgumentException if the fromMatchPlayerSlot is invalid
+     */
+    public Integer getPassingToMatchPlayerSlot(int gameNumber, int fromMatchPlayerSlot) {
+        Map<Integer, Integer> passMap = determinePassingDirection(gameNumber);
+        Integer toSlot = passMap.get(fromMatchPlayerSlot);
+        if (toSlot == null) {
+            return fromMatchPlayerSlot;
+        }
+        return toSlot;
+    }
+
+    /**
      * Returns a message like "Cards will be passed from matchPlayerSlot X to
      * matchPlayerSlot Y
      * (left/right/across/no pass)"

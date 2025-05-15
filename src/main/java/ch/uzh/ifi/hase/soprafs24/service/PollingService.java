@@ -257,12 +257,19 @@ public class PollingService {
                     game.getGameNumber(),
                     matchPlayer.getMatchPlayerSlot());
             dto.setPassingInfo(passingInfo); // [34c]
-            log.info("Getting info on my (MPSlot={}) passing in Game#{}, to: {}.",
+            Integer passingToMatchPlayerSlot = cardRulesService.getPassingToMatchPlayerSlot(
+                    game.getGameNumber(),
+                    matchPlayer.getMatchPlayerSlot());
+            // ofset by -1 for frontend-logic
+            dto.setPassingToPlayerSlot(passingToMatchPlayerSlot - 1);
+            log.info("Getting info on my (MPSlot={}) passing in Game#{}, to: {} in MatchPlayerSlot={}.",
                     matchPlayer.getMatchPlayerSlot(),
                     game.getGameNumber(),
-                    passingInfo);
+                    passingInfo,
+                    passingToMatchPlayerSlot);
         } else {
             dto.setPassingInfo("");
+            dto.setPassingToPlayerSlot(null);
         }
         return dto;
     }

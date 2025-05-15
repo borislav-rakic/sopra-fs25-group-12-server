@@ -244,7 +244,8 @@ public class MatchServiceTest {
         verify(userRepository).findUserById(Mockito.anyLong());
         verify(gameService, times(2)).relayMessageToMatchMessageService(Mockito.any(), Mockito.any(), Mockito.any());
         verify(matchPlayerRepository).save(Mockito.any());
-        verify(matchRepository).save(Mockito.any());
+        verify(matchRepository, times(2)).save(any());
+
     }
 
     @Test

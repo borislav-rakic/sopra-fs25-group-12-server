@@ -44,6 +44,7 @@ public class PollingDTO {
     private List<PlayerCardDTO> playableCards; // [34a]
     private String playableCardsAsString; // [34b]
     private String passingInfo; // [34c]
+    private Integer passingToPlayerSlot; // [34d]
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -188,6 +189,14 @@ public class PollingDTO {
 
     public void setMatchPhase(MatchPhase matchPhase) {
         this.matchPhase = matchPhase;
+    }
+
+    public Integer getPassingToPlayerSlot() {
+        return passingToPlayerSlot;
+    }
+
+    public void setPassingToPlayerSlot(Integer passingToPlayerSlot) {
+        this.passingToPlayerSlot = passingToPlayerSlot;
     }
 
     /******************** PREVIOUS TRICK **************************/
