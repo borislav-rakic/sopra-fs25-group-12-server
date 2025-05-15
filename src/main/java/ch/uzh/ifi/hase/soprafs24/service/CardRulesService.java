@@ -18,7 +18,6 @@ import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
-import ch.uzh.ifi.hase.soprafs24.util.DebuggingService;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -270,8 +269,6 @@ public class CardRulesService {
 
         // 3. Check if card is playable
         if (!cardIsPlayable) {
-            DebuggingService.richLog(null, matchPlayer.getMatch(), game, matchPlayer, cardCode, "Illegal card played.");
-
             log.info("+ Only legal cards: {} | Hand: {} | Trick so far: {} | # of Trick: {} | Hearts {}broken",
                     playableCards, matchPlayer.getHand(), game.getCurrentTrick(), game.getCurrentTrickNumber(),
                     game.getHeartsBroken() ? "" : "not ");
