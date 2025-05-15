@@ -48,7 +48,7 @@ public class AiPassingService {
         if (cardsArray.length < 3) {
             throw new IllegalStateException("Player does not have enough cards to pass.");
         }
-        Strategy effectiveStrategy = strategy;
+        Strategy effectiveStrategy = (strategy == null) ? Strategy.LEFTMOST : strategy;
 
         List<String> cards = new ArrayList<>(List.of(cardsArray));
         List<String> selectedCards = new ArrayList<>(List.of(cardsArray));
@@ -89,7 +89,7 @@ public class AiPassingService {
                 selectedCards = cards.stream()
                         .sorted(Comparator.comparingInt(card -> {
                             char suit = card.charAt(card.length() - 1);
-                            return (suit == 'H' || suit == 'D') ? 0 : 1;
+                            return (suit == 'C' || suit == 'S') ? 0 : 1; // ♣♠ first
                         }))
                         .limit(3)
                         .collect(Collectors.toList());

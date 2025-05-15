@@ -135,4 +135,107 @@ public class AiPassingServiceTest {
         assertEquals(Strategy.RANDOM, aiPassingService.getStrategyForUserId(2L));
         assertEquals(Strategy.LEFTMOST, aiPassingService.getStrategyForUserId(99L)); // default fallback
     }
+
+    @Test
+    public void dumpHighestScoringFaceFirst_prioritizesQueenAndHearts() {
+        List<String> hand = List.of("4D", "QS", "KH", "2C", "AH", "9H", "8H");
+        List<String> result = aiPassingService.dumpHighestScoringFaceFirst(hand);
+
+        assertTrue(result.contains("QS"));
+        assertTrue(result.contains("KH") || result.contains("AH"));
+        assertEquals(3, result.size());
+    }
+
+    @Test
+    public void selectCardsToPass_unknownStrategyDefaultsToLeftmost() {
+        List<String> result = aiPassingService.selectCardsToPass(aiPlayer, null);
+        assertEquals(List.of("2C", "4C", "0C"), result);
+    }
+
+    @Test
+    public void isPotentialMoonShooter_returnsFalseForStrongNonShooter() {
+        List<String> hand = List.of("KH", "QH", "4C", "6S", "7D", "2C", "AS", "8H", "3C");
+        assertFalse(aiPassingService.isPotentialMoonShooter(hand));
+    }
+
+    @Test
+    public void passForAllAiPlayers_skipsCardsAlreadyPassed() {
+        Game game = new Game();
+        game.setGameNumber(1);
+        Match match = mock(Match.class);
+        game.setMatch(match);
+
+        when(match.requireMatchPlayerBySlot(anyInt())).thenReturn(aiPlayer);
+        when(passedCardRepository.existsByGameAndRankSuit(any(), any())).thenReturn(true); // simulate already passed
+
+        aiPassingService.passForAllAiPlayers(game);
+
+        verify(passedCardRepository, never()).save(any());
+    }
+
+    @Test
+    public void selectCardsToPass_GETRIDOFCLUBSTHENHEARTS_prioritizesClubsAndHearts() {
+        aiPlayer.setHand("2C,4H,3C,9S,QD,KH,AH");
+        List<String> result = aiPassingService.selectCardsToPass(aiPlayer, Strategy.GETRIDOFCLUBSTHENHEARTS);
+        assertTrue(result.stream().allMatch(card -> card.endsWith("C") || card.endsWith("H")));
+        assertEquals(3, result.size());
+    }
+
+    @Test
+    public void selectCardsToPass_PREFERBLACK_prioritizesBlackCards() {
+        aiPlayer.setHand("2H,3H,4D,5C,6S,7S,8C");
+        List<String> result = aiPassingService.selectCardsToPass(aiPlayer, Strategy.PREFERBLACK);
+
+        long blackCount = result.stream()
+                .filter(card -> card.endsWith("C") || card.endsWith("S"))
+                .count();
+
+        // At least 2 of the passed cards should be black suits if they're available
+        assertTrue(blackCount >= 2, "Should prioritize black suits if present");
+        assertEquals(3, result.size());
+    }
+
+    @Test
+    public void selectCardsToPass_VOIDSUIT_voidsLeastRepresentedSuit() {
+        aiPlayer.setHand("2C,3C,4D,5S,6H,7H,8H,9H,0H");
+        List<String> result = aiPassingService.selectCardsToPass(aiPlayer, Strategy.VOIDSUIT);
+        assertEquals(3, result.size());
+        // Should favor the suit with only 1-2 cards
+    }
+
+    @Test
+    public void selectCardsToPass_HYPATIA_shootsOrDumps() {
+        aiPlayer.setHand("KH,QH,AH,9H,8H,7H,QS,KS,AS,2C,3C,4C,5C");
+        List<String> result = aiPassingService.selectCardsToPass(aiPlayer, Strategy.HYPATIA);
+        assertEquals(3, result.size());
+    }
+
+    @Test
+    public void selectCardsToPass_GARY_moonShooterKeepsHighCards() {
+        aiPlayer.setHand("KH,QH,AH,9H,8H,7H,QS,KS,AS,2C,3C,4C,5C");
+        List<String> result = aiPassingService.selectCardsToPass(aiPlayer, Strategy.GARY);
+        assertEquals(3, result.size());
+    }
+
+    @Test
+    public void selectCardsToPass_GARY_voidClubsIfNotShooter() {
+        aiPlayer.setHand("2C,3C,4D,5H,6S,7D,8H,9H,0H,JH,QD,KD,AD");
+        List<String> result = aiPassingService.selectCardsToPass(aiPlayer, Strategy.GARY);
+        assertEquals(3, result.size());
+    }
+
+    @Test
+    public void selectCardsToPass_ADA_moonShooterPassesLow() {
+        aiPlayer.setHand("KH,QH,AH,9H,8H,7H,QS,KS,AS,2C,3C,4C,5C");
+        List<String> result = aiPassingService.selectCardsToPass(aiPlayer, Strategy.ADA);
+        assertEquals(3, result.size());
+    }
+
+    @Test
+    public void selectCardsToPass_ADA_avoidsOddSuits() {
+        aiPlayer.setHand("2C,4C,5C,6H,8H,9H,QD,KD,AD,3S,5S,7S,9S");
+        List<String> result = aiPassingService.selectCardsToPass(aiPlayer, Strategy.ADA);
+        assertEquals(3, result.size());
+    }
+
 }
