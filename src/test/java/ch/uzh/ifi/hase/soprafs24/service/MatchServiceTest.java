@@ -40,6 +40,7 @@ import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.MatchDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
 
@@ -175,9 +176,20 @@ public class MatchServiceTest {
     public void testGetMatchDTOSuccess() {
         when(matchRepository.findMatchByMatchId(1L)).thenReturn(match);
 
-        Match result = matchService.getMatchDTO(1L);
+        MatchDTO result = matchService.getMatchDTO(1L);
 
-        assertEquals(match, result);
+        assertEquals(match.getMatchId(), result.getMatchId());
+        assertEquals(match.getHostId(), result.getHostId());
+        assertEquals(match.getHostUsername(), result.getHostUsername());
+        assertEquals(match.getMatchGoal(), result.getMatchGoal());
+        assertEquals(match.getStarted(), result.getStarted());
+
+        // Check if player names map was set correctly
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            int slotIndex = mp.getMatchPlayerSlot() - 1; // slot 1 → index 0
+            String username = mp.getUser().getUsername();
+            assertEquals(username, result.getPlayerNames().get(slotIndex));
+        }
     }
 
     @Test

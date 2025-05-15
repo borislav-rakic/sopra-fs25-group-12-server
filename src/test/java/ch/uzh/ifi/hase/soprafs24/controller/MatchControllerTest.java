@@ -31,6 +31,8 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
@@ -122,30 +124,53 @@ public class MatchControllerTest {
 
         @Test
         public void testGetMatchDTO() throws Exception {
-                Match match = new Match();
+                // Prepare MatchPlayer mocks
+                MatchPlayer mp1 = new MatchPlayer();
+                mp1.setMatchPlayerId(42L);
+                MatchPlayer mp2 = new MatchPlayer();
+                mp2.setMatchPlayerId(43L);
 
-                List<MatchPlayer> matchPlayers = new ArrayList<>();
-                MatchPlayer matchPlayer = new MatchPlayer();
-                matchPlayer.setUser(new User());
-                matchPlayer.setMatch(match);
-                matchPlayers.add(matchPlayer);
+                // Prepare MatchDTO
+                MatchDTO dto = new MatchDTO();
+                dto.setMatchId(1L);
+                dto.setStarted(false);
+                dto.setMatchGoal(100);
+                dto.setHostId(11L);
+                dto.setHostUsername("host");
 
-                match.setMatchId(1L);
-                match.setStarted(false);
-                match.setMatchPlayers(matchPlayers);
+                // Set match player IDs
+                dto.setMatchPlayerIds(List.of(mp1, mp2));
 
-                List<Long> matchPlayerIds = new ArrayList<>();
-                matchPlayerIds.add(match.getMatchPlayers().get(0).getMatchPlayerId());
+                // Set player slot assignments
+                dto.setPlayer1Id(11L);
+                dto.setPlayer2Id(12L);
+                dto.setPlayer3Id((Long) null); // Explicitly cast to avoid ambiguity
+                dto.setPlayer4Id((Long) null);
 
-                given(matchService.getMatchDTO(Mockito.any())).willReturn(match);
+                // Set player names
+                dto.setPlayerNames(List.of("host", "guest", "", "")); // ordered by slot
 
+                // Mock service
+                given(matchService.getMatchDTO(Mockito.any())).willReturn(dto);
+
+                // Perform request
                 MockHttpServletRequestBuilder getRequest = get("/matches/1");
 
                 mockMvc.perform(getRequest)
                                 .andExpect(status().isOk())
-                                .andExpect(jsonPath("$.matchId", is(match.getMatchId().intValue())))
-                                .andExpect(jsonPath("$.started", is(match.getStarted())))
-                                .andExpect(jsonPath("$.matchPlayerIds", is(matchPlayerIds)));
+                                .andExpect(jsonPath("$.matchId").value(1))
+                                .andExpect(jsonPath("$.started").value(false))
+                                .andExpect(jsonPath("$.matchGoal").value(100))
+                                .andExpect(jsonPath("$.hostId").value(11))
+                                .andExpect(jsonPath("$.hostUsername").value("host"))
+                                .andExpect(jsonPath("$.matchPlayerIds[0]").value(42))
+                                .andExpect(jsonPath("$.matchPlayerIds[1]").value(43))
+                                .andExpect(jsonPath("$.player1Id").value(11))
+                                .andExpect(jsonPath("$.player2Id").value(12))
+                                .andExpect(jsonPath("$.playerNames[0]").value("host"))
+                                .andExpect(jsonPath("$.playerNames[1]").value("guest"))
+                                .andExpect(jsonPath("$.playerNames[2]").value("")) // empty placeholder
+                                .andExpect(jsonPath("$.playerNames[3]").value(""));
         }
 
         @Test
@@ -159,16 +184,24 @@ public class MatchControllerTest {
 
         @Test
         public void testInvitePlayerToMatch() throws Exception {
+                // Arrange
                 InviteRequestDTO inviteRequestDTO = new InviteRequestDTO();
                 inviteRequestDTO.setPlayerSlot(0);
                 inviteRequestDTO.setUserId(1L);
 
+                // Mock service layer call
+                doNothing().when(matchSetupService).invitePlayerToMatch(eq(1L), any(InviteRequestDTO.class));
+
+                // Act
                 MockHttpServletRequestBuilder postRequest = post("/matches/1/invite")
                                 .contentType(MediaType.APPLICATION_JSON)
                                 .content(asJsonString(inviteRequestDTO));
 
+                // Assert
                 mockMvc.perform(postRequest)
                                 .andExpect(status().isOk());
+
+                verify(matchSetupService, times(1)).invitePlayerToMatch(eq(1L), any(InviteRequestDTO.class));
         }
 
         @Test

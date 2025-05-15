@@ -18,6 +18,8 @@ import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
+import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -90,14 +92,25 @@ public class MatchService {
         return matchRepository.findAll();
     }
 
-    public Match getMatchDTO(Long matchId) {
+    public MatchDTO getMatchDTO(Long matchId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
 
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found");
         }
 
-        return match;
+        // Pack up match object into MatchDTO
+        MatchDTO dto = DTOMapper.INSTANCE.convertEntityToMatchDTO(match);
+
+        // Add a map of UserId -> Username
+        List<String> playerNames = match.getMatchPlayers().stream()
+                .sorted(Comparator.comparingInt(MatchPlayer::getMatchPlayerSlot))
+                .map(mp -> mp.getUser() != null ? mp.getUser().getUsername() : "")
+                .collect(Collectors.toList());
+
+        dto.setPlayerNames(playerNames);
+
+        return dto;
     }
 
     /*

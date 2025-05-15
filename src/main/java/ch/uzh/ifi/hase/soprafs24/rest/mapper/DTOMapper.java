@@ -10,6 +10,8 @@ import java.util.Map;
 import org.mapstruct.*;
 import org.mapstruct.factory.Mappers;
 
+import org.mapstruct.Named;
+
 /**
  * DTOMapper
  * This class is responsible for generating classes that will automatically
@@ -163,6 +165,11 @@ public interface DTOMapper {
   @Mapping(source = "longestMatchStreak", target = "longestMatchStreak")
   LeaderboardDTO convertToLeaderboardDTO(User user);
 
+  @Named("userToId")
+  default Long mapUserToId(User user) {
+    return user != null ? user.getId() : null;
+  }
+
   @Mapping(source = "matchId", target = "matchId")
   @Mapping(source = "hostId", target = "hostId")
   @Mapping(source = "hostUsername", target = "hostUsername")
@@ -171,9 +178,10 @@ public interface DTOMapper {
   @Mapping(source = "started", target = "started")
   @Mapping(source = "aiPlayers", target = "aiPlayers", qualifiedByName = "convertAiPlayersToFrontendFormat")
   @Mapping(source = "joinRequests", target = "joinRequests")
-  @Mapping(source = "player1", target = "player1Id")
-  @Mapping(source = "player2", target = "player2Id")
-  @Mapping(source = "player3", target = "player3Id")
-  @Mapping(source = "player4", target = "player4Id")
+  @Mapping(source = "player1", target = "player1Id", qualifiedByName = "userToId")
+  @Mapping(source = "player2", target = "player2Id", qualifiedByName = "userToId")
+  @Mapping(source = "player3", target = "player3Id", qualifiedByName = "userToId")
+  @Mapping(source = "player4", target = "player4Id", qualifiedByName = "userToId")
+  @Mapping(ignore = true, target = "playerNames")
   MatchDTO convertEntityToMatchDTO(Match match);
 }

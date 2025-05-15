@@ -21,6 +21,7 @@ public class MatchDTO {
     private Long player2Id;
     private Long player3Id;
     private Long player4Id;
+    private List<String> playerNames;
 
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
@@ -146,5 +147,31 @@ public class MatchDTO {
         } catch (Exception e) {
             this.player4Id = null;
         }
+    }
+
+    // Overload functions (simplify testing)
+    public void setPlayer1Id(Long player1Id) {
+        this.player1Id = player1Id;
+    }
+
+    public void setPlayer2Id(Long player2Id) {
+        this.player2Id = player2Id;
+    }
+
+    public void setPlayer3Id(Long player3Id) {
+        this.player3Id = player3Id;
+    }
+
+    public void setPlayer4Id(Long player4Id) {
+        this.player4Id = player4Id;
+    }
+    // End of overlad functions
+
+    public List<String> getPlayerNames() {
+        return playerNames;
+    }
+
+    public void setPlayerNames(List<String> playerNames) {
+        this.playerNames = playerNames;
     }
 }

@@ -11,6 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.http.HttpStatus;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 
@@ -78,7 +79,7 @@ public class MatchController {
     @GetMapping("/matches/{matchId}")
     @ResponseStatus(HttpStatus.OK)
     public MatchDTO getMatchDTO(@PathVariable Long matchId) {
-        return DTOMapper.INSTANCE.convertEntityToMatchDTO(matchService.getMatchDTO(matchId));
+        return matchService.getMatchDTO(matchId);
     }
 
     /**
