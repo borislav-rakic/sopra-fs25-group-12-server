@@ -38,6 +38,7 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.core.io.ClassPathResource;
 
 import java.nio.charset.StandardCharsets;
+
 import java.io.IOException;
 
 /**
@@ -357,4 +358,5 @@ public class UserService {
   public static int randomAvatarGeneratorForAis() {
     return randomAvatarGenerator(300);
   }
+
 }

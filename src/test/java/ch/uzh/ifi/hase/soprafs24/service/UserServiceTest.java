@@ -1,19 +1,27 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.PriorEngagement;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
+import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteGetDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPrivateDTO;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.springframework.web.server.ResponseStatusException;
+import org.springframework.http.HttpStatus;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCrypt;
 
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.*;
@@ -24,9 +32,11 @@ class UserServiceTest {
   private UserRepository userRepository;
 
   @Mock
-  private MatchRepository matchRepository; // Add MatchRepository mock
+  private MatchRepository matchRepository;
 
-  @InjectMocks
+  @Mock
+  private JdbcTemplate jdbcTemplate;
+
   private UserService userService;
 
   private User testUser;
@@ -34,6 +44,17 @@ class UserServiceTest {
   @BeforeEach
   void setup() {
     MockitoAnnotations.openMocks(this);
+
+    userService = new UserService(userRepository);
+
+    // Manually inject the matchRepository mock using reflection
+    try {
+      java.lang.reflect.Field field = UserService.class.getDeclaredField("matchRepository");
+      field.setAccessible(true);
+      field.set(userService, matchRepository);
+    } catch (Exception e) {
+      throw new RuntimeException(e);
+    }
 
     testUser = new User();
     testUser.setId(1L);
@@ -149,4 +170,156 @@ class UserServiceTest {
 
     assertFalse(userService.isUserTableEmpty());
   }
+
+  @Test
+  void authenticateUserAtLogin_invalidPassword_throwsException() {
+    Mockito.when(userRepository.findUserByUsername("testUsername")).thenReturn(testUser);
+
+    assertThrows(ResponseStatusException.class,
+        () -> userService.authenticateUserAtLogin("testUsername", "wrongPassword"));
+  }
+
+  @Test
+  void updateUser_nonExistingUser_throwsException() {
+    Mockito.when(userRepository.findUserById(1L)).thenReturn(null);
+
+    User updates = new User();
+    updates.setUsername("any");
+
+    assertThrows(ResponseStatusException.class, () -> userService.updateUser(1L, updates));
+  }
+
+  @Test
+  void logoutUser_setsStatusOffline() {
+    Mockito.when(userRepository.findUserByToken("testToken")).thenReturn(testUser);
+    userService.logoutUserByToken("testToken");
+    assertEquals(UserStatus.OFFLINE, testUser.getStatus());
+  }
+
+  @Test
+  void logoutUser_invalidToken_throwsException() {
+    Mockito.when(userRepository.findUserByToken("invalidToken")).thenReturn(null);
+    assertThrows(ResponseStatusException.class, () -> userService.logoutUserByToken("invalidToken"));
+  }
+
+  @Test
+  void getUserByToken_validToken_returnsUser() {
+    Mockito.when(userRepository.findUserByToken("testToken")).thenReturn(testUser);
+
+    User result = userService.getUserByToken("testToken");
+    assertEquals(testUser, result);
+  }
+
+  @Test
+  void getUserByToken_invalidToken_returnsNull() {
+    Mockito.when(userRepository.findUserByToken("invalidToken")).thenReturn(null);
+
+    ResponseStatusException thrown = assertThrows(ResponseStatusException.class, () -> {
+      userService.getUserByToken("invalidToken");
+    });
+
+    assertEquals(HttpStatus.UNAUTHORIZED, thrown.getStatus());
+    assertEquals("Invalid token", thrown.getReason());
+  }
+
+  @Test
+  void getUserById_validId_returnsUser() {
+    Mockito.when(userRepository.findUserById(1L)).thenReturn(testUser);
+
+    User result = userService.getUserById(1L);
+    assertEquals(testUser, result);
+  }
+
+  @Test
+  void getUserById_invalidId_returnsNull() {
+    Mockito.when(userRepository.findUserById(999L)).thenReturn(null);
+
+    ResponseStatusException thrown = assertThrows(ResponseStatusException.class, () -> {
+      userService.getUserById(999L);
+    });
+
+    assertEquals(HttpStatus.NOT_FOUND, thrown.getStatus());
+    assertEquals("User not found", thrown.getReason());
+  }
+
+  @Test
+  void requireUserByToken_validToken_returnsUser() {
+    Mockito.when(userRepository.findUserByToken("testToken")).thenReturn(testUser);
+
+    User result = userService.requireUserByToken("testToken");
+    assertEquals(testUser, result);
+  }
+
+  @Test
+  void requireUserByToken_invalidToken_throwsException() {
+    Mockito.when(userRepository.findUserByToken("invalid")).thenReturn(null);
+
+    assertThrows(ResponseStatusException.class, () -> userService.requireUserByToken("invalid"));
+  }
+
+  @Test
+  void logout_validUser_success() {
+    Mockito.when(userRepository.findUserById(1L)).thenReturn(testUser);
+    userService.logoutUser(1L, "testToken");
+    assertEquals(UserStatus.OFFLINE, testUser.getStatus());
+  }
+
+  @Test
+  void logout_invalidToken_throwsException() {
+    testUser.setToken("someOtherToken");
+    Mockito.when(userRepository.findUserById(1L)).thenReturn(testUser);
+
+    assertThrows(ResponseStatusException.class, () -> userService.logoutUser(1L, "invalidToken"));
+  }
+
+  @Test
+  void getUserInformation_validUserId_returnsUserPrivateDTO() {
+    Match mockMatch = new Match();
+    mockMatch.setMatchId(10L);
+    mockMatch.setPhase(MatchPhase.SETUP);
+
+    Mockito.when(userRepository.findUserById(1L)).thenReturn(testUser);
+    Mockito.when(matchRepository.findByMatchPlayersUserId(1L)).thenReturn(mockMatch);
+    Mockito.when(matchRepository.findActiveMatchIdsWithUserId(1L)).thenReturn(List.of());
+    Mockito.when(matchRepository.findMatchIdsInSetupWithUserId(1L)).thenReturn(List.of(10L));
+
+    UserPrivateDTO result = userService.getUserInformation(1L);
+
+    assertNotNull(result);
+    assertEquals(testUser.getId(), result.getId());
+    assertEquals(PriorEngagement.START, result.getParticipantOfActiveMatchPhase());
+    assertEquals(10L, result.getParticipantOfActiveMatchId());
+  }
+
+  @Test
+  void getUserInformation_invalidUserId_throwsException() {
+    Mockito.when(userRepository.findUserById(999L)).thenReturn(null);
+
+    assertThrows(ResponseStatusException.class, () -> userService.getUserInformation(999L));
+  }
+
+  @Test
+  void getPendingInvites_userHasInvites_returnsList() {
+    Match match = new Match();
+    match.setMatchId(1L);
+    match.setHostId(10L);
+
+    Map<Integer, Long> invites = Map.of(0, 1L); // Assume user ID is 1L
+    match.setInvites(invites);
+
+    User hostUser = new User();
+    hostUser.setId(10L);
+    hostUser.setUsername("hostUser");
+
+    Mockito.when(userRepository.findUserByToken("testToken")).thenReturn(testUser);
+    Mockito.when(matchRepository.findAll()).thenReturn(List.of(match));
+    Mockito.when(userRepository.findById(10L)).thenReturn(Optional.of(hostUser));
+
+    List<InviteGetDTO> result = userService.getPendingInvites("Bearer testToken");
+
+    assertEquals(1, result.size());
+    assertEquals(1L, result.get(0).getMatchId());
+    assertEquals("hostUser", result.get(0).getFromUsername());
+  }
+
 }
