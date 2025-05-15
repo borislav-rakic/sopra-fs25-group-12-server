@@ -10,8 +10,6 @@ import java.util.Map;
 import org.mapstruct.*;
 import org.mapstruct.factory.Mappers;
 
-import org.mapstruct.Named;
-
 /**
  * DTOMapper
  * This class is responsible for generating classes that will automatically
@@ -183,5 +181,6 @@ public interface DTOMapper {
   @Mapping(source = "player3", target = "player3Id", qualifiedByName = "userToId")
   @Mapping(source = "player4", target = "player4Id", qualifiedByName = "userToId")
   @Mapping(ignore = true, target = "playerNames")
+  @Mapping(ignore = true, target = "slotAvailable")
   MatchDTO convertEntityToMatchDTO(Match match);
 }

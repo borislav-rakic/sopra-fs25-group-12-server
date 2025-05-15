@@ -281,18 +281,6 @@ public class Match implements Serializable {
 
     // ======== MatchPlayerNames ======= //
 
-    @Transient
-    public List<String> getMatchPlayerNames() {
-        if (matchPlayers == null || matchPlayers.isEmpty()) {
-            return new ArrayList<>();
-        }
-
-        return matchPlayers.stream()
-                .sorted(Comparator.comparingInt(MatchPlayer::getMatchPlayerSlot))
-                .map(mp -> mp.getUser().getUsername())
-                .collect(Collectors.toList());
-    }
-
     public void setMatchPlayerNames(List<String> names) {
         if (names.size() != 4) {
             throw new IllegalArgumentException("exactly 4 matchPlayerNames must be provided");
@@ -513,4 +501,21 @@ public class Match implements Serializable {
         }
     }
 
+    @Transient
+    public List<String> getMatchPlayerNames() {
+        List<String> names = new ArrayList<>(List.of("", "", "", "")); // 4 empty slots
+
+        if (this.getMatchPlayers() != null) {
+            this.getMatchPlayers().stream()
+                    .filter(mp -> mp.getUser() != null)
+                    .forEach(mp -> {
+                        int index = mp.getMatchPlayerSlot() - 1;
+                        if (index >= 0 && index < 4) {
+                            names.set(index, mp.getUser().getUsername());
+                        }
+                    });
+        }
+
+        return names;
+    }
 }

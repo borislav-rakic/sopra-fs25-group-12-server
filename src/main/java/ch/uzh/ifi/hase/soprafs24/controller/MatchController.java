@@ -65,7 +65,20 @@ public class MatchController {
         List<MatchDTO> matchDTOs = new ArrayList<>();
 
         for (Match match : matches) {
-            matchDTOs.add(DTOMapper.INSTANCE.convertEntityToMatchDTO(match));
+            MatchDTO dto = DTOMapper.INSTANCE.convertEntityToMatchDTO(match);
+
+            // Set player names
+            dto.setPlayerNames(match.getMatchPlayerNames());
+
+            // Check if any of the player slots is empty
+            boolean hasEmptySlot = match.getPlayer1() == null
+                    || match.getPlayer2() == null
+                    || match.getPlayer3() == null
+                    || match.getPlayer4() == null;
+
+            dto.setSlotAvailable(hasEmptySlot);
+
+            matchDTOs.add(dto);
         }
 
         return matchDTOs;

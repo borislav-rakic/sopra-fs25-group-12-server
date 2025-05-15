@@ -23,6 +23,16 @@ public class MatchDTO {
     private Long player4Id;
     private List<String> playerNames;
 
+    private boolean slotAvailable;
+
+    public boolean isSlotAvailable() {
+        return slotAvailable;
+    }
+
+    public void setSlotAvailable(boolean slotAvailable) {
+        this.slotAvailable = slotAvailable;
+    }
+
     public void setMatchId(Long matchId) {
         this.matchId = matchId;
     }

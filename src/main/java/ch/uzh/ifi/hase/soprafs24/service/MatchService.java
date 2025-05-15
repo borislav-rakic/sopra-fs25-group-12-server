@@ -94,21 +94,19 @@ public class MatchService {
 
     public MatchDTO getMatchDTO(Long matchId) {
         Match match = matchRepository.findMatchByMatchId(matchId);
-
         if (match == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match with id " + matchId + " not found");
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
 
-        // Pack up match object into MatchDTO
         MatchDTO dto = DTOMapper.INSTANCE.convertEntityToMatchDTO(match);
 
-        // Add a map of UserId -> Username
-        List<String> playerNames = match.getMatchPlayers().stream()
-                .sorted(Comparator.comparingInt(MatchPlayer::getMatchPlayerSlot))
-                .map(mp -> mp.getUser() != null ? mp.getUser().getUsername() : "")
-                .collect(Collectors.toList());
+        // Manually add playerNames
+        dto.setPlayerNames(match.getMatchPlayerNames());
 
-        dto.setPlayerNames(playerNames);
+        dto.setSlotAvailable(match.getPlayer1() == null
+                || match.getPlayer2() == null
+                || match.getPlayer3() == null
+                || match.getPlayer4() == null);
 
         return dto;
     }
