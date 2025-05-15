@@ -158,7 +158,7 @@ public class GameTrickService {
     }
 
     @Transactional
-    private void handlePotentialTrickCompletion(Match match, Game game) {
+    public void handlePotentialTrickCompletion(Match match, Game game) {
         log.info(" (No trick completion yet.)");
         if (game.getCurrentTrickSize() != GameConstants.MAX_TRICK_SIZE) {
             return; // Trick is not complete yet

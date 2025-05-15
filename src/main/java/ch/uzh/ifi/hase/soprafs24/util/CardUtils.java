@@ -119,7 +119,7 @@ public class CardUtils {
     public static String requireValidCardFormat(String cardCode) {
         if (cardCode == null || !cardCode.matches(GameConstants.CARD_CODE_REGEX)) {
             IllegalArgumentException ex = new IllegalArgumentException("Received invalid cardCode: " + cardCode);
-            log.info("Invalid card format `" + cardCode + "´", ex);
+            log.debug("Invalid card format `" + cardCode + "´", ex);
             throw ex;
         } else {
             return cardCode;

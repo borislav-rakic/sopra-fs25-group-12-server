@@ -5,6 +5,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -16,7 +17,10 @@ import org.mockito.MockitoAnnotations;
 import java.util.ArrayList;
 import java.util.List;
 
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 public class MatchSummaryServiceTest {
@@ -115,5 +119,81 @@ public class MatchSummaryServiceTest {
 
         // Verify that matchRepository.save was called
         verify(matchRepository).save(match);
+    }
+
+    @Test
+    void saveGameResultHtml_shouldSetHtmlOnSummaryAndSave() {
+        Match match = createMockMatch();
+        Game game = createMockGame(1, List.of(10, 20, 30, 40));
+        match.getGames().add(game);
+        String newsFlash = "Game over!";
+        match.setMatchSummary(new MatchSummary());
+
+        matchSummaryService.saveGameResultHtml(match, game, newsFlash);
+
+        assertNotNull(match.getMatchSummary().getGameSummaryHtml());
+        verify(matchRepository, times(1)).save(match);
+    }
+
+    @Test
+    void saveGameResultHtml_throwsIfMatchSummaryNull() {
+        Match match = new Match();
+        Game game = new Game();
+
+        assertThrows(GameplayException.class, () -> {
+            matchSummaryService.saveGameResultHtml(match, game, "news");
+        });
+    }
+
+    @Test
+    void buildGameResultHtml_createsExpectedHtml() {
+        Match match = createMockMatch();
+        match.getGames().add(createMockGame(1, List.of(1, 2, 3, 4)));
+        String html = matchSummaryService.buildGameResultHtml(match, match.getGames().get(0), "News");
+
+        assertTrue(html.contains("Game"));
+        assertTrue(html.contains("Total:"));
+        assertTrue(html.contains("News"));
+    }
+
+    @Test
+    void buildMatchResultHtml_createsExpectedHtml() {
+        Match match = createMockMatch();
+        match.getGames().add(createMockGame(1, List.of(10, 20, 30, 40)));
+        String html = matchSummaryService.buildMatchResultHtml(match, match.getGames().get(0));
+
+        assertTrue(html.contains("Moon shots"));
+        assertTrue(html.contains("Perfect games"));
+        assertTrue(html.contains("Total:"));
+        assertTrue(html.contains("winner") || html.contains("winners"));
+    }
+
+    // --- Helper Methods ---
+
+    private Match createMockMatch() {
+        Match match = new Match();
+        match.setMatchSummary(new MatchSummary());
+        match.setGames(new java.util.ArrayList<>());
+
+        List<MatchPlayer> players = new java.util.ArrayList<>();
+        for (int i = 0; i < 4; i++) {
+            MatchPlayer player = new MatchPlayer();
+            User user = new User();
+            user.setUsername("player" + i);
+            player.setUser(user);
+            player.setMatchScore(i * 10);
+            player.setPerfectGames(i);
+            player.setShotTheMoonCount(i);
+            players.add(player);
+        }
+        match.setMatchPlayers(players);
+        return match;
+    }
+
+    private Game createMockGame(int gameNumber, List<Integer> scores) {
+        Game game = new Game();
+        game.setGameNumber(gameNumber);
+        game.setGameScoresList(scores);
+        return game;
     }
 }
