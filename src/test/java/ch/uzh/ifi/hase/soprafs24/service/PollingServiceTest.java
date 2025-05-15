@@ -16,6 +16,7 @@ import java.time.Instant;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 public class PollingServiceTest {
@@ -75,8 +76,8 @@ public class PollingServiceTest {
         game.setTrickPhase(TrickPhase.RUNNINGTRICK);
         game.setCurrentMatchPlayerSlot(1);
         game.setHeartsBroken(false);
+        match.setGames(List.of(game));
 
-        when(gameRepository.findActiveGameByMatchId(100L)).thenReturn(game);
         when(matchPlayerRepository.findByUserAndMatch(user, match)).thenReturn(matchPlayer);
         when(cardRulesService.getPlayableCardsForMatchPlayerPolling(any(), any()))
                 .thenReturn("AS");

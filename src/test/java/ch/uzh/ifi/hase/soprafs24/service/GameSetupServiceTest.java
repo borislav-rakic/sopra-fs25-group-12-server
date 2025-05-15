@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
@@ -24,6 +25,7 @@ import java.util.*;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -111,17 +113,21 @@ public class GameSetupServiceTest {
 
     @Test
     void testCreateAndStartGameForMatch_Failure_ActiveGameExists() {
-        Match match = mock(Match.class);
-        when(match.getPhase()).thenReturn(MatchPhase.READY);
-        // Ensure no active game is present (stubbing correctly)
-        when(match.getGames()).thenReturn(Arrays.asList(mock(Game.class))); // Simulate active game exists
+        // Arrange
+        Match match = new Match();
+        match.setPhase(MatchPhase.BEFORE_GAMES);
+        match.setMatchId(42L);
 
-        ResponseStatusException exception = assertThrows(ResponseStatusException.class, () -> {
+        Game activeGame = new Game();
+        activeGame.setPhase(GamePhase.NORMALTRICK); // Simulate an active game
+        match.setGames(List.of(activeGame));
+
+        // Act & Assert
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
             gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, null);
         });
 
-        assertEquals(HttpStatus.CONFLICT, exception.getStatus());
-        assertEquals("Cannot create new game: match 0 already has an active game.", exception.getReason());
+        assertEquals(HttpStatus.CONFLICT, ex.getStatus());
     }
 
     @Test

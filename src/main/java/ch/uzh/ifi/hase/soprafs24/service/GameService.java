@@ -5,8 +5,6 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 
-import javax.persistence.EntityNotFoundException;
-
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -595,22 +593,6 @@ public class GameService {
 
         }
         gameRepository.saveAndFlush(game);
-    }
-
-    public Game getActiveGameByMatchId(Long matchId) {
-        Match match = matchRepository.findMatchByMatchId(matchId);
-        if (match == null) {
-            throw new EntityNotFoundException("Match not found");
-        }
-
-        // Always fetch the Game from the database based on match and phase
-        Game game = gameRepository.findActiveGameByMatchId(match.getMatchId());
-
-        if (game == null) {
-            throw new IllegalStateException("No active game found for this match");
-        }
-
-        return game;
     }
 
     @Transactional

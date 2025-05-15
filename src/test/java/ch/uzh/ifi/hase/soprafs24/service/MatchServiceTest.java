@@ -7,10 +7,12 @@ import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -251,14 +253,12 @@ public class MatchServiceTest {
 
         given(matchRepository.findById(Mockito.anyLong())).willReturn(Optional.ofNullable(match));
         given(userService.requireUserByToken(Mockito.any())).willReturn(user);
-        given(gameRepository.findActiveGameByMatchId(Mockito.any())).willReturn(game);
         given(matchPlayerRepository.saveAndFlush(Mockito.any())).willReturn(matchPlayer);
 
         matchService.passingAcceptCards(1L, null, "1234", true);
 
         verify(matchRepository).findById(Mockito.anyLong());
         verify(userService).requireUserByToken(Mockito.any());
-        verify(gameRepository).findActiveGameByMatchId(Mockito.any());
         verify(matchPlayerRepository).saveAndFlush(Mockito.any());
     }
 
@@ -268,7 +268,6 @@ public class MatchServiceTest {
         playedCardDTO.setCard("XX");
 
         given(matchRepository.findById(Mockito.anyLong())).willReturn(Optional.of(match));
-        given(gameRepository.findActiveGameByMatchId(Mockito.any())).willReturn(game);
         given(userRepository.findUserByToken("token0")).willReturn(user); // Fix
         given(matchPlayerRepository.findByUserAndMatch(user, match)).willReturn(matchPlayer);
 
@@ -277,7 +276,6 @@ public class MatchServiceTest {
         matchService.playCardAsHuman("token0", 1L, playedCardDTO);
 
         verify(matchRepository).findById(Mockito.anyLong());
-        verify(gameRepository).findActiveGameByMatchId(Mockito.any());
         verify(gameService).playCardAsHuman(Mockito.any(), Mockito.any(), Mockito.any());
     }
 
@@ -373,19 +371,34 @@ public class MatchServiceTest {
 
     @Test
     void playCardAsHuman_invalidToken_throwsResponseStatusException() {
+        // Arrange
         PlayedCardDTO dto = new PlayedCardDTO();
         dto.setCard("AS");
 
-        Match mockMatch = mock(Match.class); // mock the match
-        when(matchRepository.findById(anyLong())).thenReturn(Optional.of(mockMatch));
-        when(gameRepository.findActiveGameByMatchId(anyLong())).thenReturn(game);
+        Long matchId = 1L;
 
+        // Use a real Match, but spy on it to override requireMatchPlayerByToken
+        Match match = spy(new Match());
+        when(matchRepository.findById(matchId)).thenReturn(Optional.of(match));
+
+        Game game = mock(Game.class);
+        match.setGames(List.of(game));
+        when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
+        when(game.getMatch()).thenReturn(match);
+        when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
+
+        doReturn(List.of(game)).when(match).getGames();
+
+        // This forces the exception inside match.requireMatchPlayerByToken
         doThrow(new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token"))
-                .when(mockMatch).requireMatchPlayerByToken("invalidToken");
+                .when(match).requireMatchPlayerByToken("invalidToken");
 
-        assertThrows(ResponseStatusException.class, () -> {
-            matchService.playCardAsHuman("invalidToken", 1L, dto);
-        });
+        // Act & Assert
+        ResponseStatusException exception = assertThrows(ResponseStatusException.class,
+                () -> matchService.playCardAsHuman("invalidToken", matchId, dto));
+
+        assertEquals(HttpStatus.UNAUTHORIZED, exception.getStatus());
+        assertEquals("Invalid token", exception.getReason());
     }
 
     @Test

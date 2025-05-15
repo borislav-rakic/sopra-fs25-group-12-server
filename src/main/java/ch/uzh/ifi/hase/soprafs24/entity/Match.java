@@ -10,7 +10,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.HashMap;
 
-import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 
 @Entity
@@ -409,20 +408,6 @@ public class Match implements Serializable {
         return matchPlayers.stream()
                 .sorted(Comparator.comparingInt(MatchPlayer::getMatchPlayerSlot))
                 .collect(Collectors.toList());
-    }
-
-    public Game getActiveGameOrThrow() {
-        return this.getGames().stream()
-                .filter(game -> game.getPhase() != GamePhase.FINISHED && game.getPhase() != GamePhase.ABORTED)
-                .findFirst()
-                .orElseThrow(() -> new IllegalStateException("No active game found for this match (Match)."));
-    }
-
-    public Game getActiveGame() {
-        return this.getGames().stream()
-                .filter(game -> game.getPhase() != GamePhase.FINISHED && game.getPhase() != GamePhase.ABORTED)
-                .findFirst()
-                .orElse(null);
     }
 
     public MatchPlayer requireMatchPlayerBySlot(int matchPlayerSlot) {

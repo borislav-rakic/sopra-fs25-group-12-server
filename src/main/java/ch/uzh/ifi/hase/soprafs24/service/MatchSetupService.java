@@ -27,6 +27,8 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
+import ch.uzh.ifi.hase.soprafs24.logic.GameEnforcer;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
@@ -119,46 +121,42 @@ public class MatchSetupService {
     }
 
     /**
-     * Validates whether a match is in a state that allows it to be started.
-     * 
-     * Conditions checked:
-     * - Match exists.
-     * - Match is not already in progress, finished, or aborted.
-     * - The requester is the match host.
+     * Validates whether the given match is in a state that allows it to be started.
+     * This includes:
+     * - Match exists and is not already started, aborted, or finished.
+     * - The requesting user is the host.
      * - All invited users have accepted.
      * - All player slots (1–4) are filled.
      * - No active game already exists.
      *
-     * @param match the match to be validated
-     * @param user  the user attempting to start the match
-     * @throws ResponseStatusException if any condition is violated
+     * @param match the match to validate
+     * @param user  the user requesting to start the match
+     * @throws ResponseStatusException if the match cannot be started for any reason
      */
-    public void isMatchStartable(Match match, User user) {
+    public void setMatchPhaseToReadyIfAppropriate(Match match, User user) {
+        // Match must exist
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
         }
-
         MatchPhase phase = match.getPhase();
-        if (phase == MatchPhase.SETUP) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Match is not ready to start. MatchPhase=" + phase);
-        }
-        if (phase == MatchPhase.IN_PROGRESS || phase == MatchPhase.BETWEEN_GAMES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "This match has already been started.");
+        if (phase == MatchPhase.IN_PROGRESS || phase == MatchPhase.BETWEEN_GAMES || phase == MatchPhase.BEFORE_GAMES) {
+            throw new GameplayException("This match has already been started.");
         }
         if (phase == MatchPhase.ABORTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "This match has been cancelled.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This match has been cancelled.");
         }
         if (phase == MatchPhase.FINISHED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "This match has already been finished.");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This match has already been finished.");
         }
 
         if (!Objects.equals(user.getId(), match.getHostId())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED,
-                    "Only the host can start the match.");
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can start the match.");
+        }
+
+        // Match must either already be READY or it must be in SETUP
+        if (phase != MatchPhase.SETUP && phase != MatchPhase.READY) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
+                    "Match is not ready to start. MatchPhase=" + phase);
         }
 
         Map<Integer, Long> invites = Optional.ofNullable(match.getInvites()).orElseGet(HashMap::new);
@@ -168,7 +166,7 @@ public class MatchSetupService {
             String status = joinRequests.get(invitedUserId);
             if (!"accepted".equalsIgnoreCase(status)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Cannot start match: not all invited users have accepted.");
+                        "Cannot start match: not all invited users have accepted the invitation.");
             }
         }
 
@@ -178,9 +176,11 @@ public class MatchSetupService {
                     "Cannot start match: not all player slots are filled.");
         }
 
-        if (match.getActiveGame() != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "An active game already exists for this match.");
+        GameEnforcer.assertNoActiveGames(match);
+
+        if (match.getPhase() == MatchPhase.SETUP) {
+            match.setPhase(MatchPhase.READY);
+            matchRepository.save(match);
         }
     }
 
@@ -195,17 +195,28 @@ public class MatchSetupService {
     @Transactional
     public void startMatch(Long matchId, String token, Long seed) {
         User user = userService.requireUserByToken(token);
-        Match match = requireMatchByMatchId(matchId); // depends on circular structure
-        validateMatchIsStartable(match, user);
+
+        // Locked fetch
+        Match match = matchRepository.findMatchForUpdate(matchId);
+        if (match == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+
+        // Validate and transition phase
+        setMatchPhaseToReadyIfAppropriate(match, user);
+
+        if (match.getPhase() != MatchPhase.READY) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Match is not ready to start.");
+        }
+
+        // Safely check for active game
+        GameEnforcer.assertNoActiveGames(match);
+
+        // Safe to proceed
+        match.setPhase(MatchPhase.BEFORE_GAMES);
+        matchRepository.save(match);
 
         match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
-
-        // Remember player's names for much later
-        List<String> playerNames = match.getMatchPlayers().stream()
-                .map(mp -> mp.getUser() != null ? mp.getUser().getUsername() : "AI")
-                .toList();
-
-        match.setMatchPlayerNames(playerNames);
 
         Game game = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, seed);
         gameRepository.save(game);
@@ -268,7 +279,8 @@ public class MatchSetupService {
                         MatchPhase.SETUP,
                         MatchPhase.READY,
                         MatchPhase.IN_PROGRESS,
-                        MatchPhase.BETWEEN_GAMES
+                        MatchPhase.BETWEEN_GAMES,
+                        MatchPhase.BEFORE_GAMES
                 // Optional: MatchPhase.RESULT
                 ).contains(m.getPhase()))
                 .flatMap(m -> m.getMatchPlayers().stream())
@@ -753,66 +765,6 @@ public class MatchSetupService {
                 .collect(Collectors.toList());
 
         return availableUsers;
-    }
-
-    /**
-     * Validates whether the given match is in a state that allows it to be started.
-     * This includes:
-     * - Match exists and is not already started, aborted, or finished.
-     * - The requesting user is the host.
-     * - All invited users have accepted.
-     * - All player slots (1–4) are filled.
-     * - No active game already exists.
-     *
-     * @param match the match to validate
-     * @param user  the user requesting to start the match
-     * @throws ResponseStatusException if the match cannot be started for any reason
-     */
-    public void validateMatchIsStartable(Match match, User user) {
-        if (match == null) {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
-        }
-
-        MatchPhase phase = match.getPhase();
-        if (phase == MatchPhase.SETUP) {
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN,
-                    "Match is not ready to start. MatchPhase=" + phase);
-        }
-        if (phase == MatchPhase.IN_PROGRESS || phase == MatchPhase.BETWEEN_GAMES) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This match has already been started.");
-        }
-        if (phase == MatchPhase.ABORTED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This match has been cancelled.");
-        }
-        if (phase == MatchPhase.FINISHED) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "This match has already been finished.");
-        }
-
-        if (!Objects.equals(user.getId(), match.getHostId())) {
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Only the host can start the match.");
-        }
-
-        Map<Integer, Long> invites = Optional.ofNullable(match.getInvites()).orElseGet(HashMap::new);
-        Map<Long, String> joinRequests = Optional.ofNullable(match.getJoinRequests()).orElseGet(HashMap::new);
-
-        for (Long invitedUserId : invites.values()) {
-            String status = joinRequests.get(invitedUserId);
-            if (!"accepted".equalsIgnoreCase(status)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                        "Cannot start match: not all invited users have accepted the invitation.");
-            }
-        }
-
-        if (Stream.of(match.getPlayer1(), match.getPlayer2(), match.getPlayer3(), match.getPlayer4())
-                .anyMatch(Objects::isNull)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
-                    "Cannot start match: not all player slots are filled.");
-        }
-
-        if (match.getActiveGame() != null) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    "An active game already exists for this match.");
-        }
     }
 
     private User getPlayerBySlot(Match match, int slot) {

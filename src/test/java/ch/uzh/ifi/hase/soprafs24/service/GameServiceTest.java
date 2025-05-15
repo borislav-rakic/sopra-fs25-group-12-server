@@ -329,16 +329,6 @@ public class GameServiceTest {
     }
 
     @Test
-    public void testGetActiveGameByMatchId() {
-        given(matchRepository.findMatchByMatchId(Mockito.any())).willReturn(match);
-        given(gameRepository.findActiveGameByMatchId(Mockito.any())).willReturn(game);
-
-        Game result = gameService.getActiveGameByMatchId(1L);
-
-        assertEquals(game, result);
-    }
-
-    @Test
     public void testResetAllPlayersReady() {
         // Use the existing match players set in @BeforeEach
         for (MatchPlayer mp : match.getMatchPlayers()) {

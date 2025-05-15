@@ -48,7 +48,7 @@ class GameSetupServiceExpandedTest {
     @Test
     void testCreateAndStartGameForMatch_success_internalSeed() {
         Match match = new Match();
-        match.setPhase(MatchPhase.READY);
+        match.setPhase(MatchPhase.BEFORE_GAMES);
         match.setMatchId(1L);
         match.setGames(new ArrayList<>());
 

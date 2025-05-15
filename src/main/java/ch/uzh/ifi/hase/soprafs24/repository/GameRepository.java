@@ -22,12 +22,10 @@ public interface GameRepository extends JpaRepository<Game, Long> {
             """)
     List<Game> findWaitingGameByMatchid(Long matchId);
 
-    // Find only current active game per match.
     @Query("""
-                SELECT g FROM Game g
-                WHERE g.match.id = :matchId
-                AND g.phase NOT IN ('FINISHED', 'ABORTED')
-                ORDER BY g.gameNumber DESC
+            SELECT g FROM Game g
+            WHERE g.match.id = :matchId
+            AND g.phase NOT IN ('FINISHED', 'ABORTED')
             """)
-    Game findActiveGameByMatchId(@Param("matchId") Long matchId);
+    List<Game> findActiveGamesByMatchId(@Param("matchId") Long matchId);
 }

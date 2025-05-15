@@ -19,6 +19,7 @@ import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.logic.GameEnforcer;
 import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.NewDeckResponse;
@@ -75,19 +76,13 @@ public class GameSetupService {
     public Game createAndStartGameForMatch(Match match, MatchRepository matchRepository, GameRepository gameRepository,
             Long seed) {
 
-        if (match.getPhase() != MatchPhase.READY && match.getPhase() != MatchPhase.BETWEEN_GAMES) {
+        if (match.getPhase() != MatchPhase.BEFORE_GAMES && match.getPhase() != MatchPhase.BETWEEN_GAMES) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     String.format("Game cannot be created if match is in phase %s.", match.getPhase()));
         }
 
         // Enforce that there is no other active game
-        boolean hasActiveGame = match.getGames().stream()
-                .anyMatch(g -> g.getPhase() != GamePhase.FINISHED && g.getPhase() != GamePhase.ABORTED);
-
-        if (hasActiveGame) {
-            throw new ResponseStatusException(HttpStatus.CONFLICT,
-                    String.format("Cannot create new game: match %d already has an active game.", match.getMatchId()));
-        }
+        GameEnforcer.assertNoActiveGames(match);
 
         Game game = createNewGameInMatch(match, matchRepository, gameRepository);
         if (game == null) {

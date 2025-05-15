@@ -13,6 +13,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
+import ch.uzh.ifi.hase.soprafs24.logic.GameEnforcer;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
@@ -344,7 +345,7 @@ public class MatchService {
     public void passingAcceptCards(Long matchId, GamePassingDTO passingDTO, String token, Boolean pickRandomly) {
         Match match = requireMatchByMatchId(matchId);
         User user = userService.requireUserByToken(token);
-        Game game = gameRepository.findActiveGameByMatchId(match.getMatchId());
+        Game game = GameEnforcer.requireExactlyOneActiveGame(match);
         MatchPlayer matchPlayer = match.requireMatchPlayerByUser(user);
 
         log.info("matchService.passingAcceptCards reached");
@@ -383,7 +384,7 @@ public class MatchService {
      */
     public void playCardAsHuman(String token, Long matchId, PlayedCardDTO dto) {
         Match match = requireMatchByMatchId(matchId);
-        Game game = requireActiveGameByMatch(match);
+        Game game = GameEnforcer.requireExactlyOneActiveGame(match);
         MatchPlayer matchPlayer = match.requireMatchPlayerByToken(token);
 
         String cardCode = "XX".equals(dto.getCard()) ? "XX" : CardUtils.requireValidCardFormat(dto.getCard());
@@ -563,7 +564,11 @@ public class MatchService {
     public void startMatch(Long matchId, String token, Long seed) {
         User user = userService.requireUserByToken(token);
         Match match = requireMatchByMatchId(matchId);
-        matchSetupService.isMatchStartable(match, user);
+        matchSetupService.setMatchPhaseToReadyIfAppropriate(match, user);
+        if (match.getPhase() != MatchPhase.READY) {
+            throw new GameplayException("Match is not ready to get started.", HttpStatus.FORBIDDEN);
+        }
+        match.setPhase(MatchPhase.BEFORE_GAMES);
         log.info("Match is being started (seed=`{}´)", seed);
         match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
         // make sure the game has been polled fresh.
@@ -633,7 +638,7 @@ public class MatchService {
         }
 
         // Is there an active game for this match?
-        Game game = match.getActiveGame();
+        Game game = GameEnforcer.requireExactlyOneActiveGame(match);
         if (game != null) {
             // Whose turn is it anyway?
             MatchPlayer currentPlayer = match.requireMatchPlayerBySlot(game.getCurrentMatchPlayerSlot());
@@ -695,22 +700,6 @@ public class MatchService {
         }
         // Every MatchPlayer needs their polling (host or non-host).
         return pollingService.getPlayerPolling(requestingUser, match, gameRepository, matchPlayerRepository);
-    }
-
-    /**
-     * Finds active game for given match or throws
-     * 
-     * @param match Current Match object.
-     * @return Game object of current match.
-     * @throws IllegalStateException if there is no active game for this match at
-     *                               this point.
-     */
-    public Game requireActiveGameByMatch(Match match) {
-        Game activeGame = gameRepository.findActiveGameByMatchId(match.getMatchId());
-        if (activeGame == null) {
-            throw new IllegalStateException("No active game found for this match (MatchService).");
-        }
-        return activeGame;
     }
 
     /**
@@ -867,11 +856,12 @@ public class MatchService {
      * @param match the match to check and possibly start a new game for
      */
     public void checkGameAndStartNextIfNeeded(Match match) {
-        if (!match.getPhase().equals(MatchPhase.BETWEEN_GAMES)) {
+        if (!match.getPhase().equals(MatchPhase.BETWEEN_GAMES)
+                && !match.getPhase().equals(MatchPhase.BEFORE_GAMES)) {
             return;
         }
 
-        Game activeGame = requireActiveGameByMatch(match);
+        Game activeGame = GameEnforcer.requireExactlyOneActiveGame(match);
         if (activeGame != null) {
             log.info("Active game still present, not starting new one.");
             return;
@@ -930,7 +920,7 @@ public class MatchService {
         }
 
         // Handle normal game confirmation
-        Game game = requireActiveGameByMatch(match);
+        Game game = GameEnforcer.requireExactlyOneActiveGame(match);
         MatchPlayer player = matchPlayerRepository.findByUserAndMatch(user, match);
         if (player == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Player not found in match");
@@ -982,35 +972,35 @@ public class MatchService {
     @Transactional
     public void autoPlayToLastTrickOfGame(Long matchId, Integer fakeShootingTheMoon) {
         Match match = matchRepository.findMatchByMatchId(matchId);
-        Game game = match.getActiveGame();
+        Game game = GameEnforcer.requireExactlyOneActiveGame(match);
         gameSimulationService.autoPlayToLastTrickOfGame(match, game, fakeShootingTheMoon);
     }
 
     @Transactional
     public void autoPlayToGameSummary(Long matchId, Integer fakeShootingTheMoon) {
         Match match = matchRepository.findMatchByMatchId(matchId);
-        Game game = match.getActiveGame();
+        Game game = GameEnforcer.requireExactlyOneActiveGame(match);
         gameSimulationService.autoPlayToGameSummary(match, game);
     }
 
     @Transactional
     public void autoPlayToMatchSummary(Long matchId, Integer fakeShootingTheMoon) {
         Match match = matchRepository.findMatchByMatchId(matchId);
-        Game game = match.getActiveGame();
+        Game game = GameEnforcer.requireExactlyOneActiveGame(match);
         gameSimulationService.autoPlayToMatchSummary(match, game);
     }
 
     @Transactional
     public void autoPlayToLastTrickOfMatchThree(Long matchId, Integer fakeShootingTheMoon) {
         Match match = matchRepository.findMatchByMatchId(matchId);
-        Game game = match.getActiveGame();
+        Game game = GameEnforcer.requireExactlyOneActiveGame(match);
         gameSimulationService.autoPlayToLastTrickOfMatchThree(match, game);
     }
 
     @Transactional
     public void autoPlayToLastTrickOfMatch(Long matchId) {
         Match match = requireMatchByMatchId(matchId);
-        Game game = requireActiveGameByMatch(match);
+        Game game = GameEnforcer.requireExactlyOneActiveGame(match);
 
         // Call the simulation service to play the game until the last trick
         gameSimulationService.autoPlayToLastTrickOfMatch(match, game);

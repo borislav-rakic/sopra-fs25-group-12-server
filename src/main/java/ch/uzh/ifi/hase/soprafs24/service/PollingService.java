@@ -24,6 +24,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.logic.GameEnforcer;
 //import ch.uzh.ifi.hase.soprafs24.model.Card;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
@@ -65,7 +66,7 @@ public class PollingService {
 
         //
 
-        Game game = gameRepository.findActiveGameByMatchId(match.getMatchId());
+        Game game = GameEnforcer.requireExactlyOneActiveGame(match);
         if (game == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND,
                     "There is no active  game in this match (Polling).");
