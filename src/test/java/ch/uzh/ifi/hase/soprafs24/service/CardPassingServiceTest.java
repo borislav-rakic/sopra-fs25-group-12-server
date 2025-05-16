@@ -2,12 +2,14 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
+import java.util.Map;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -18,8 +20,10 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.web.server.ResponseStatusException;
 
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
+import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
@@ -99,7 +103,7 @@ public class CardPassingServiceTest {
     void testPassingAcceptCards_whenAllCardsPassed() {
         GamePassingDTO dto = new GamePassingDTO();
         dto.setCards(List.of("2C", "3H", "4D"));
-        
+
         when(passedCardRepository.existsByGameAndFromMatchPlayerSlotAndRankSuit(game, 1, "2C")).thenReturn(false);
         when(passedCardRepository.existsByGameAndRankSuit(game, "2C")).thenReturn(false);
 
@@ -224,6 +228,87 @@ public class CardPassingServiceTest {
         assertThrows(IllegalArgumentException.class, () -> {
             cardPassingService.matchPlayerSlotToPlayerSlot(5); // Invalid slot > 4
         });
+    }
+
+    @Test
+    void testCollectPassedCards_allPathsCovered() {
+        List<PassedCard> passedCards = List.of(
+                new PassedCard(game, "2C", 1, 1),
+                new PassedCard(game, "3H", 1, 1),
+                new PassedCard(game, "4D", 1, 1),
+                new PassedCard(game, "5S", 2, 1),
+                new PassedCard(game, "6H", 2, 1),
+                new PassedCard(game, "7C", 2, 1),
+                new PassedCard(game, "8D", 3, 1),
+                new PassedCard(game, "9H", 3, 1),
+                new PassedCard(game, "0S", 3, 1),
+                new PassedCard(game, "JH", 4, 1),
+                new PassedCard(game, "QD", 4, 1),
+                new PassedCard(game, "KC", 4, 1));
+
+        MatchPlayer p1 = new MatchPlayer();
+        p1.setMatchPlayerSlot(1);
+        p1.setHand("2C,3H,4D");
+        MatchPlayer p2 = new MatchPlayer();
+        p2.setMatchPlayerSlot(2);
+        p2.setHand("5S,6H,7C");
+        MatchPlayer p3 = new MatchPlayer();
+        p3.setMatchPlayerSlot(3);
+        p3.setHand("8D,9H,0S");
+        MatchPlayer p4 = new MatchPlayer();
+        p4.setMatchPlayerSlot(4);
+        p4.setHand("JH,QD,KC");
+
+        match.setMatchPlayers(List.of(p1, p2, p3, p4));
+        game.setMatch(match);
+
+        when(passedCardRepository.findByGame(game)).thenReturn(passedCards);
+
+        when(cardRulesService.determinePassingDirection(1)).thenReturn(Map.of(
+                1, 2, 2, 3, 3, 4, 4, 1));
+
+        for (String code : List.of("2C", "3H", "4D", "5S", "6H", "7C", "8D", "9H", "0S", "JH", "QD", "KC")) {
+            GameStats stat = new GameStats();
+            stat.setCardFromString(code);
+            when(gameStatsRepository.findByRankSuitAndGameAndCardHolder(eq(code), eq(game), anyInt()))
+                    .thenReturn(stat);
+        }
+
+        // ACT
+        cardPassingService.collectPassedCards(game);
+
+        // VERIFY
+        verify(passedCardRepository).deleteAll(passedCards);
+        verify(passedCardRepository).flush();
+        verify(gameStatsRepository).saveAll(anyList());
+        verify(gameStatsRepository).flush();
+        verify(gameRepository).flush();
+    }
+
+    @Test
+    void testFindMatchPlayer_whenNoPlayerFound_throws() {
+        match.setMatchPlayers(List.of()); // no players
+        game.setMatch(match);
+
+        // This will internally trigger findMatchPlayer through collectPassedCards
+        when(passedCardRepository.findByGame(game)).thenReturn(List.of(
+                new PassedCard(game, "2C", 1, 1),
+                new PassedCard(game, "3H", 1, 1),
+                new PassedCard(game, "4D", 1, 1),
+                new PassedCard(game, "5S", 2, 1),
+                new PassedCard(game, "6H", 2, 1),
+                new PassedCard(game, "7C", 2, 1),
+                new PassedCard(game, "8D", 3, 1),
+                new PassedCard(game, "9H", 3, 1),
+                new PassedCard(game, "0S", 3, 1),
+                new PassedCard(game, "JH", 4, 1),
+                new PassedCard(game, "QD", 4, 1),
+                new PassedCard(game, "KC", 4, 1)));
+
+        when(cardRulesService.determinePassingDirection(1)).thenReturn(Map.of(
+                1, 2, 2, 3, 3, 4, 4, 1));
+
+        assertThrows(IllegalStateException.class, () -> cardPassingService.collectPassedCards(game));
     }
 
 }
