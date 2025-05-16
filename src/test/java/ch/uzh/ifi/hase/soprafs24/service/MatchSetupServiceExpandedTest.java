@@ -75,12 +75,14 @@ public class MatchSetupServiceExpandedTest {
 
     @Test
     void testCancelInviteRemovesSlot() {
-        match.getInvites().put(2, user.getId());
+        int playerSlot = 2;
+        int matchPlayerSlot = playerSlot + 1;
+        match.getInvites().put(matchPlayerSlot, user.getId());
         when(matchRepository.findById(10L)).thenReturn(Optional.of(match));
 
-        matchSetupService.cancelInvite(10L, 2);
+        matchSetupService.cancelInvite(10L, playerSlot);
 
-        assertFalse(match.getInvites().containsKey(2));
+        assertFalse(match.getInvites().containsKey(matchPlayerSlot));
         verify(matchRepository).save(match);
     }
 
@@ -228,12 +230,14 @@ public class MatchSetupServiceExpandedTest {
 
     @Test
     void testCancelInvite() {
-        match.getInvites().put(2, 11L);
+        int playerSlot = 2;
+        int matchPlayerSlot = playerSlot + 1;
+        match.getInvites().put(matchPlayerSlot, 11L);
         when(matchRepository.findById(10L)).thenReturn(Optional.of(match));
 
-        matchSetupService.cancelInvite(10L, 2);
+        matchSetupService.cancelInvite(10L, playerSlot);
 
-        assertFalse(match.getInvites().containsKey(2));
+        assertFalse(match.getInvites().containsKey(matchPlayerSlot));
         verify(matchRepository).save(match);
     }
 

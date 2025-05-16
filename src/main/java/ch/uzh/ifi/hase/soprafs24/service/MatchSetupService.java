@@ -254,7 +254,8 @@ public class MatchSetupService {
 
         Match match = matches.get(0);
         Long userId = request.getUserId();
-        int matchPlayerSlot = request.getPlayerSlot() + 1;
+        int playerSlot = request.getPlayerSlot();
+        int matchPlayerSlot = playerSlot + 1;
 
         if (matchRepository.existsUserInAnyMatchInvite(userId)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already invited to another match");
@@ -360,14 +361,14 @@ public class MatchSetupService {
      * @param match the Match
      * @param slot  the slot to check
      */
-    private void validateSlotAvailability(Match match, int slot) {
-        if (slot < 2 || slot > 4) {
+    private void validateSlotAvailability(Match match, int matchPlayerSlot) {
+        if (matchPlayerSlot < 2 || matchPlayerSlot > 4) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid player slot");
         }
 
         boolean isTaken = match.getMatchPlayers().stream()
-                .anyMatch(mp -> mp.getMatchPlayerSlot() == slot);
-        if (isTaken || match.getInvites().containsKey(slot)) {
+                .anyMatch(mp -> mp.getMatchPlayerSlot() == matchPlayerSlot);
+        if (isTaken || match.getInvites().containsKey(matchPlayerSlot)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Slot already taken or invited");
         }
     }
@@ -398,8 +399,13 @@ public class MatchSetupService {
      * @param matchId         the ID of the match
      * @param matchPlayerSlot the player slot to revoke invitation from
      */
-    public void cancelInvite(Long matchId, Integer matchPlayerSlot) {
+    public void cancelInvite(Long matchId, Integer playerSlot) {
         Match match = getMatchOrThrow(matchId);
+
+        if (playerSlot == null || playerSlot < 1 || playerSlot > 3) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No invite found at this matchPlayerSlot.");
+        }
+        int matchPlayerSlot = playerSlot.intValue() + 1;
 
         Map<Integer, Long> invites = match.getInvites();
         if (invites == null || !invites.containsKey(matchPlayerSlot)) {

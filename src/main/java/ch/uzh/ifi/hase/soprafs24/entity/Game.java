@@ -352,7 +352,7 @@ public class Game {
     public int getScoreForSlot(int matchPlayerSlot) {
         List<Integer> scores = getGameScoresList();
         if (matchPlayerSlot < 1 || matchPlayerSlot > scores.size()) {
-            throw new IllegalArgumentException("Invalid player slot: " + matchPlayerSlot);
+            throw new IllegalArgumentException("Invalid match player slot: " + matchPlayerSlot);
         }
         return scores.get(matchPlayerSlot - 1);
     }

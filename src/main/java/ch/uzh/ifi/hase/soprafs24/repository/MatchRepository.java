@@ -50,6 +50,10 @@ public interface MatchRepository extends JpaRepository<Match, Long>, JpaSpecific
   @Query("SELECT m FROM Match m LEFT JOIN FETCH m.invites WHERE m.matchId = :matchId")
   List<Match> findAllMatchesByMatchIdWithInvites(@Param("matchId") Long matchId);
 
-  @Query("SELECT COUNT(m) > 0 FROM Match m JOIN m.invites i WHERE VALUE(i) = :userId")
+  @Query("""
+          SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END
+          FROM Match m JOIN m.invites i
+          WHERE i = :userId
+      """)
   boolean existsUserInAnyMatchInvite(@Param("userId") Long userId);
 }
