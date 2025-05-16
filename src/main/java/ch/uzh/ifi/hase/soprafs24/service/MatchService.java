@@ -1,5 +1,21 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import java.time.Duration;
+import java.time.Instant;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.HttpStatus;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
+
 import ch.uzh.ifi.hase.soprafs24.constant.AiMatchPlayerState;
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
@@ -18,26 +34,13 @@ import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.*;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.MatchDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.PlayedCardDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
-
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpStatus;
-import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.server.ResponseStatusException;
-
-import java.time.Duration;
-import java.time.Instant;
-import java.util.*;
-import java.util.stream.Collectors;
-
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 import ch.uzh.ifi.hase.soprafs24.util.MatchUtils;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Match Service
@@ -643,7 +646,7 @@ public class MatchService {
         }
 
         // Is there an active game for this match?
-        Game game = GameEnforcer.requireExactlyOneActiveGame(match);
+        Game game = GameEnforcer.getOnlyActiveGameOrNull(match);
         if (game != null) {
             // Whose turn is it anyway?
             MatchPlayer currentPlayer = match.requireMatchPlayerBySlot(game.getCurrentMatchPlayerSlot());
