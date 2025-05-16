@@ -268,6 +268,93 @@ public class CardRulesServiceTest {
         });
     }
 
+    @Test
+    public void testGetPassingToMatchPlayerSlot_validLeft() {
+        int toSlot = cardRulesService.getPassingToMatchPlayerSlot(1, 1);
+        assertEquals(2, toSlot);
+    }
 
+    @Test
+    public void testGetPassingToMatchPlayerSlot_noPass() {
+        int sameSlot = cardRulesService.getPassingToMatchPlayerSlot(0, 2); // No pass round
+        assertEquals(2, sameSlot);
+    }
+
+    @Test
+    public void testNamePassingRecipient_valid() {
+        Match match = mock(Match.class);
+        when(match.getNameForMatchPlayerSlot(2)).thenReturn("Alice");
+
+        String message = cardRulesService.namePassingRecipient(match, 1, 1);
+        assertTrue(message.contains("Your cards will be passed to Alice"));
+    }
+
+    @Test
+    public void testNamePassingRecipient_noPass() {
+        Match match = mock(Match.class);
+        String message = cardRulesService.namePassingRecipient(match, 0, 1);
+
+        assertTrue(message.contains("No passing this round"));
+    }
+
+    @Test
+    public void testValidateMatchPlayerCardCode_validCard() {
+        Game game = mock(Game.class);
+        MatchPlayer player = mock(MatchPlayer.class);
+
+        when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
+        when(game.getCurrentMatchPlayerSlot()).thenReturn(1);
+        when(player.getMatchPlayerSlot()).thenReturn(1);
+        when(player.getHand()).thenReturn("2C,3C,4C");
+        when(game.getCurrentTrickAsString()).thenReturn("");
+        when(game.getCurrentTrickNumber()).thenReturn(1);
+        when(game.getHeartsBroken()).thenReturn(false);
+        when(game.getCurrentPlayOrder()).thenReturn(0);
+
+        when(player.hasCardCodeInHand("2C")).thenReturn(true);
+        when(player.getInfo()).thenReturn("Tester");
+
+        assertDoesNotThrow(() -> cardRulesService.validateMatchPlayerCardCode(game, player, "2C"));
+    }
+
+    @Test
+    public void testValidateMatchPlayerCardCode_illegalCard() {
+        Game game = mock(Game.class);
+        MatchPlayer player = mock(MatchPlayer.class);
+
+        when(game.getPhase()).thenReturn(GamePhase.FIRSTTRICK);
+        when(game.getCurrentMatchPlayerSlot()).thenReturn(1);
+        when(player.getMatchPlayerSlot()).thenReturn(1);
+        when(player.getHand()).thenReturn("2C,3C");
+        when(game.getCurrentPlayOrder()).thenReturn(0);
+        when(game.getCurrentTrickAsString()).thenReturn("3H");
+        when(game.getCurrentTrickNumber()).thenReturn(1);
+        when(game.getHeartsBroken()).thenReturn(false);
+
+        when(player.hasCardCodeInHand("3H")).thenReturn(true);
+        when(player.getInfo()).thenReturn("Tester");
+
+        assertThrows(Exception.class, () -> cardRulesService.validateMatchPlayerCardCode(game, player, "3H"));
+    }
+
+    @Test
+    public void testValidateMatchPlayerCardCode_cardNotInHand() {
+        Game game = mock(Game.class);
+        MatchPlayer player = mock(MatchPlayer.class);
+
+        when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
+        when(game.getCurrentMatchPlayerSlot()).thenReturn(1);
+        when(player.getMatchPlayerSlot()).thenReturn(1);
+        when(player.getHand()).thenReturn("2C,3C");
+        when(game.getCurrentTrickAsString()).thenReturn("");
+        when(game.getCurrentTrickNumber()).thenReturn(1);
+        when(game.getHeartsBroken()).thenReturn(false);
+        when(game.getCurrentPlayOrder()).thenReturn(0);
+
+        when(player.hasCardCodeInHand("5H")).thenReturn(false);
+        when(player.getInfo()).thenReturn("Tester");
+
+        assertThrows(Exception.class, () -> cardRulesService.validateMatchPlayerCardCode(game, player, "5H"));
+    }
 
 }
