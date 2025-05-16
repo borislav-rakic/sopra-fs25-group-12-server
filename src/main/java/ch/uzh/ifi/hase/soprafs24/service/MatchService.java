@@ -866,7 +866,7 @@ public class MatchService {
             return;
         }
 
-        Game activeGame = GameEnforcer.requireExactlyOneActiveGame(match);
+        Game activeGame = GameEnforcer.getOnlyActiveGameOrNull(match);
         if (activeGame != null) {
             log.info("Active game still present, not starting new one.");
             return;
