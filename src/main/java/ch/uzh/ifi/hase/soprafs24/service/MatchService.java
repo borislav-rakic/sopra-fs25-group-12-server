@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -312,7 +313,7 @@ public class MatchService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Invalid token");
         }
         // Host wants to leave
-        if (match.getHostId().equals(user.getId())) {
+        if (user.getId().equals(match.getHostId())) {
             if (!GameConstants.HOSTS_ARE_ALLOWED_TO_LEAVE_THE_MATCH) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Host cannot leave the match.");
             }
@@ -320,8 +321,9 @@ public class MatchService {
             return;
         }
 
-        if (match.getJoinRequests() != null) {
-            match.getJoinRequests().remove(user.getId());
+        Map<Long, ?> joinRequests = match.getJoinRequests();
+        if (joinRequests != null) {
+            joinRequests.remove(user.getId());
         }
 
         // Regular player wants to leave → replace with AI

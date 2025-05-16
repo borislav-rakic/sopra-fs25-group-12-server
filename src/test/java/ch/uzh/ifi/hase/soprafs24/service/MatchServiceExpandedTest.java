@@ -17,12 +17,17 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpStatus;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -353,6 +358,69 @@ public class MatchServiceExpandedTest {
 
         Integer slot = matchService.getMatchPlayerSlotForUser(match, user);
         assertEquals(1, slot);
+    }
+
+    @Test
+    void testMatchPlayerSlotToPlayerSlot() {
+        assertEquals(0, matchService.matchPlayerSlotToPlayerSlot(1));
+        assertEquals(1, matchService.matchPlayerSlotToPlayerSlot(2));
+        assertEquals(2, matchService.matchPlayerSlotToPlayerSlot(3));
+        assertEquals(3, matchService.matchPlayerSlotToPlayerSlot(4));
+    }
+
+    @Test
+    void testPlayerSlotToMatchPlayerSlot() {
+        assertEquals(1, matchService.playerSlotToMatchPlayerSlot(0));
+        assertEquals(2, matchService.playerSlotToMatchPlayerSlot(1));
+        assertEquals(3, matchService.playerSlotToMatchPlayerSlot(2));
+        assertEquals(4, matchService.playerSlotToMatchPlayerSlot(3));
+    }
+
+    @Test
+    void testReplaceMatchPlayerSlotWithAiPlayer_noAvailableAi_throws() {
+        Match match = mock(Match.class);
+        when(match.getMatchPlayers()).thenReturn(List.of()); // all IDs taken
+        when(userRepository.findUserById(any())).thenReturn(null);
+
+        assertThrows(ResponseStatusException.class, () -> matchService.replaceMatchPlayerSlotWithAiPlayer(match, 1));
+    }
+
+    @Test
+    public void testReplaceMatchPlayerSlotWithAiPlayer_invalidSlot_throws() {
+        Match match = new Match();
+        match.setMatchPlayers(new ArrayList<>()); // no players
+
+        assertThrows(ResponseStatusException.class, () -> {
+            matchService.replaceMatchPlayerSlotWithAiPlayer(match, 5); // invalid slot
+        });
+    }
+
+    @Test
+    void testLeaveMatch_userNotInMatch_throws() {
+        // Arrange
+        Match match = new Match();
+        match.setMatchId(1L);
+        match.setJoinRequests(new HashMap<>()); // avoid NPE
+        match.setMatchPlayers(List.of()); // empty match players list
+
+        User user = new User();
+        user.setId(5L);
+        when(userRepository.findUserByToken("some-token")).thenReturn(user);
+        when(matchRepository.findMatchByMatchId(1L)).thenReturn(match);
+
+        // Act & Assert
+        ResponseStatusException ex = assertThrows(ResponseStatusException.class, () -> {
+            matchService.leaveMatch(1L, "some-token", null);
+        });
+
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatus());
+    }
+
+    @Test
+    void testHandleMatchInResultPhaseOrAborted_callsCleanup() {
+        Match matchSpy = spy(match);
+        matchService.handleMatchInResultPhaseOrAborted(matchSpy);
+        verify(matchRepository).saveAndFlush(matchSpy);
     }
 
 }
