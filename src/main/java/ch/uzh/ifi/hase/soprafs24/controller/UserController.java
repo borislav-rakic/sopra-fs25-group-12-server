@@ -10,6 +10,8 @@ import ch.uzh.ifi.hase.soprafs24.rest.dto.UserLoginDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteGetDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 import ch.uzh.ifi.hase.soprafs24.service.UserService;
+import ch.uzh.ifi.hase.soprafs24.util.RandomStringGenerator;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.server.ResponseStatusException;
@@ -98,7 +100,7 @@ public class UserController {
   @ResponseStatus(HttpStatus.CREATED)
   public UserAuthDTO createGuestUser() {
     User guest = new User();
-    guest.setUsername("guest-" + UUID.randomUUID().toString().substring(0, 10));
+    guest.setUsername("guest-" + RandomStringGenerator.generateRandomString(6));
     guest.setIsGuest(true);
     guest.setToken(UUID.randomUUID().toString());
     guest.setStatus(UserStatus.ONLINE);

@@ -3,7 +3,11 @@ package ch.uzh.ifi.hase.soprafs24.controller;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.InviteGetDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.UserCreateDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserLoginDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.UserPutDTO;
+import ch.uzh.ifi.hase.soprafs24.rest.mapper.DTOMapper;
 import ch.uzh.ifi.hase.soprafs24.service.UserService;
 import ch.uzh.ifi.hase.soprafs24.util.TestUserFactory;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -218,6 +222,107 @@ public class UserControllerTest {
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
           String.format("The request body could not be created.%s", e.toString()));
     }
+  }
+
+  @Test
+  public void searchUsers_returnsMatchingUsers() throws Exception {
+    User user = TestUserFactory.createValidUser("searchUser", false);
+    given(userService.searchUsersByUsername("searchUser")).willReturn(List.of(user));
+
+    mockMvc.perform(get("/users/search")
+        .param("username", "searchUser")
+        .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].username", is(user.getUsername())));
+  }
+
+  @Test
+  public void createGuestUser_success() throws Exception {
+    User guest = TestUserFactory.createValidUser("guest-123", true);
+    guest.setToken("guestToken");
+    guest.setIsGuest(true);
+
+    given(userService.createGuestUser(Mockito.any())).willReturn(guest);
+
+    mockMvc.perform(post("/users/guest")
+        .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isCreated())
+        .andExpect(jsonPath("$.username", is(guest.getUsername())))
+        .andExpect(jsonPath("$.token", is(guest.getToken())))
+        .andExpect(jsonPath("$.isGuest", is(true)));
+  }
+
+  @Test
+  public void getUserInformation_authenticated_success() throws Exception {
+    User user = TestUserFactory.createValidUser("authUser", false);
+    user.setId(10L);
+
+    given(userService.getUserIdFromToken("token123")).willReturn(10L);
+    given(userService.getUserInformation(10L)).willReturn(DTOMapper.INSTANCE.convertEntityToUserPrivateDTO(user));
+
+    mockMvc.perform(get("/users/me")
+        .header("Authorization", "Bearer token123")
+        .contentType(MediaType.APPLICATION_JSON))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.username", is(user.getUsername())));
+  }
+
+  @Test
+  public void updateCurrentUser_passwordMismatch_throwsBadRequest() throws Exception {
+    UserPutDTO dto = new UserPutDTO();
+    dto.setPassword("password1");
+    dto.setPasswordConfirmed("password2");
+
+    User user = TestUserFactory.createValidUser("updatingUser", false);
+    given(userService.getUserByToken("validToken")).willReturn(user);
+
+    mockMvc.perform(
+        org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put("/users/me")
+            .header("Authorization", "Bearer validToken")
+            .contentType(MediaType.APPLICATION_JSON)
+            .content(asJsonString(dto)))
+        .andExpect(status().isBadRequest());
+  }
+
+  @Test
+  public void loginUser_success() throws Exception {
+    User user = TestUserFactory.createValidUser("loginUser", false);
+    user.setToken("loginToken");
+
+    UserLoginDTO loginDTO = new UserLoginDTO();
+    loginDTO.setUsername("loginUser");
+    loginDTO.setPassword("secret");
+
+    given(userService.authenticateUserAtLogin("loginUser", "secret")).willReturn(user);
+
+    mockMvc.perform(post("/login")
+        .contentType(MediaType.APPLICATION_JSON)
+        .content(asJsonString(loginDTO)))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$.username", is(user.getUsername())))
+        .andExpect(jsonPath("$.token", is(user.getToken())));
+  }
+
+  @Test
+  public void logoutUser_success() throws Exception {
+    mockMvc.perform(post("/logout")
+        .header("Authorization", "Bearer someToken"))
+        .andExpect(status().isNoContent());
+  }
+
+  @Test
+  public void getPendingInvites_success() throws Exception {
+    InviteGetDTO invite = new InviteGetDTO();
+    invite.setMatchId(1L);
+    invite.setFromUsername("friend");
+
+    given(userService.getPendingInvites("Bearer validToken")).willReturn(List.of(invite));
+
+    mockMvc.perform(get("/users/me/invites")
+        .header("Authorization", "Bearer validToken"))
+        .andExpect(status().isOk())
+        .andExpect(jsonPath("$[0].matchId", is(1)))
+        .andExpect(jsonPath("$[0].fromUsername", is("friend")));
   }
 
 }
