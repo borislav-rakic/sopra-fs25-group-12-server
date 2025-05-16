@@ -59,23 +59,6 @@ public class ExternalApiClientService {
     }
 
     /**
-     * Draws the given amount of cards from a deck with the given deck id.
-     * 
-     * @param seedString The seed marked with prefix.
-     * @return The Long it encodes.
-     */
-    public static Long extractSeedNumber(String seedString) {
-
-        // log.info(" 🧬 externalApiClientService: extracsSeedNumber from seedString
-        // {}.", seedString);
-        if (seedString != null && seedString.startsWith(GameConstants.SEED_PREFIX)) {
-            String numberPart = seedString.substring(GameConstants.SEED_PREFIX.length());
-            return Long.parseLong(numberPart);
-        }
-        throw new IllegalArgumentException("Invalid seed format: " + seedString);
-    }
-
-    /**
      * Prepare seed Long for storage in DB.
      * 
      * @param seed The seed as a Long.
@@ -85,28 +68,6 @@ public class ExternalApiClientService {
         // log.info(" 🧬 externalApiClientService: buildSeedString from seed {}.",
         // seed);
         return GameConstants.SEED_PREFIX + seed;
-    }
-
-    /**
-     * Assess whether the given string might be a seedString.
-     * 
-     * @param seedStringCandidate
-     * @return Boolean
-     */
-    public static boolean isSeedString(String seedStringCandidate) {
-        // log.info(" 🧬 externalApiClientService: checking isSeedString {}.",
-        // seedStringCandidate);
-
-        if (seedStringCandidate == null || !seedStringCandidate.startsWith(GameConstants.SEED_PREFIX)) {
-            return false;
-        }
-        String numberPart = seedStringCandidate.substring(GameConstants.SEED_PREFIX.length());
-        try {
-            Long.parseLong(numberPart);
-            return true;
-        } catch (NumberFormatException e) {
-            return false;
-        }
     }
 
     /**

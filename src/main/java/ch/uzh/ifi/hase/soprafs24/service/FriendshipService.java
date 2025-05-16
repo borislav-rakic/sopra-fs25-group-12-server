@@ -178,14 +178,6 @@ public class FriendshipService {
     }
 
     /**
-     * Get raw pending friendships (useful for internal logic/testing).
-     */
-    public List<Friendship> getPendingRequests(Long userId) {
-        User user = findUserOrThrow(userId);
-        return friendshipRepository.findAllByFriendAndStatus(user, FriendshipStatus.PENDING);
-    }
-
-    /**
      * Helper method to fetch user or throw 404.
      */
     private User findUserOrThrow(Long userId) {

@@ -298,38 +298,6 @@ public class PollingService {
         };
     }
 
-    /**
-     * Checks if the matchPlayer can poll based on the polling interval.
-     * 
-     * @param matchPlayer the matchPlayer trying to poll
-     * @return true if the matchPlayer can poll, false if polling is too frequent
-     * @throws ResponseStatusException if the matchPlayer is polling too frequently
-     */
-    public static boolean canPoll(MatchPlayer matchPlayer) {
-        // Get current time and last poll time of the player
-        Instant now = Instant.now();
-        Instant lastPollTime = matchPlayer.getLastPollTime();
-
-        // Convert polling interval from milliseconds (int) to Duration
-        Duration pollingDuration = Duration.ofMillis(GameConstants.POLLING_INTERVAL_MS);
-
-        // Calculate the minimum allowed time between polls (75% of polling interval)
-        Duration minimumPollInterval = pollingDuration.multipliedBy(1).dividedBy(4); // 25%
-
-        // Calculate the time passed since the last poll
-        Duration timeSinceLastPoll = Duration.between(lastPollTime, now);
-
-        // If the time passed since the last poll is less than the minimum required
-        // interval, reject the request
-        if (timeSinceLastPoll.compareTo(minimumPollInterval) < 0) {
-            // Reject polling request, too frequent
-            throw new ResponseStatusException(HttpStatus.TOO_MANY_REQUESTS, "You are polling too frequently.");
-        }
-
-        // If enough time has passed, allow polling
-        return true;
-    }
-
     private PollingDTO matchResultMessage(Match match) {
         PollingDTO dto = new PollingDTO();
         dto.setHostId(match.getHostId());
