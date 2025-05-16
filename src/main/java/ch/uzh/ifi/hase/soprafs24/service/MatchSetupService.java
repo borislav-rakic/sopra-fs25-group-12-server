@@ -247,23 +247,31 @@ public class MatchSetupService {
      * @request InviteRequestDTO for the request
      **/
     public void invitePlayerToMatch(Long matchId, InviteRequestDTO request) {
-        Match match = getMatchOrThrow(matchId);
+        List<Match> matches = matchRepository.findAllMatchesByMatchIdWithInvites(matchId);
+        if (matches.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        }
+
+        Match match = matches.get(0);
         Long userId = request.getUserId();
         int matchPlayerSlot = request.getPlayerSlot() + 1;
 
+        if (matchRepository.existsUserInAnyMatchInvite(userId)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already invited to another match");
+        }
+
         validateSlotAvailability(match, matchPlayerSlot);
-        validateInvitationConditions(match, userId);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-        ensureUserNotInAnyOtherMatch(user); // <- Add this line
+        ensureUserNotInAnyOtherMatch(user);
 
         if (match.getInvites() == null) {
             match.setInvites(new HashMap<>());
         }
-
         match.getInvites().put(matchPlayerSlot, userId);
-        matchRepository.save(match);
+
+        matchRepository.saveAndFlush(match);
     }
 
     /**
@@ -364,15 +372,12 @@ public class MatchSetupService {
         }
     }
 
-    /**
-     * Validates whether the user is eligible to be invited to a match.
-     *
-     * @param match  the Match
-     * @param userId the ID of the user to invite
-     */
-    private void validateInvitationConditions(Match match, Long userId) {
-        if (match.getInvites().containsValue(userId)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already invited");
+    private void validateInvitationConditions(Long userId) {
+        // 🔍 Query all invites across all matches that contain this user
+        boolean alreadyInvited = matchRepository.existsUserInAnyMatchInvite(userId);
+
+        if (alreadyInvited) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already invited to another match");
         }
 
         User user = userRepository.findById(userId)
@@ -576,7 +581,7 @@ public class MatchSetupService {
             case 3 -> match.setPlayer3(null);
             case 4 -> match.setPlayer4(null);
         }
-        
+
         Long userId = toRemove.getUser().getId(); // adjust if your MatchPlayer stores user ID differently
         if (match.getJoinRequests() != null) {
             match.getJoinRequests().remove(userId);

@@ -246,9 +246,6 @@ public class MatchSetupServiceExpandedTest {
         inviteRequest.setUserId(user.getId());
         inviteRequest.setPlayerSlot(1); // Player 2
 
-        when(userRepository.findById(user.getId())).thenReturn(Optional.of(user));
-        when(matchRepository.findById(match.getMatchId())).thenReturn(Optional.of(match));
-
         assertThrows(ResponseStatusException.class,
                 () -> matchSetupService.invitePlayerToMatch(match.getMatchId(), inviteRequest));
     }

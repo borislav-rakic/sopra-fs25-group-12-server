@@ -49,7 +49,8 @@ public class LeaderboardController {
 
     @PostMapping("/populate")
     public ResponseEntity<Void> populateLeaderboardIfEmpty() {
-        if (userService.getUserCount() <= 10) {// there are nine ai players plus one SuperUser.
+        long count = userService.getUserCount();
+        if (count <= 10L) {
             userService.populateUsersFromSQL();
         }
         return ResponseEntity.ok().build();

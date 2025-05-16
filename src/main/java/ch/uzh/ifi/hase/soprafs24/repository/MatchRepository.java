@@ -46,4 +46,10 @@ public interface MatchRepository extends JpaRepository<Match, Long>, JpaSpecific
   @Lock(LockModeType.PESSIMISTIC_WRITE)
   @Query("SELECT m FROM Match m LEFT JOIN FETCH m.games WHERE m.id = :id")
   Match findMatchForUpdate(@Param("id") Long id);
+
+  @Query("SELECT m FROM Match m LEFT JOIN FETCH m.invites WHERE m.matchId = :matchId")
+  List<Match> findAllMatchesByMatchIdWithInvites(@Param("matchId") Long matchId);
+
+  @Query("SELECT COUNT(m) > 0 FROM Match m JOIN m.invites i WHERE VALUE(i) = :userId")
+  boolean existsUserInAnyMatchInvite(@Param("userId") Long userId);
 }

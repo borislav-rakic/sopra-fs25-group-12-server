@@ -41,7 +41,7 @@ public class Match implements Serializable {
 
     @ElementCollection
     @CollectionTable(name = "match_invites", joinColumns = @JoinColumn(name = "match_id"))
-    @MapKeyColumn(name = "matchPlayerSlot_index")
+    @MapKeyColumn(name = "MATCH_PLAYER_SLOT_INDEX")
     @Column(name = "user_id")
     private Map<Integer, Long> invites = new HashMap<>();
 

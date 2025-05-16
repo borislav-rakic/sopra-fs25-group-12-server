@@ -133,8 +133,6 @@ public class MatchSetupServiceTest {
         user.setIsAiPlayer(false);
         user.setStatus(UserStatus.ONLINE);
 
-        when(matchRepository.findById(Mockito.any())).thenReturn(Optional.empty());
-
         assertThrows(
                 ResponseStatusException.class,
                 () -> matchSetupService.invitePlayerToMatch(1L, inviteRequestDTO),
@@ -145,15 +143,25 @@ public class MatchSetupServiceTest {
     public void testInvitePlayerToMatchSuccess() {
         InviteRequestDTO inviteRequestDTO = new InviteRequestDTO();
         inviteRequestDTO.setPlayerSlot(2);
-        inviteRequestDTO.setUserId(user2.getId()); // not the host!
+        inviteRequestDTO.setUserId(user2.getId());
 
-        when(userRepository.findById(user2.getId())).thenReturn(Optional.of(user2));
-        when(matchRepository.findById(Mockito.any())).thenReturn(Optional.of(match));
-        when(matchRepository.save(Mockito.any())).thenReturn(match);
+        // Setup mock match
+        Match mockMatch = new Match();
+        mockMatch.setMatchId(1L);
+        mockMatch.setInvites(new HashMap<>());
+
+        when(userRepository.findById(user2.getId()))
+                .thenReturn(Optional.of(user2));
+
+        when(matchRepository.findAllMatchesByMatchIdWithInvites(1L))
+                .thenReturn(List.of(mockMatch));
+
+        when(matchRepository.saveAndFlush(Mockito.any()))
+                .thenReturn(mockMatch);
 
         matchSetupService.invitePlayerToMatch(1L, inviteRequestDTO);
 
-        verify(matchRepository).save(Mockito.any());
+        verify(matchRepository).saveAndFlush(Mockito.any());
     }
 
     @Test

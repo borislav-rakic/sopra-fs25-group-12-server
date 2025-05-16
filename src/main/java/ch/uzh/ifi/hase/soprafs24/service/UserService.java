@@ -137,7 +137,7 @@ public class UserService {
     }
     user.setToken(null); // Invalidate token
     user.setStatus(UserStatus.OFFLINE); // Set status to OFFLINE.
-    userRepository.save(user);
+    userRepository.saveAndFlush(user);
   }
 
   public User createUser(User newUser) {
