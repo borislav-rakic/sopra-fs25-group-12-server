@@ -114,4 +114,14 @@ public class MatchMessageServiceTest {
         String msg = matchMessageService.getFunMessage(MatchMessageType.PLAYER_JOINED, who);
         assertTrue(msg.contains("Alice"));
     }
+
+    @Test
+    void testGetFunMessageWithUser_playerLeft() {
+        String who = "Bob";
+        String message = matchMessageService.getFunMessage(MatchMessageType.PLAYER_LEFT, who);
+
+        assertNotNull(message);
+        assertTrue(message.contains("Bob"), "Expected the message to include the player's name");
+    }
+
 }
