@@ -25,7 +25,7 @@ public interface MatchRepository extends JpaRepository<Match, Long>, JpaSpecific
   @Query("""
           SELECT m FROM Match m
           WHERE (m.player1.id = :userId OR m.player2.id = :userId OR m.player3.id = :userId OR m.player4.id = :userId)
-            AND m.phase IN ('READY', 'IN_PROGRESS', 'BETWEEN_GAMES', 'BEFORE_GAMES')
+            AND m.phase IN ('READY', 'BEFORE_GAMES', 'IN_PROGRESS', 'BETWEEN_GAMES')
       """)
   List<Match> findActiveMatchesWithUserId(@Param("userId") Long userId);
 
@@ -39,7 +39,7 @@ public interface MatchRepository extends JpaRepository<Match, Long>, JpaSpecific
   @Query("""
           SELECT m.matchId FROM Match m
           WHERE (m.player1.id = :userId OR m.player2.id = :userId OR m.player3.id = :userId OR m.player4.id = :userId)
-            AND m.phase IN ('READY', 'IN_PROGRESS', 'BETWEEN_GAMES')
+            AND m.phase IN ('READY', 'BEFORE_GAMES', 'IN_PROGRESS', 'BETWEEN_GAMES')
       """)
   List<Long> findActiveMatchIdsWithUserId(@Param("userId") Long userId);
 
