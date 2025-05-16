@@ -274,11 +274,16 @@ public class GameSimulationService {
         int sum = TOTAL;
 
         // Generate 2 random breakpoints to split the total
-        int first = random.nextInt(sum + 1); // 0 to 26
-        int second = random.nextInt(sum - first + 1); // 0 to (26 - first)
+        int first = random.nextInt(sum - 11) + 1;
+        int second = random.nextInt(sum - first - 5) + 1;
+        int third = sum - first - second;
+        // I think none of them can be below zero, but anyway ...
+        if (first < 1 || second < 1 || third < 1) {
+            return generateRandomScores();
+        }
 
         // Sort parts to ensure valid distribution
-        int[] parts = new int[] { first, second, sum - first - second };
+        int[] parts = new int[] { first, second, third };
         Arrays.sort(parts);
 
         // Assign values, inserting 0 at the chosen index
@@ -300,7 +305,7 @@ public class GameSimulationService {
         return result;
     }
 
-    private int getMaxScore(Match match, Game game) {
+    public int getMaxScore(Match match, Game game) {
 
         List<MatchPlayer> matchPlayers = match.getMatchPlayers();
 
