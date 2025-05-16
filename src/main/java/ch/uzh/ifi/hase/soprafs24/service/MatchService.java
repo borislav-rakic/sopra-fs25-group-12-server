@@ -568,25 +568,6 @@ public class MatchService {
         return highestLevel;
     }
 
-    @Transactional
-    public void startMatch(Long matchId, String token, Long seed) {
-        User user = userService.requireUserByToken(token);
-        Match match = requireMatchByMatchId(matchId);
-        matchSetupService.setMatchPhaseToReadyIfAppropriate(match, user);
-        if (match.getPhase() != MatchPhase.READY) {
-            throw new GameplayException("Match is not ready to get started.", HttpStatus.FORBIDDEN);
-        }
-        match.setPhase(MatchPhase.BEFORE_GAMES);
-        log.info("Match is being started (seed=`{}´)", seed);
-        match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
-        // make sure the game has been polled fresh.
-        getHostMatchPlayer(match).updateLastPollTime();
-
-        Game game = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, seed);
-
-        gameRepository.save(game);
-    }
-
     public PollingDTO getPlayerPolling(String token, Long matchId) {
         // Match available?
         Match match = matchRepository.findMatchByMatchId(matchId);
