@@ -948,7 +948,7 @@ public class MatchService {
         }
     }
 
-    private Integer getMatchPlayerSlotForUser(Match match, User user) {
+    public Integer getMatchPlayerSlotForUser(Match match, User user) {
         if (user.getId().equals(match.getPlayer1().getId()))
             return 1;
         if (user.getId().equals(match.getPlayer2().getId()))
