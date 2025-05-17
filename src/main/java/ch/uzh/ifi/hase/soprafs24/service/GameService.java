@@ -5,7 +5,6 @@ import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 
-import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,6 +25,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
@@ -83,6 +83,28 @@ public class GameService {
 
     private static final Logger log = LoggerFactory.getLogger(GameService.class);
 
+    /**
+     * Executes a single AI player's turn in the given match and game.
+     * The AI will first "think" for one turn (delaying action), then on the next
+     * call,
+     * select and play a card using a predefined strategy.
+     *
+     * Validates that:
+     * - the provided player is an AI,
+     * - it is currently their turn,
+     * - the game has not already completed all plays.
+     *
+     * @param match    the match in which the game is being played
+     * @param game     the current game instance
+     * @param aiPlayer the AI-controlled player attempting to take a turn
+     * @return true if the AI successfully played a card, false if they are still
+     *         "thinking" or the game is over
+     * @throws ResponseStatusException if:
+     *                                 - the given player is not a valid AI player
+     *                                 for the match ({@code CONFLICT}),
+     *                                 - it is not the AI player's turn to act
+     *                                 ({@code CONFLICT})
+     */
     public boolean playSingleAiTurn(Match match, Game game, MatchPlayer aiPlayer) {
         // Is this aiPlayer an existing AI Player?
         if (aiPlayer == null || !Boolean.TRUE.equals(aiPlayer.getIsAiPlayer())) {
@@ -119,6 +141,28 @@ public class GameService {
         return true;
     }
 
+    /**
+     * Handles a human player's attempt to play a card during their turn in the
+     * game.
+     * Performs all necessary validations to ensure the game is active, it's the
+     * player's turn,
+     * and the card being played is legal according to game rules. If the player
+     * submits a placeholder
+     * card code ("XX"), a card is selected automatically using a random AI
+     * strategy.
+     *
+     * This method is transactional to ensure consistency during state transitions
+     * and updates.
+     *
+     * @param game        the current game instance
+     * @param matchPlayer the player attempting to play a card
+     * @param cardCode    the code of the card the player is attempting to play
+     *                    (e.g., "7H", "QS", or "XX" for random)
+     * @throws ResponseStatusException if the game is not in an active phase
+     *                                 ({@code FORBIDDEN})
+     * @throws GameplayException       if the player attempts to act out of turn or
+     *                                 play an invalid card
+     */
     @Transactional
     public void playCardAsHuman(Game game, MatchPlayer matchPlayer, String cardCode) {
         log.info("=== PLAY CARD AS HUMAN (playOrder={}), CurrentSlot: {}.",
@@ -159,6 +203,30 @@ public class GameService {
 
     }
 
+    /**
+     * Executes a card play for an AI-controlled player.
+     * Validates that the card format is correct, the card is in the AI player's
+     * hand,
+     * the AI player is valid and it's their turn, and the play is legal according
+     * to game rules.
+     * Then plays the card by invoking the validated play execution.
+     *
+     * This method is transactional to ensure atomic updates to the game and player
+     * state.
+     *
+     * @param game     the game in which the AI is playing
+     * @param aiPlayer the AI-controlled {@link MatchPlayer} making the move
+     * @param cardCode the card code to be played (e.g., "QS", "10H")
+     *
+     * @throws ResponseStatusException if:
+     *                                 - the AI player has no cards,
+     *                                 - the card is not in the AI player’s hand
+     *                                 ({@code BAD_REQUEST})
+     * @throws IllegalStateException   if:
+     *                                 - the player is not marked as an AI,
+     *                                 - the slot is invalid,
+     *                                 - the AI attempts to play out of turn
+     */
     @Transactional
     public void playCardAsAi(Game game, MatchPlayer aiPlayer, String cardCode) {
         CardUtils.requireValidCardFormat(cardCode);
@@ -198,6 +266,26 @@ public class GameService {
         executeValidatedCardPlay(game, aiPlayer, cardCode);
     }
 
+    /**
+     * Executes a validated card play for the given player and updates all related
+     * game state.
+     * Removes the card from the player's hand, adds it to the current trick,
+     * updates the game phase,
+     * adds contextual match messages (e.g., for Queen of Spades or hearts broken),
+     * and triggers trick and stats updates.
+     * Assumes the card has already been validated for playability.
+     *
+     * This method is transactional to ensure consistency across multiple related
+     * updates.
+     *
+     * @param game        the current game instance in which the card is being
+     *                    played
+     * @param matchPlayer the player playing the card
+     * @param cardCode    the code of the card being played (e.g., "QS", "10H")
+     *
+     * @throws IllegalStateException if the card could not be removed from the
+     *                               player's hand (e.g., not present)
+     */
     @Transactional
     public void executeValidatedCardPlay(Game game, MatchPlayer matchPlayer, String cardCode) {
         log.info("   +-- executeValidatedCardPlay ---");
@@ -246,6 +334,24 @@ public class GameService {
         log.info("   +--- executeValidatedCardPlay ---");
     }
 
+    /**
+     * Advances the trick phase of the game if the polling player is the match owner
+     * and enough time has passed
+     * since the last trick was completed. This method ensures smooth transition
+     * between trick phases
+     * by:
+     * - Moving from {@code TRICKJUSTCOMPLETED} to {@code PROCESSINGTRICK} after a
+     * delay
+     * - Clearing the trick and updating game state during {@code PROCESSINGTRICK}
+     * - Transitioning to {@code RESULT} phase if all cards have been played
+     * Posting appropriate match messages based on trick contents (e.g., all
+     * hearts, last trick)
+     *
+     * This method is typically triggered by polling logic and is only
+     * executed by the match host to avoid duplicate transitions.
+     *
+     * @param game the current {@link Game} instance to check and update
+     */
     @Transactional
     public void advanceTrickPhaseIfOwnerPolling(Game game) {
         if (game.getTrickPhase() == TrickPhase.TRICKJUSTCOMPLETED
@@ -453,6 +559,18 @@ public class GameService {
         matchRepository.save(match); // Ensure changes are persisted
     }
 
+    /**
+     * Relays a message to the {@link MatchMessageService}, optionally including a
+     * player's name.
+     * If {@code who} is provided and not blank, the message is personalized using
+     * the player's name.
+     * Otherwise, a generic message is added.
+     *
+     * @param match            the match in which the message should be recorded
+     * @param matchMessageType the type of message to be added
+     * @param who              the name of the player involved in the message (can
+     *                         be null or blank for generic messages)
+     */
     public void relayMessageToMatchMessageService(
             Match match,
             MatchMessageType matchMessageType,
@@ -467,6 +585,24 @@ public class GameService {
         }
     }
 
+    /**
+     * Accepts and processes a set of cards passed by a player during the passing
+     * phase of the game.
+     * Delegates the handling of card validation and saving to the
+     * {@code cardPassingService}.
+     * If all 12 cards (3 from each of 4 players) have been passed, the method:
+     * - Collects and reassigns the passed cards to their new owners
+     * - Sets the player who holds the Two of Clubs as the starting leader
+     * - Transitions the game into the {@code FIRSTTRICK} phase
+     *
+     * @param game         the current game instance
+     * @param matchPlayer  the player submitting passed cards
+     * @param passingDTO   the DTO containing the cards to be passed
+     * @param pickRandomly whether the cards should be chosen randomly (e.g. by AI)
+     *
+     * @throws ResponseStatusException if invalid card selections are made (handled
+     *                                 internally)
+     */
     @Transactional
     public void passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO,
             Boolean pickRandomly) {
@@ -489,6 +625,15 @@ public class GameService {
         gameRepository.saveAndFlush(game);
     }
 
+    /**
+     * Resets the "ready" status for all players in the specified match.
+     * This is typically used to prepare the game state for the next round or phase.
+     * Ensures that exactly 4 players are present before performing the reset.
+     *
+     * @param matchId the ID of the match whose players should be reset
+     * @throws IllegalArgumentException if the match is not found
+     * @throws IllegalStateException    if the match does not have exactly 4 players
+     */
     @Transactional
     public void resetAllPlayersReady(Long matchId) {
         Match match = matchRepository.findById(matchId)
@@ -505,6 +650,16 @@ public class GameService {
         }
     }
 
+    /**
+     * Validates that the current game state is internally consistent.
+     * Ensures the game is linked to a match, the game phase aligns with the match
+     * phase,
+     * the play order matches the current trick number, and trick phase consistency
+     * is upheld.
+     *
+     * @param game the game instance to check
+     * @throws IllegalStateException if any state inconsistency is found
+     */
     @Transactional
     public void assertConsistentGameState(Game game) {
         Match match = game.getMatch();
@@ -531,6 +686,25 @@ public class GameService {
         doPlayOrderAndTrickPhaseMatch(game);
     }
 
+    /**
+     * Checks that the game's current play order is valid and consistent with its
+     * phase and trick phase.
+     *
+     * This method verifies that the play order falls within the expected range for
+     * the game's phase:
+     * - FIRSTTRICK: play order should be between 0 and 4
+     * - NORMALTRICK: play order should be between 4 and 48
+     * - FINALTRICK: play order should be between 48 and 52
+     * - RESULT: play order should be exactly 52
+     * - PASSING: play order should be 0
+     *
+     * If the trick is in a transition phase, the upper bound is inclusive.
+     * Throws an exception if any condition is violated.
+     *
+     * @param game the game whose play order and phase should be validated
+     * @throws IllegalStateException if the play order is inconsistent with the game
+     *                               phase
+     */
     public void doPlayOrderAndTrickPhaseMatch(Game game) {
         TrickPhase trickPhase = game.getTrickPhase();
         int playOrder = game.getCurrentPlayOrder();
@@ -565,6 +739,17 @@ public class GameService {
         }
     }
 
+    /**
+     * Assigns the first trick leader based on who holds the Two of Clubs.
+     *
+     * Searches all players in the match for the one who has the Two of Clubs in
+     * hand.
+     * Sets that player's slot as the current match player slot and trick leader
+     * slot.
+     *
+     * @param game the game instance to assign the trick leader for
+     * @throws IllegalStateException if no player holds the Two of Clubs
+     */
     public void assignTwoOfClubsLeader(Game game) {
         Match match = game.getMatch();
         for (MatchPlayer player : match.getMatchPlayers()) {

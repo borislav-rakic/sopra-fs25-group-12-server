@@ -3,6 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,6 +14,7 @@ import org.mockito.MockitoAnnotations;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.*;
 
 public class AiPlayingServiceTest {
@@ -91,10 +93,10 @@ public class AiPlayingServiceTest {
     public void testSelectCardToPlay_fallbackWhenNoPlayableCards() {
         when(cardRulesService.getPlayableCardsForMatchPlayerPolling(any(), any())).thenReturn("");
 
-        IllegalStateException exception = assertThrows(IllegalStateException.class,
+        GameplayException exception = assertThrows(GameplayException.class,
                 () -> aiPlayingService.selectCardToPlay(game, matchPlayer, Strategy.LEFTMOST));
 
-        assertTrue(exception.getMessage().contains("AI player has no legal cards to play"));
+        assertTrue(exception.getMessage().contains("No playable cards available for the player."));
     }
 
 }

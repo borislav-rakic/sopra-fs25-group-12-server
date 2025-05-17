@@ -16,6 +16,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
@@ -37,16 +38,31 @@ public class AiPassingService {
         this.passedCardRepository = passedCardRepository;
     }
 
+    /**
+     * Selects three cards to pass from the player's hand based on a given strategy.
+     * If no strategy is provided, a default (LEFTMOST) strategy is used.
+     * This method evaluates whether the player may attempt to shoot the moon and
+     * adjusts
+     * strategy behavior accordingly for certain strategies.
+     *
+     * @param matchPlayer the player whose cards are to be selected for passing
+     * @param strategy    the strategy to apply for selecting cards (can be null)
+     * @return a list of exactly three card codes selected for passing
+     * @throws IllegalStateException    if the player has no cards or fewer than
+     *                                  three cards
+     * @throws IllegalArgumentException if the specified strategy is unsupported
+     */
+
     public List<String> selectCardsToPass(MatchPlayer matchPlayer, Strategy strategy) {
 
         String hand = matchPlayer.getHand();
         if (hand == null || hand.isBlank()) {
-            throw new IllegalStateException("AI player has no cards to pass.");
+            throw new GameplayException("AI player has no cards to pass.");
         }
 
         String[] cardsArray = hand.split(",");
         if (cardsArray.length < 3) {
-            throw new IllegalStateException("Player does not have enough cards to pass.");
+            throw new GameplayException("Player does not have enough cards to pass.");
         }
         Strategy effectiveStrategy = (strategy == null) ? Strategy.LEFTMOST : strategy;
 
@@ -251,7 +267,7 @@ public class AiPassingService {
                 break;
 
             default:
-                throw new IllegalArgumentException("Unsupported strategy: " + strategy);
+                throw new GameplayException("Unknown strategy.");
         }
         log.info("User has decided on three Cards to pass.");
         return selectedCards;
@@ -272,6 +288,14 @@ public class AiPassingService {
         };
     }
 
+    /**
+     * Returns a predefined card-passing strategy based on the given user ID.
+     * Each user ID maps deterministically to a specific strategy.
+     * If the user ID is not recognized, a default strategy (LEFTMOST) is returned.
+     *
+     * @param userId the ID of the user
+     * @return the strategy associated with the given user ID
+     */
     public void passForAllAiPlayers(Game game) {
         Match match = game.getMatch();
         if (match == null) {
@@ -303,6 +327,15 @@ public class AiPassingService {
         }
     }
 
+    /**
+     * Selects the top three highest-scoring cards from the given hand.
+     * Cards are sorted in descending order based on their risk or penalty value,
+     * with the most dangerous cards (e.g. Queen of Spades, high Hearts) prioritized
+     * first.
+     *
+     * @param hand the list of card codes representing the player's hand
+     * @return a list of the three highest-scoring cards to be passed
+     */
     public List<String> dumpHighestScoringFaceFirst(List<String> hand) {
         return hand.stream()
                 .sorted(Comparator.comparingInt(CardUtils::calculateHighestScoreOrder).reversed()) // highest first
@@ -310,6 +343,15 @@ public class AiPassingService {
                 .collect(Collectors.toList());
     }
 
+    /**
+     * Determines whether the player's hand has the potential to shoot the moon.
+     * The heuristic checks for a combination of strong hearts, the Queen of Spades,
+     * and sufficient spades to indicate control and high-risk capability.
+     *
+     * @param hand the list of card codes representing the player's hand
+     * @return true if the hand meets the criteria for a potential moon shooter;
+     *         false otherwise
+     */
     public boolean isPotentialMoonShooter(List<String> hand) {
         long highHearts = hand.stream()
                 .filter(card -> card.endsWith("H"))

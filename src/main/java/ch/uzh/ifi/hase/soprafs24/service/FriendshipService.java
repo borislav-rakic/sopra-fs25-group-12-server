@@ -39,7 +39,22 @@ public class FriendshipService {
     }
 
     /**
-     * Send a friend request from sender to receiver.
+     * Sends a friend request from one user to another.
+     * Validates that the sender and receiver are different users, and that no
+     * existing
+     * friendship or pending request already exists between them.
+     * Persists the new {@link Friendship} with status {@code PENDING}.
+     *
+     * @param senderId   the ID of the user sending the friend request
+     * @param receiverId the ID of the user receiving the friend request
+     * @return the created Friendship entity representing the pending friend request
+     * @throws ResponseStatusException if:
+     *                                 - the sender and receiver are the same user
+     *                                 ({@code BAD_REQUEST}),
+     *                                 - either user is not found
+     *                                 ({@code NOT_FOUND}),
+     *                                 - a friend request already exists between the
+     *                                 users ({@code CONFLICT})
      */
     public Friendship sendFriendRequest(Long senderId, Long receiverId) {
         if (senderId.equals(receiverId)) {
@@ -62,7 +77,19 @@ public class FriendshipService {
     }
 
     /**
-     * Accept an incoming friend request.
+     * Accepts a pending friend request from one user to another.
+     * Validates that the friend request exists and is in the {@code PENDING} state
+     * before marking it as {@code ACCEPTED} and saving the change.
+     *
+     * @param receiverId the ID of the user accepting the friend request
+     * @param senderId   the ID of the user who originally sent the friend request
+     * @throws ResponseStatusException if:
+     *                                 - either user is not found
+     *                                 ({@code NOT_FOUND}),
+     *                                 - no friend request exists from the sender to
+     *                                 the receiver ({@code NOT_FOUND}),
+     *                                 - the request is not in a {@code PENDING}
+     *                                 state ({@code BAD_REQUEST})
      */
     public void acceptFriendRequest(Long receiverId, Long senderId) {
         User receiver = findUserOrThrow(receiverId);
@@ -82,7 +109,20 @@ public class FriendshipService {
     }
 
     /**
-     * Decline an incoming friend request.
+     * Declines a pending friend request sent by one user to another.
+     * Ensures the friend request exists and is in the {@code PENDING} state before
+     * updating
+     * its status to {@code DECLINED}.
+     *
+     * @param receiverId the ID of the user declining the friend request
+     * @param senderId   the ID of the user who originally sent the friend request
+     * @throws ResponseStatusException if:
+     *                                 - either user is not found
+     *                                 ({@code NOT_FOUND}),
+     *                                 - no pending friend request exists from the
+     *                                 sender to the receiver ({@code NOT_FOUND}),
+     *                                 - the request is not in a {@code PENDING}
+     *                                 state ({@code BAD_REQUEST})
      */
     public void declineFriendRequest(Long receiverId, Long senderId) {
         User receiver = findUserOrThrow(receiverId);
@@ -102,7 +142,14 @@ public class FriendshipService {
     }
 
     /**
-     * Remove a friend from either direction.
+     * Removes an existing friendship between two users, regardless of who initiated
+     * it.
+     * If no friendship exists, the method logs the event and completes silently.
+     *
+     * @param userId   the ID of one user
+     * @param friendId the ID of the other user
+     * @throws ResponseStatusException if either user is not found
+     *                                 ({@code NOT_FOUND})
      */
     public void removeFriend(Long userId, Long friendId) {
         User user = findUserOrThrow(userId);
@@ -124,7 +171,14 @@ public class FriendshipService {
     }
 
     /**
-     * Get all accepted friends of a user.
+     * Retrieves a list of accepted friends for the given user.
+     * Searches for all friendships where the user is either the sender or receiver,
+     * filters to those with status {@code ACCEPTED}, and maps the other party to a
+     * DTO.
+     *
+     * @param userId the ID of the user whose friends are being retrieved
+     * @return a list of {@link UserGetDTO} representing the user's friends
+     * @throws ResponseStatusException if the user is not found ({@code NOT_FOUND})
      */
     public List<UserGetDTO> getFriends(Long userId) {
         User user = findUserOrThrow(userId);
@@ -142,7 +196,15 @@ public class FriendshipService {
     }
 
     /**
-     * Get all incoming pending friend requests.
+     * Retrieves all pending friend requests received by the given user.
+     * Filters friendships where the user is the recipient and the status is
+     * {@code PENDING},
+     * then returns the list of users who sent those requests.
+     *
+     * @param userId the ID of the user receiving pending friend requests
+     * @return a list of {@link UserGetDTO} representing users who sent friend
+     *         requests
+     * @throws ResponseStatusException if the user is not found ({@code NOT_FOUND})
      */
     public List<UserGetDTO> getFriendsPending(Long userId) {
         User user = findUserOrThrow(userId);
@@ -160,7 +222,15 @@ public class FriendshipService {
     }
 
     /**
-     * Get all incoming pending friend requests.
+     * Retrieves all friend requests that were declined by the given user.
+     * Searches for friendships where the user is the recipient and the status is
+     * {@code DECLINED},
+     * then returns the list of users who originally sent those requests.
+     *
+     * @param userId the ID of the user who declined the friend requests
+     * @return a list of {@link UserGetDTO} representing users whose requests were
+     *         declined
+     * @throws ResponseStatusException if the user is not found ({@code NOT_FOUND})
      */
     public List<UserGetDTO> getFriendsDeclined(Long userId) {
         User user = findUserOrThrow(userId);
@@ -178,7 +248,13 @@ public class FriendshipService {
     }
 
     /**
-     * Helper method to fetch user or throw 404.
+     * Retrieves a user by their ID or throws an exception if the user does not
+     * exist.
+     *
+     * @param userId the ID of the user to retrieve
+     * @return the {@link User} entity corresponding to the given ID
+     * @throws ResponseStatusException if no user with the given ID is found
+     *                                 ({@code NOT_FOUND})
      */
     private User findUserOrThrow(Long userId) {
         User user = userRepository.findUserById(userId);
@@ -188,6 +264,20 @@ public class FriendshipService {
         return user;
     }
 
+    /**
+     * Updates the status of an existing friendship between two users.
+     * Searches for the friendship in either direction, and if found, sets the new
+     * status.
+     *
+     * @param userId1   the ID of one user in the friendship
+     * @param userId2   the ID of the other user in the friendship
+     * @param newStatus the new {@link FriendshipStatus} to apply (e.g., ACCEPTED,
+     *                  DECLINED)
+     * @throws ResponseStatusException if either user is not found
+     *                                 ({@code NOT_FOUND}),
+     *                                 or if no friendship exists between the two
+     *                                 users ({@code NOT_FOUND})
+     */
     public void updateFriendshipStatus(Long userId1, Long userId2, FriendshipStatus newStatus) {
         User user1 = findUserOrThrow(userId1);
         User user2 = findUserOrThrow(userId2);
@@ -204,6 +294,20 @@ public class FriendshipService {
         friendshipRepository.save(friendship);
     }
 
+    /**
+     * Retrieves the current friendship status between two users, including
+     * directionality.
+     * If a friendship exists in either direction, returns its status and whether
+     * the current user initiated it.
+     * If no friendship exists, returns {@code UNDEFINED} status.
+     *
+     * @param currentUserId the ID of the user making the request
+     * @param otherUserId   the ID of the user being checked for friendship
+     * @return a {@link FriendshipStatusDTO} containing the friendship status and
+     *         initiator information
+     * @throws ResponseStatusException if either user is not found
+     *                                 ({@code NOT_FOUND})
+     */
     public FriendshipStatusDTO getFriendshipStatus(Long currentUserId, Long otherUserId) {
         User currentUser = findUserOrThrow(currentUserId);
         User otherUser = findUserOrThrow(otherUserId);

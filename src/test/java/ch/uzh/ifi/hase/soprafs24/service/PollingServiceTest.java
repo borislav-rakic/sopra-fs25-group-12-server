@@ -1,23 +1,32 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
-import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
-import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
-import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
-import ch.uzh.ifi.hase.soprafs24.entity.*;
-import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
-import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
-
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.Test;
-import org.mockito.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.when;
 
 import java.time.Instant;
 import java.util.List;
 
-import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.InjectMocks;
+import org.mockito.Mock;
+import org.mockito.MockitoAnnotations;
+
+import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
+import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
+import ch.uzh.ifi.hase.soprafs24.entity.Game;
+import ch.uzh.ifi.hase.soprafs24.entity.Match;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
+import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
+import ch.uzh.ifi.hase.soprafs24.rest.dto.PollingDTO;
 
 public class PollingServiceTest {
 
@@ -97,4 +106,92 @@ public class PollingServiceTest {
         assertTrue(dto.getPlayableCardsAsString().contains("AS"));
         assertEquals(0, dto.getPlayerSlot());
     }
+
+    @Test
+    void testGetPlayerPollingForPostMatchPhase_gameResult() {
+        Match match = new Match();
+        match.setPhase(MatchPhase.RESULT);
+        match.setMatchId(1L);
+        match.setMatchGoal(100);
+        match.setHostId(1L);
+        match.setMatchSummary(new MatchSummary());
+
+        User user = new User();
+        user.setId(1L);
+        match.setPlayer1(user);
+
+        PollingDTO dto = pollingService.getPlayerPollingForPostMatchPhase(user, match, true);
+
+        assertEquals(MatchPhase.RESULT, dto.getMatchPhase());
+        assertEquals(1L, dto.getMatchId());
+    }
+
+    @Test
+    void testGetSpectatorPolling_resultPhase() {
+        Match match = new Match();
+        match.setPhase(MatchPhase.RESULT);
+        match.setMatchId(1L);
+        match.setMatchGoal(100);
+        match.setHostId(1L);
+        match.setMatchSummary(new MatchSummary());
+
+        User user = new User();
+        user.setId(99L);
+
+        PollingDTO dto = pollingService.getSpectatorPolling(user, match);
+
+        assertEquals(MatchPhase.FINISHED, dto.getMatchPhase());
+    }
+
+    @Test
+    void testRenderFinalMatchSummaryHtml_insertsPersonalSummary() {
+        MatchSummary summary = new MatchSummary();
+        summary.setMatchSummaryHtml("Base Summary <!--°--> End");
+        summary.setMatchSummaryMatchPlayerSlot1("Well played!");
+
+        User user = new User();
+        user.setId(1L);
+
+        Match match = new Match();
+        match.setPlayer1(user);
+        match.setMatchSummary(summary);
+
+        String rendered = pollingService.renderFinalMatchSummaryHtml(user, match);
+
+        assertTrue(rendered.contains("Well played!"));
+        assertTrue(rendered.contains("personalSummary"));
+    }
+
+    @Test
+    void testGetPersonalizedMatchSummary_returnsCorrectSlotSummary() {
+        MatchSummary summary = new MatchSummary();
+        summary.setMatchSummaryMatchPlayerSlot2("Bravo!");
+
+        User user = new User();
+        user.setId(2L);
+
+        Match match = new Match();
+        User player2 = new User();
+        player2.setId(2L);
+        match.setPlayer2(player2);
+        match.setMatchSummary(summary);
+
+        String result = pollingService.getPersonalizedMatchSummary(user, match);
+        assertEquals("Bravo!", result);
+    }
+
+    @Test
+    void testGetPlayerPollingForPostMatchPhase_unexpectedPhaseThrows() {
+        Match match = new Match();
+        match.setPhase(MatchPhase.SETUP); // not RESULT, FINISHED, or ABORTED
+
+        User user = new User();
+        user.setId(1L);
+
+        Exception exception = assertThrows(IllegalStateException.class,
+                () -> pollingService.getPlayerPollingForPostMatchPhase(user, match, false));
+
+        assertTrue(exception.getMessage().contains("unexpected MatchPhase"));
+    }
+
 }

@@ -14,11 +14,10 @@ import org.springframework.stereotype.Service;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
-import ch.uzh.ifi.hase.soprafs24.constant.Rank;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
-import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,6 +38,27 @@ public class AiPlayingService {
         this.gameStatsRepository = gameStatsRepository;
     }
 
+    /**
+     * Selects a single card for the AI player to play based on the given strategy
+     * and current game state.
+     * The selection logic considers legal cards, game phase, player slot, trick
+     * order, and risk assessment
+     * (e.g., avoiding dangerous cards or trying to shoot the moon).
+     * 
+     * Each strategy applies its own logic, ranging from simple heuristics (like
+     * leftmost or random) to
+     * advanced reasoning (like evaluating voiding suits or point-dumping
+     * potential).
+     * 
+     * If no legal cards are available, an exception is thrown to indicate an
+     * invalid game state.
+     * 
+     * @param game        the current game state
+     * @param matchPlayer the AI player making the move
+     * @param strategy    the strategy to guide card selection
+     * @return the selected card code to be played (e.g., "QS", "7H")
+     * @throws IllegalStateException if the player has no legal cards to play
+     */
     public String selectCardToPlay(Game game, MatchPlayer matchPlayer, Strategy strategy) {
         String playableCardsString = cardRulesService.getPlayableCardsForMatchPlayerPolling(game, matchPlayer);
 
@@ -46,8 +66,7 @@ public class AiPlayingService {
         // log.info ("I am MatchPlayer with playable hand: {}.", playableCardsString);
 
         if (playableCardsString == null || playableCardsString.isBlank()) {
-            throw new IllegalStateException(
-                    "AI player has no legal cards to play: " + matchPlayer.getHand());
+            throw new GameplayException("No playable cards available for the player.");
         }
 
         Random random = new Random();
@@ -368,6 +387,22 @@ public class AiPlayingService {
         return cardCode;
     }
 
+    /**
+     * Retrieves the set of possible player slots that may still hold the specified
+     * card,
+     * based on historical game stats and knowledge inferred from card passing.
+     * If the requesting player originally passed this card, the knowledge is
+     * refined
+     * to indicate only the recipient as a possible holder.
+     *
+     * @param cardCode       the card to check (e.g., "QS", "7H")
+     * @param game           the game instance the card belongs to
+     * @param requestingSlot the match player slot requesting the information
+     *                       (1-based)
+     * @param repo           the repository used to fetch card statistics
+     * @return a BitSet representing possible holders (0-based index for player
+     *         slots)
+     */
     public BitSet getPossibleHolders(String cardCode, Game game, int requestingSlot, GameStatsRepository repo) {
         // Retrieve the GameStats record for the card
         GameStats card = repo.findByRankSuitAndGame(cardCode, game);
@@ -384,6 +419,14 @@ public class AiPlayingService {
         return holders;
     }
 
+    /**
+     * Converts a 4-bit integer bitmask into a BitSet representing player slots.
+     * Each bit corresponds to a player (bit 0 = slot 1, bit 1 = slot 2, etc.).
+     *
+     * @param mask the integer bitmask where each bit represents a possible card
+     *             holder
+     * @return a BitSet with bits set for each player slot indicated in the mask
+     */
     private BitSet intToBitSet(int mask) {
         BitSet bitSet = new BitSet(4);
         for (int i = 0; i < 4; i++) {
@@ -394,6 +437,16 @@ public class AiPlayingService {
         return bitSet;
     }
 
+    /**
+     * Determines whether the player appears to be attempting to shoot the moon,
+     * based on the cards they have taken so far.
+     * The heuristic checks if the player has taken the Queen of Spades and at least
+     * four hearts.
+     *
+     * @param player the match player whose taken cards are being evaluated
+     * @return true if the player is likely attempting to shoot the moon; false
+     *         otherwise
+     */
     private boolean isAttemptingMoonShot(MatchPlayer player) {
         List<String> taken = player.getTakenCards(); // e.g., "QH,AS,5H"
         if (taken == null || taken.isEmpty()) {
@@ -407,6 +460,13 @@ public class AiPlayingService {
         return hasQS && heartCount >= 4;
     }
 
+    /**
+     * Determines whether the given card is a point card in the game of Hearts.
+     * Point cards are all Hearts and the Queen of Spades.
+     *
+     * @param cardCode the card code to check (e.g., "7H", "QS")
+     * @return true if the card is a point card; false otherwise
+     */
     private boolean isPointCard(String cardCode) {
         return cardCode.endsWith("H") || "QS".equals(cardCode);
     }

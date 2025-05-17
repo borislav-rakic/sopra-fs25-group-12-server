@@ -196,4 +196,27 @@ public class MatchSummaryServiceTest {
         game.setGameScoresList(scores);
         return game;
     }
+
+    @Test
+    void setMatchPlayerMatchSummary_setsCorrectFieldBasedOnSlot() {
+        MatchSummary summary = new MatchSummary();
+        match.setMatchSummary(summary);
+
+        // Test for slot 1
+        matchSummaryService.setMatchPlayerMatchSummary(match, matchPlayer1, "Summary 1");
+        assertTrue("Summary 1".equals(summary.getMatchSummaryMatchPlayerSlot1()));
+
+        // Test for slot 2
+        matchSummaryService.setMatchPlayerMatchSummary(match, matchPlayer2, "Summary 2");
+        assertTrue("Summary 2".equals(summary.getMatchSummaryMatchPlayerSlot2()));
+
+        // Test for slot 3
+        matchSummaryService.setMatchPlayerMatchSummary(match, matchPlayer3, "Summary 3");
+        assertTrue("Summary 3".equals(summary.getMatchSummaryMatchPlayerSlot3()));
+
+        // Test for slot 4
+        matchSummaryService.setMatchPlayerMatchSummary(match, matchPlayer4, "Summary 4");
+        assertTrue("Summary 4".equals(summary.getMatchSummaryMatchPlayerSlot4()));
+    }
+
 }

@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
 import ch.uzh.ifi.hase.soprafs24.entity.*;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -63,7 +64,7 @@ public class AiPassingServiceTest {
     @Test
     public void selectCardsToPass_throwsIfHandTooSmall() {
         aiPlayer.setHand("KH,AH");
-        assertThrows(IllegalStateException.class,
+        assertThrows(GameplayException.class,
                 () -> aiPassingService.selectCardsToPass(aiPlayer, Strategy.LEFTMOST));
     }
 

@@ -19,6 +19,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
@@ -64,6 +65,18 @@ public class CardPassingService {
      *
      **/
 
+    /**
+     * Collects and reassigns all passed cards in a game according to the current
+     * round's passing direction.
+     * Ensures that all players have submitted their passed cards before proceeding.
+     * Once reassigned, the original passed card records are deleted from the
+     * repository.
+     *
+     * @param game the game for which cards are being collected
+     * @throws ResponseStatusException if the game or its match is not found,
+     *                                 or if not all players have passed the
+     *                                 required number of cards
+     */
     public void collectPassedCards(Game game) {
         if (game == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Game not found");
@@ -85,14 +98,31 @@ public class CardPassingService {
         passedCardRepository.flush();
     }
 
+    /**
+     * Validates that all players in the match have passed the required number of
+     * cards.
+     * For a 4-player match, this should be exactly 12 passed cards (3 per player).
+     *
+     * @param match the match to validate
+     * @param game  the game in which the card passing occurred
+     * @throws MatchplayException if the total number of passed cards is not 12
+     */
     private void validateAllCardsPassed(Match match, Game game) {
         List<PassedCard> passedCards = passedCardRepository.findByGame(game);
 
         if (passedCards.size() != 12) {
-            throw new IllegalStateException("Cannot collect cards: not all cards have been passed yet.");
+            throw new GameplayException("Not all players have finished passing cards.");
         }
     }
 
+    /**
+     * Groups the given list of passed cards by the slot of the player who passed
+     * them.
+     *
+     * @param passedCards the list of passed cards to organize
+     * @return a map where the key is the match player slot (1–4) and the value is
+     *         the list of cards passed by that player
+     */
     private Map<Integer, List<PassedCard>> mapPassedCardsByMatchPlayerSlot(List<PassedCard> passedCards) {
         Map<Integer, List<PassedCard>> cardsByMatchPlayerSlot = new HashMap<>();
         for (PassedCard passedCard : passedCards) {
@@ -102,6 +132,22 @@ public class CardPassingService {
         return cardsByMatchPlayerSlot;
     }
 
+    /**
+     * Reassigns passed cards to their target players based on the current game's
+     * passing direction.
+     * Updates each player's hand accordingly, adjusts game statistics (who passed
+     * what to whom),
+     * and persists the changes to the database.
+     *
+     * @param game                   the game in which cards are being reassigned
+     * @param cardsByMatchPlayerSlot map of cards grouped by the player slot that
+     *                               passed them
+     * @param passTo                 a map defining the passing direction: from each
+     *                               player slot to a target slot
+     * @throws IllegalStateException if a passing direction is invalid
+     * @throws GamepplayException    if a GameStat
+     *                               entry is missing
+     */
     private void reassignPassedCards(Game game, Map<Integer, List<PassedCard>> cardsByMatchPlayerSlot,
             Map<Integer, Integer> passTo) {
         List<GameStats> updatedGameStats = new ArrayList<>(); // Collect for batch update
@@ -135,9 +181,7 @@ public class CardPassingService {
                     gameStat.setPassedTo(toMatchPlayerSlot);
                     updatedGameStats.add(gameStat); // Collect to batch-save later
                 } else {
-                    int fromPlayerSlot = fromMatchPlayerSlot - 1;
-                    throw new IllegalStateException(
-                            "GameStat not found for card: " + cardCode + ", playerSlot: " + fromPlayerSlot);
+                    throw new GameplayException("Card passing failed: no tracking data for " + cardCode);
                 }
             }
 
@@ -152,6 +196,19 @@ public class CardPassingService {
         gameRepository.flush();
     }
 
+    /**
+     * Finds the MatchPlayer in the game by their match player slot (1-based,
+     * server-side convention).
+     * This method maps frontend slot indices (0–3) to internal match player slots
+     * (1–4).
+     *
+     * @param game            the game containing the match and its players
+     * @param matchPlayerSlot the match player slot (1–4)
+     * @return the MatchPlayer corresponding to the given slot
+     * @throws IllegalArgumentException if the slot is not between 1 and 4
+     * @throws IllegalStateException    if no MatchPlayer is found for the given
+     *                                  slot
+     */
     private MatchPlayer findMatchPlayer(Game game, int matchPlayerSlot) {
         if (matchPlayerSlot < 1 || matchPlayerSlot > 4) {
             int playerSlot = matchPlayerSlot - 1;
@@ -164,6 +221,30 @@ public class CardPassingService {
                 .orElseThrow(() -> new IllegalStateException("No MatchPlayer found for playerSlot " + playerSlot));
     }
 
+    /**
+     * Handles the logic for a player passing three cards during the passing phase
+     * of a game.
+     * Validates the input (card format, ownership, duplicates, etc.), persists the
+     * passed cards,
+     * and triggers AI players to pass their cards if all human players have
+     * completed their pass.
+     *
+     * @param game         the current game where the passing is occurring
+     * @param matchPlayer  the player attempting to pass cards
+     * @param passingDTO   the DTO containing the selected cards to pass
+     * @param pickRandomly if true, selects cards automatically using a predefined
+     *                     AI strategy
+     * @return the total number of cards passed so far in the game (should reach 12
+     *         when all passes are complete)
+     *
+     * @throws ResponseStatusException if:
+     *                                 - fewer or more than 3 cards are passed,
+     *                                 - duplicate cards are selected,
+     *                                 - an invalid card format is used,
+     *                                 - the player attempts to pass cards they
+     *                                 don't own,
+     *                                 - the same card is passed multiple times
+     */
     public int passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO,
             Boolean pickRandomly) {
         List<String> cardsToPass;
@@ -238,10 +319,26 @@ public class CardPassingService {
 
     }
 
+    /**
+     * Validates whether the given card code matches the expected card format.
+     * Uses a regular expression defined in {@code GameConstants.CARD_CODE_REGEX}.
+     *
+     * @param cardCode the card code to validate (e.g., "7H", "QS")
+     * @return true if the card code is non-null and matches the expected format;
+     *         false otherwise
+     */
     private boolean isValidCardFormat(String cardCode) {
         return cardCode != null && cardCode.matches(GameConstants.CARD_CODE_REGEX);
     }
 
+    /**
+     * Converts a 0-based player slot index (used by the frontend) to a 1-based
+     * match player slot index (used server-side).
+     *
+     * @param playerSlot the 0-based player slot index (range: 0–3)
+     * @return the corresponding 1-based match player slot (range: 1–4)
+     * @throws IllegalArgumentException if the input is not between 0 and 3
+     */
     public int playerSlotToMatchPlayerSlot(int playerSlot) {
         if (playerSlot < 0 || playerSlot > 3) {
             throw new IllegalArgumentException("Invalid playerSlot: " + playerSlot + ". Expected 0–3.");
@@ -249,6 +346,14 @@ public class CardPassingService {
         return playerSlot + 1;
     }
 
+    /**
+     * Converts a 1-based match player slot index (used server-side) to a 0-based
+     * player slot index (used by the frontend).
+     *
+     * @param matchPlayerSlot the 1-based match player slot (range: 1–4)
+     * @return the corresponding 0-based player slot index (range: 0–3)
+     * @throws IllegalArgumentException if the input is not between 1 and 4
+     */
     public int matchPlayerSlotToPlayerSlot(int matchPlayerSlot) {
         if (matchPlayerSlot < 1 || matchPlayerSlot > 4) {
             throw new IllegalArgumentException("Invalid matchPlayerSlot: " + matchPlayerSlot + ". Expected 1–4.");

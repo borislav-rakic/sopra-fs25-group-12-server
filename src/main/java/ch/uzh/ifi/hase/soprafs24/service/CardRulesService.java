@@ -123,22 +123,6 @@ public class CardRulesService {
         int trickNumber = game.getCurrentTrickNumber();
         // log.info(" ¦ trickNumber: {}.", trickNumber);
         GamePhase gamePhase = game.getPhase();
-        // log.info(" ¦ gamePhase: {}.", gamePhase);
-
-        // log.info(" ¦ Which Cards are Playable?");
-        // log.info(
-        // " ¦ MatchPlayer {} in matchPlayerSlot {}, playing in trick #{}.",
-        // matchPlayer.getInfo(),
-        // matchPlayer.getMatchPlayerSlot(),
-        // trickNumber);
-        // log.info("Trick so far: {}. Leading suit: {}. Phase: {}. Hearts {} broken.
-        // Current play order: {}.",
-        // trick,
-        // leadingSuit,
-        // gamePhase,
-        // heartsBroken ? "is" : "is not yet",
-        // playOrder,
-        // hand);
 
         // ### FACTS ESTABLISHED
 
@@ -255,13 +239,31 @@ public class CardRulesService {
 
     }
 
+    /**
+     * Validates whether the given card code can be legally played by the specified
+     * player in the current game state.
+     * The method checks the card's format, ensures it is among the playable cards
+     * for the player,
+     * and confirms the player actually holds the card in their hand.
+     *
+     * If any check fails, a {@link ResponseStatusException} with HTTP 400 (Bad
+     * Request) is thrown.
+     *
+     * @param game        the current game instance
+     * @param matchPlayer the player attempting to play a card
+     * @param cardCode    the card code being played (e.g., "QS", "7H")
+     * @throws ResponseStatusException if the card is invalid, unplayable, or not
+     *                                 held by the player
+     */
     public void validateMatchPlayerCardCode(Game game, MatchPlayer matchPlayer, String cardCode) {
         log.info("+++ VALIDATEPLAYERCARDCODE: Trick #{} +++", game.getCurrentTrickNumber());
         log.info("+ Game ID: {}, Player: {}, Attempting to play: {}, Hand: {}",
                 game.getGameId(), matchPlayer.getInfo(), cardCode, matchPlayer.getHand());
 
         // 1. Format check
-        CardUtils.isValidCardFormat(cardCode);
+        if (!CardUtils.isValidCardFormat(cardCode)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid card format: " + cardCode);
+        }
 
         // 2. Determine playability
         String playableCards = getPlayableCardsForMatchPlayerPlaying(game, matchPlayer);
@@ -348,6 +350,16 @@ public class CardRulesService {
         return winningSlot;
     }
 
+    /**
+     * Rotates the given list so that the element at the specified index becomes the
+     * first element.
+     * The relative order of the remaining elements is preserved.
+     *
+     * @param list  the list to rotate
+     * @param index the index of the element that should become the first element
+     * @param <T>   the type of elements in the list
+     * @return a new list with elements rotated to start from the specified index
+     */
     private <T> List<T> rotate(List<T> list, int index) {
         List<T> result = new ArrayList<>();
         result.addAll(list.subList(index, list.size()));
@@ -355,10 +367,30 @@ public class CardRulesService {
         return result;
     }
 
+    /**
+     * Extracts the suit character from the given card code.
+     * The suit is expected to be the last character of the card string (e.g., 'H'
+     * for Hearts).
+     *
+     * @param cardCode the card code to extract the suit from (e.g., "7H", "QS")
+     * @return the suit character (e.g., 'H', 'S', 'D', or 'C')
+     */
     private char getSuit(String cardCode) {
         return cardCode.charAt(cardCode.length() - 1);
     }
 
+    /**
+     * Extracts the numeric value of a card from its card code.
+     * Supports face cards ("J", "Q", "K", "A") and handles the special case of "0"
+     * representing 10,
+     * as used in some external APIs (e.g., "0C" for 10 of Clubs).
+     *
+     * @param cardCode the card code to extract the value from (e.g., "7H", "QC",
+     *                 "0D")
+     * @return the numeric value of the card (2–14)
+     * @throws IllegalArgumentException if the card code is invalid or the value
+     *                                  cannot be parsed
+     */
     private int getCardValue(String cardCode) {
         String valuePart = cardCode.substring(0, cardCode.length() - 1);
         switch (valuePart) {
@@ -382,9 +414,15 @@ public class CardRulesService {
     }
 
     /**
-     * Calculates the total points for a finished trick based on card codes, and
-     * updates the GAME_STATS relation.
-     * Hearts are 1 point each, Queen of Spades is 13 points.
+     * Calculates the total number of points in the current trick and assigns them
+     * to the winning player.
+     * Hearts are worth 1 point each, and the Queen of Spades is worth 13 points.
+     * Also updates game statistics to track which player received points for each
+     * card.
+     *
+     * @param game                  the game containing the current trick
+     * @param winnerMatchPlayerSlot the slot of the player who won the trick (1–4)
+     * @return the total number of points earned in the trick
      */
     public int calculateTrickPoints(Game game, int winnerMatchPlayerSlot) {
         List<String> finishedTrick = game.getCurrentTrick();
@@ -413,6 +451,22 @@ public class CardRulesService {
         return points;
     }
 
+    /**
+     * Determines the passing direction for a given game round based on the game
+     * number.
+     * The direction cycles every 4 rounds as follows:
+     * - Round 1: Pass to the left
+     * - Round 2: Pass across
+     * - Round 3: Pass to the right
+     * - Round 4: No passing
+     *
+     * The method returns a map indicating which match player slot passes cards to
+     * whom.
+     *
+     * @param gameNumber the number of the current game (starting from 1)
+     * @return a map from source match player slot to target match player slot;
+     *         empty if no passing is required
+     */
     public Map<Integer, Integer> determinePassingDirection(int gameNumber) {
         Map<Integer, Integer> passMap = new HashMap<>();
 
@@ -442,6 +496,17 @@ public class CardRulesService {
         return passMap;
     }
 
+    /**
+     * Ensures that Hearts are considered "broken" in the game once a Heart has been
+     * played.
+     * If the last card played in the current trick is a Heart and Hearts were not
+     * already broken,
+     * the game's state is updated accordingly.
+     *
+     * @param game the current game instance
+     * @return true if Hearts were just broken by this method; false if they were
+     *         already broken or no Heart was played
+     */
     public boolean ensureHeartBreak(Game game) {
         // Assumes that playing the card was legal!
         if (game.getHeartsBroken()) {
@@ -463,6 +528,15 @@ public class CardRulesService {
         return false;
     }
 
+    /**
+     * Determines whether the game is ready to transition to the result phase.
+     * A game is considered ready for results when all players have no cards left in
+     * hand.
+     *
+     * @param game the game to check
+     * @return true if all players have played all their cards; false otherwise
+     * @throws IllegalStateException if the game is not associated with a match
+     */
     public boolean isGameReadyForResults(Game game) {
         Match match = game.getMatch();
         if (match == null) {
@@ -480,6 +554,15 @@ public class CardRulesService {
         return totalCardsRemaining == 0;
     }
 
+    /**
+     * Checks whether a given card code is present in the list of playable cards.
+     *
+     * @param cardCode         the card code to check (e.g., "7H", "QS")
+     * @param playableCardsCsv a comma-separated string of playable card codes
+     *                         (e.g., "2C,QS,10H")
+     * @return true if the card code is included in the playable cards list; false
+     *         otherwise
+     */
     public static boolean isCardCodePlayable(String cardCode, String playableCardsCsv) {
         return Arrays.asList(playableCardsCsv.split(",")).contains(cardCode);
     }
@@ -503,9 +586,20 @@ public class CardRulesService {
     }
 
     /**
-     * Returns a message like "Cards will be passed from matchPlayerSlot X to
-     * matchPlayerSlot Y
-     * (left/right/across/no pass)"
+     * Provides a textual description of the passing direction for the given game
+     * round
+     * and player slot. The direction cycles based on the game number:
+     * - Game 1: pass to the left
+     * - Game 2: pass across
+     * - Game 3: pass to the right
+     * - Game 4: no passing
+     *
+     * If no passing is required this round, the message indicates so.
+     *
+     * @param gameNumber          the number of the current game (starting from 1)
+     * @param fromMatchPlayerSlot the slot of the player who is passing cards (1–4)
+     * @return a descriptive string indicating the target player and passing
+     *         direction
      */
     public String describePassingDirection(int gameNumber, int fromMatchPlayerSlot) {
         Map<Integer, Integer> passMap = determinePassingDirection(gameNumber);
@@ -550,6 +644,14 @@ public class CardRulesService {
                 gameNumber);
     }
 
+    /**
+     * Checks whether all cards in the given trick are Hearts.
+     * Returns false if the trick is empty, null, or contains any non-Heart cards.
+     *
+     * @param currentTrick the list of card codes representing the current trick
+     * @return true if all cards are valid and have the Heart suit ('H'); false
+     *         otherwise
+     */
     public boolean trickConsistsOnlyOfHearts(List<String> currentTrick) {
         if (currentTrick == null || currentTrick.isEmpty()) {
             return false;

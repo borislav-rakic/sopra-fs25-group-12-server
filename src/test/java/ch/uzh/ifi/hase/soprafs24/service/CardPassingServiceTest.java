@@ -29,6 +29,7 @@ import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
@@ -243,7 +244,7 @@ public class CardPassingServiceTest {
     void testCollectPassedCards_whenNotAllCardsPassed_throws() {
         when(passedCardRepository.findByGame(game)).thenReturn(List.of()); // fewer than 12
 
-        assertThrows(IllegalStateException.class, () -> cardPassingService.collectPassedCards(game));
+        assertThrows(GameplayException.class, () -> cardPassingService.collectPassedCards(game));
     }
 
     @Test
@@ -268,7 +269,7 @@ public class CardPassingServiceTest {
                                                                                                                 // failure
 
         // Should throw due to missing GameStat
-        assertThrows(IllegalStateException.class, () -> cardPassingService.collectPassedCards(game));
+        assertThrows(GameplayException.class, () -> cardPassingService.collectPassedCards(game));
     }
 
     @Test
@@ -279,7 +280,7 @@ public class CardPassingServiceTest {
 
         when(passedCardRepository.findByGame(game)).thenReturn(passedCards);
 
-        assertThrows(IllegalStateException.class, () -> cardPassingService.collectPassedCards(game));
+        assertThrows(GameplayException.class, () -> cardPassingService.collectPassedCards(game));
     }
 
     @Test

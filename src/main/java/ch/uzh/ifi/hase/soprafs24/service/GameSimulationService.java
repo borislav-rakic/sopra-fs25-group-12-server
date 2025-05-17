@@ -47,11 +47,6 @@ public class GameSimulationService {
         this.matchPlayerRepository = matchPlayerRepository;
     }
 
-    public void keeptThoseInjectionsUseful(Game game) {
-        cardRulesService.determineTrickWinner(game);
-        gameService.assignTwoOfClubsLeader(game);
-    }
-
     @Transactional
     public void autoPlayToLastTrickOfMatch(Match match, Game game) {
 
@@ -278,9 +273,11 @@ public class GameSimulationService {
         int second = random.nextInt(sum - first - 5) + 1;
         int third = sum - first - second;
         // I think none of them can be below zero, but anyway ...
-        if (first < 1 || second < 1 || third < 1) {
-            return generateRandomScores();
-        }
+        do {
+            first = random.nextInt(sum - 11) + 1;
+            second = random.nextInt(sum - first - 5) + 1;
+            third = sum - first - second;
+        } while (first < 1 || second < 1 || third < 1);
 
         // Sort parts to ensure valid distribution
         int[] parts = new int[] { first, second, third };
