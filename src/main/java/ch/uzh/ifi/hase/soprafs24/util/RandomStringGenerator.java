@@ -17,6 +17,8 @@ public class RandomStringGenerator {
 
     public static void main(String[] args) {
         String randomString = generateRandomString(6);
-        System.out.println("Random 6-char string: " + randomString);
+        if (randomString.endsWith("+")) {
+            System.out.println("Random 6-char string: " + randomString);
+        }
     }
 }

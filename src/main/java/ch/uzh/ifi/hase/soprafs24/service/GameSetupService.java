@@ -90,16 +90,17 @@ public class GameSetupService {
         }
 
         game.setPhase(GamePhase.WAITING_FOR_EXTERNAL_API);
-        log.info("💄 🦑 GameSetupService: GamePhase is set to WAITING_FOR_EXTERNAL_API.");
+        // log.info("💄 🦑 GameSetupService: GamePhase is set to
+        // WAITING_FOR_EXTERNAL_API.");
         gameRepository.save(game);
         gameRepository.flush(); // immediate DB write necessary, else the asynch might not find the game again.
 
         if (seed != null && seed != 0) {
-            log.info("  🦑 GameSetupService: Cards are determined internally.");
+            // log.info(" 🦑 GameSetupService: Cards are determined internally.");
             game.setDeckId(ExternalApiClientService.buildSeedString(seed));
             distributeCards(match, game, matchRepository, gameRepository, seed);
         } else {
-            log.info("  🦑 GameSetupService: Cards are fetched from remote API.");
+            // log.info(" 🦑 GameSetupService: Cards are fetched from remote API.");
             fetchDeckAndDistributeCardsAsync(matchRepository, gameRepository, match.getMatchId());
         }
 
@@ -119,7 +120,7 @@ public class GameSetupService {
      **/
     public void fetchDeckAndDistributeCardsAsync(MatchRepository matchRepository, GameRepository gameRepository,
             Long matchId) {
-        log.info("  🦑 GameSetupService fetchDeckAndDistributeCardsAsync");
+        // log.info(" 🦑 GameSetupService fetchDeckAndDistributeCardsAsync");
         Mono<NewDeckResponse> newDeckResponseMono = externalApiClientService.createNewDeck();
 
         newDeckResponseMono.subscribe(response -> {
@@ -134,7 +135,8 @@ public class GameSetupService {
             }
 
             Game game = games.get(0);
-            log.info("  🦑 GameSetupService: Deck ID was set to {}.", response.getDeck_id());
+            // log.info(" 🦑 GameSetupService: Deck ID was set to {}.",
+            // response.getDeck_id());
             game.setDeckId(response.getDeck_id());
             gameRepository.save(game);
             matchRepository.save(match);
@@ -153,7 +155,7 @@ public class GameSetupService {
                         "Expected one game in WAITING_FOR_EXTERNAL_API, found: " + games.size());
             }
 
-            log.info("  🦑 GameSetupService: Cards are determined internally.");
+            // log.info(" 🦑 GameSetupService: Cards are determined internally.");
 
             Game game = games.get(0);
 
@@ -315,27 +317,27 @@ public class GameSetupService {
      */
     private Game createNewGameInMatch(Match match, MatchRepository matchRepository, GameRepository gameRepository) {
         int nextGameNumber = determineNextGameNumber(match);
-        log.info("  🦑 GameSetupService createNewGameInMatch nextGameNumber={}.", nextGameNumber);
+        // log.info(" 🦑 GameSetupService createNewGameInMatch nextGameNumber={}.",
+        // nextGameNumber);
+
         Game game = new Game();
         game.setGameNumber(nextGameNumber);
         game.setPhase(GamePhase.PRESTART);
-        log.info("💄 GamePhase is set to PRESTART");
-        game.setCurrentPlayOrder(0); // answers the question, how many cards have been added into the trick?
+        game.setCurrentPlayOrder(0);
         game.setCurrentTrickNumber(1);
 
         match.addGame(game);
 
-        gameRepository.save(game);
-        gameRepository.flush();
+        gameRepository.saveAndFlush(game);
 
         match.setStarted(true);
         matchRepository.save(match);
+
         gameStatsService.initializeGameStats(match, game);
+
         log.info("  🦑 GameSetupService: Created new game {} (gamePhase={}) for match {} (matchPhase={}).",
-                game.getGameId(),
-                game.getPhase(),
-                match.getMatchId(),
-                match.getPhase());
+                game.getGameId(), game.getPhase(), match.getMatchId(), match.getPhase());
+
         return game;
     }
 

@@ -320,7 +320,7 @@ public class MatchServiceTest {
 
         verify(matchRepository).findMatchByMatchId(Mockito.anyLong());
         verify(userRepository).findUserByToken(Mockito.any());
-        verify(matchPlayerRepository).save(Mockito.any());
+        verify(matchPlayerRepository, times(5)).save(any());
         verify(gameService).advanceTrickPhaseIfOwnerPolling(Mockito.any());
         verify(gameRepository).save(Mockito.any());
         verify(matchSummaryService).buildMatchResultHtml(Mockito.any(), Mockito.any());

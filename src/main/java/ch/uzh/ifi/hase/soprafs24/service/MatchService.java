@@ -447,7 +447,7 @@ public class MatchService {
 
         // Sort players by ascending score
         List<MatchPlayer> sorted = players.stream()
-                .sorted(Comparator.comparingInt(MatchPlayer::getGameScore))
+                .sorted(Comparator.comparingInt(MatchPlayer::getMatchScore))
                 .toList();
 
         int rank = 1;
@@ -455,7 +455,7 @@ public class MatchService {
         int currentRank = 1;
 
         for (MatchPlayer player : sorted) {
-            int score = player.getGameScore();
+            int score = player.getMatchScore();
 
             if (score != currentScore) {
                 currentScore = score;
@@ -464,6 +464,10 @@ public class MatchService {
 
             player.setRankingInMatch(currentRank);
             matchPlayerRepository.save(player);
+
+            // Log player and rank in a clean format
+            log.info("RANKING Player: {}, MPSlot: , Score: {}, Rank: {}.",
+                    player.getUser().getUsername(), player.getMatchPlayerSlot(), score, currentRank);
 
             rank++;
         }
@@ -493,28 +497,35 @@ public class MatchService {
         // E. Average match ranking
 
         for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
+            String matchPlayerMatchSummary = "";
             int newlyGainedPoints = 0;
             User user = matchPlayer.getUser();
             int ranking = matchPlayer.getRankingInMatch();
             // A. Points for Ranking
             if (ranking == 1) {
                 newlyGainedPoints += 10.0f;
+                matchPlayerMatchSummary += "You ended up in first place: +10. Congrats! ";
             } else if (ranking == 2) {
                 newlyGainedPoints += 6.0f;
+                matchPlayerMatchSummary += "You ended up in first place: +6. Good Job! ";
             } else if (ranking == 3) {
                 newlyGainedPoints += 2.0f;
+                matchPlayerMatchSummary += "You ended up in third place: +2. ";
             } else if (ranking == 4) {
                 newlyGainedPoints += 1.0f;
+                matchPlayerMatchSummary += "You ended up in fourth place: -1. Sorry! ";
             }
             // B. AI bonus, only for human players
-            if (matchPlayer.getIsAiPlayer()) {
+            if (!matchPlayer.getIsAiPlayer() && ranking == 1) {
                 newlyGainedPoints += highestLevelOfAiPlayers(match) * 2.0f;
+                matchPlayerMatchSummary += "AI Bonus: +" + (int) (highestLevelOfAiPlayers(match) * 2.0f) + ". ";
             }
 
             // C. Points for perfect match
             if (matchPlayer.getMatchScore() == 0) {
                 user.setPerfectMatches(user.getPerfectMatches() + 1);
                 newlyGainedPoints += 20.0f;
+                matchPlayerMatchSummary += "You scored a perfect match: +20! ";
             }
             // D. number of matches played
             int oldMatchesPlayed = user.getMatchesPlayed();
@@ -536,10 +547,40 @@ public class MatchService {
             } else {
                 user.setCurrentMatchStreak(0);
             }
-            // G. Update Total Score
+            // G. Shot the Moon Count
+            int shotTheMoonCount = matchPlayer.getShotTheMoonCount();
+            if (shotTheMoonCount > 0) {
+                newlyGainedPoints += shotTheMoonCount * 2;
+                if (shotTheMoonCount == 1) {
+                    matchPlayerMatchSummary += "You shot the moon: +2! ";
+                } else {
+                    matchPlayerMatchSummary += "You shot the moon " + shotTheMoonCount + " times: "
+                            + (int) (shotTheMoonCount * 2) + "! ";
+                }
+            }
+
+            // H. Perfect Games.
+            int perfectGames = matchPlayer.getPerfectGames();
+            if (perfectGames > 0) {
+                newlyGainedPoints += perfectGames;
+                if (perfectGames == 1) {
+                    matchPlayerMatchSummary += "You had a perfect game: +1! ";
+                } else {
+                    matchPlayerMatchSummary += "You had " + perfectGames + " perfect games: "
+                            + (int) (perfectGames) + "! ";
+                }
+            }
+
+            // I. Update Total Score
             user.setScoreTotal(user.getScoreTotal() + newlyGainedPoints);
+            matchPlayerMatchSummary += "You gain " + (int) (newlyGainedPoints) + " points for this match and ";
+            matchPlayerMatchSummary += "your overall tally is now " + (int) (user.getScoreTotal()) + " points!";
+
+            log.info("About to call setMatchPlayerMatchSummary");
+            matchSummaryService.setMatchPlayerMatchSummary(match, matchPlayer, matchPlayerMatchSummary);
             userRepository.save(user);
         }
+        matchRepository.save(match);
 
     }
 
@@ -648,7 +689,7 @@ public class MatchService {
                 if (match.getPhase().inGame() && shouldEndMatch(match)) {
                     game.setPhase(GamePhase.FINISHED);
                     gameRepository.save(game);
-
+                    awardScoresToUsersOfFinishedMatch(match);
                     match.setPhase(MatchPhase.RESULT);
                     setExistingMatchSummaryOrCreateIt(match,
                             matchSummaryService.buildMatchResultHtml(match, game));

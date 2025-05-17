@@ -24,12 +24,9 @@ import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
-import ch.uzh.ifi.hase.soprafs24.entity.MatchSummary;
-import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
-import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
@@ -56,7 +53,6 @@ public class GameService {
     private final MatchMessageService matchMessageService;
     private final MatchPlayerRepository matchPlayerRepository;
     private final MatchSummaryService matchSummaryService;
-    private final UserRepository userRepository;
 
     // or via constructor injection
 
@@ -71,8 +67,7 @@ public class GameService {
             @Qualifier("matchMessageService") MatchMessageService matchMessageService,
             @Qualifier("matchRepository") MatchRepository matchRepository,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
-            @Qualifier("matchSummaryService") MatchSummaryService matchSummaryService,
-            @Qualifier("userRepository") UserRepository userRepository) {
+            @Qualifier("matchSummaryService") MatchSummaryService matchSummaryService) {
         this.aiPlayingService = aiPlayingService;
         this.cardPassingService = cardPassingService;
         this.cardRulesService = cardRulesService;
@@ -83,7 +78,6 @@ public class GameService {
         this.matchRepository = matchRepository;
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchSummaryService = matchSummaryService;
-        this.userRepository = userRepository;
 
     }
 

@@ -1,7 +1,5 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
-import java.time.Duration;
-import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,7 +14,6 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
-import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
@@ -290,15 +287,15 @@ public class PollingService {
         }
 
         return switch (match.getPhase()) {
-            case RESULT -> matchResultMessage(match);
-            case FINISHED -> matchFinishedMessage(match);
-            case ABORTED -> matchAbortedMessage(match);
+            case RESULT -> matchResultMessage(user, match);
+            case FINISHED -> matchFinishedMessage(user, match);
+            case ABORTED -> matchAbortedMessage(user, match);
             default -> throw new IllegalStateException(
                     "getPlayerPollingForPostMatchPhase called in unexpected MatchPhase: " + match.getPhase());
         };
     }
 
-    private PollingDTO matchResultMessage(Match match) {
+    private PollingDTO matchResultMessage(User user, Match match) {
         PollingDTO dto = new PollingDTO();
         dto.setHostId(match.getHostId());
         dto.setMatchId(match.getMatchId());
@@ -307,12 +304,15 @@ public class PollingService {
         dto.setPlayerPoints(match.getMatchScoresMap());
         dto.setGamePhase(GamePhase.FINISHED);
         dto.setMatchPhase(MatchPhase.FINISHED);
+
         MatchSummary matchSummary = match.getMatchSummary();
-        if (matchSummary != null) {
-            dto.setResultHtml(matchSummary.getMatchSummaryHtml());
+        if (matchSummary != null && matchSummary.getMatchSummaryHtml() != null) {
+            String rendered = renderFinalMatchSummaryHtml(user, match);
+            dto.setResultHtml(rendered);
         } else {
             dto.setResultHtml("<div>This match is over.</div>");
         }
+
         return dto;
     }
 
@@ -334,24 +334,55 @@ public class PollingService {
         return dto;
     }
 
-    private PollingDTO matchFinishedMessage(Match match) {
-        return matchResultMessage(match);
+    private PollingDTO matchFinishedMessage(User user, Match match) {
+        return matchResultMessage(user, match);
     }
 
-    private PollingDTO matchAbortedMessage(Match match) {
-        return matchResultMessage(match);
+    private PollingDTO matchAbortedMessage(User user, Match match) {
+        return matchResultMessage(user, match);
     }
 
     public PollingDTO getSpectatorPolling(User user, Match match) {
         if (match.getPhase() == MatchPhase.RESULT) {
-            return matchResultMessage(match);
+            return matchResultMessage(user, match);
         } else if (match.getPhase() == MatchPhase.FINISHED) {
-            return matchFinishedMessage(match);
+            return matchFinishedMessage(user, match);
         } else if (match.getPhase() == MatchPhase.ABORTED) {
-            return matchAbortedMessage(match);
+            return matchAbortedMessage(user, match);
         } else {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN,
                     "This match is ongoing, but you are not part of it.");
         }
     }
+
+    public String renderFinalMatchSummaryHtml(User user, Match match) {
+        MatchSummary summary = match.getMatchSummary();
+        if (summary == null || summary.getMatchSummaryHtml() == null) {
+            return "No summary available.";
+        }
+
+        String baseHtml = summary.getMatchSummaryHtml();
+        String personal = getPersonalizedMatchSummary(user, match);
+
+        return baseHtml.replace("<!--°-->",
+                personal != null ? "<div class=\"personalSummary\">" + personal + "</div>" : "");
+    }
+
+    public String getPersonalizedMatchSummary(User user, Match match) {
+        MatchSummary summary = match.getMatchSummary();
+        if (summary == null || user == null) {
+            return "No summary available.";
+        }
+
+        int slot = match.getSlotByPlayerId(user.getId()); // 1–4
+
+        return switch (slot) {
+            case 1 -> summary.getMatchSummaryMatchPlayerSlot1();
+            case 2 -> summary.getMatchSummaryMatchPlayerSlot2();
+            case 3 -> summary.getMatchSummaryMatchPlayerSlot3();
+            case 4 -> summary.getMatchSummaryMatchPlayerSlot4();
+            default -> "No summary found for your player slot.";
+        };
+    }
+
 }

@@ -160,21 +160,43 @@ public class MatchServiceExpandedTest {
     @Test
     public void testEstablishRankingOfMatchPlayersInMatch_correctRanksAssigned() {
         MatchPlayer mp1 = new MatchPlayer();
-        mp1.setGameScore(10);
+        mp1.setMatchScore(105); // Highest score, should get rank 4
+        mp1.setMatchPlayerSlot(1);
         MatchPlayer mp2 = new MatchPlayer();
-        mp2.setGameScore(5);
+        mp2.setMatchScore(95); // Second highest score, should get rank 3
+        mp2.setMatchPlayerSlot(2);
+        MatchPlayer mp3 = new MatchPlayer();
+        mp3.setMatchScore(85); // Second lowest score, should get rank 2
+        mp3.setMatchPlayerSlot(3);
+        MatchPlayer mp4 = new MatchPlayer();
+        mp4.setMatchScore(75); // Lowest score, should get rank 1
+        mp4.setMatchPlayerSlot(4);
+
+        // Ensure all MatchPlayers are correctly initialized with a User
+        mp1.setUser(new User()); // Mock users as needed
+        mp2.setUser(new User());
+        mp3.setUser(new User());
+        mp4.setUser(new User());
 
         List<MatchPlayer> players = new ArrayList<>();
         players.add(mp1);
         players.add(mp2);
+        players.add(mp3);
+        players.add(mp4);
 
         match.setMatchPlayers(players);
 
+        // Run the ranking logic
         matchService.establishRankingOfMatchPlayersInMatch(match);
 
-        verify(matchPlayerRepository, times(2)).save(any());
-        assertEquals(1, mp2.getRankingInMatch());
-        assertEquals(2, mp1.getRankingInMatch());
+        // Verify the save call - each player should be saved after ranking
+        verify(matchPlayerRepository, times(4)).save(any());
+
+        // Assert the ranks based on the sorted scores (lowest score = lowest rank)
+        assertEquals(1, mp4.getRankingInMatch()); // Lowest score should get Rank 1
+        assertEquals(2, mp3.getRankingInMatch()); // Second lowest score gets Rank 2
+        assertEquals(3, mp2.getRankingInMatch()); // Second highest score gets Rank 3
+        assertEquals(4, mp1.getRankingInMatch()); // Highest score should get Rank 4
     }
 
     @Test

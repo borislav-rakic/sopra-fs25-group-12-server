@@ -23,6 +23,18 @@ public class MatchSummary {
     @OneToOne(mappedBy = "matchSummary")
     private Match match;
 
+    @Column
+    String matchSummaryMatchPlayerSlot1;
+
+    @Column
+    String matchSummaryMatchPlayerSlot2;
+
+    @Column
+    String matchSummaryMatchPlayerSlot3;
+
+    @Column
+    String matchSummaryMatchPlayerSlot4;
+
     // Getters and setters
     public Long getId() {
         return id;
@@ -54,5 +66,37 @@ public class MatchSummary {
 
     public void setMatch(Match match) {
         this.match = match;
+    }
+
+    public String getMatchSummaryMatchPlayerSlot1() {
+        return matchSummaryMatchPlayerSlot1;
+    }
+
+    public void setMatchSummaryMatchPlayerSlot1(String matchSummaryMatchPlayerSlot1) {
+        this.matchSummaryMatchPlayerSlot1 = matchSummaryMatchPlayerSlot1;
+    }
+
+    public String getMatchSummaryMatchPlayerSlot2() {
+        return matchSummaryMatchPlayerSlot2;
+    }
+
+    public void setMatchSummaryMatchPlayerSlot2(String matchSummaryMatchPlayerSlot2) {
+        this.matchSummaryMatchPlayerSlot2 = matchSummaryMatchPlayerSlot2;
+    }
+
+    public String getMatchSummaryMatchPlayerSlot3() {
+        return matchSummaryMatchPlayerSlot3;
+    }
+
+    public void setMatchSummaryMatchPlayerSlot3(String matchSummaryMatchPlayerSlot3) {
+        this.matchSummaryMatchPlayerSlot3 = matchSummaryMatchPlayerSlot3;
+    }
+
+    public String getMatchSummaryMatchPlayerSlot4() {
+        return matchSummaryMatchPlayerSlot4;
+    }
+
+    public void setMatchSummaryMatchPlayerSlot4(String matchSummaryMatchPlayerSlot4) {
+        this.matchSummaryMatchPlayerSlot4 = matchSummaryMatchPlayerSlot4;
     }
 }

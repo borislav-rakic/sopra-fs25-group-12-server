@@ -163,8 +163,25 @@ public class MatchSummaryService {
       }
     }
     html += "</div>";
+    html += "<!--°-->";
     html += "</div>";
 
     return html;
+  }
+
+  public void setMatchPlayerMatchSummary(Match match, MatchPlayer matchPlayer, String theText) {
+    log.info("setMatchPlayerMatchSummary");
+    MatchSummary gs = match.getMatchSummary();
+    int matchPlayerSlot = matchPlayer.getMatchPlayerSlot();
+    if (matchPlayerSlot == 1) {
+      gs.setMatchSummaryMatchPlayerSlot1(theText);
+    } else if (matchPlayerSlot == 2) {
+      gs.setMatchSummaryMatchPlayerSlot2(theText);
+    } else if (matchPlayerSlot == 3) {
+      gs.setMatchSummaryMatchPlayerSlot3(theText);
+    } else if (matchPlayerSlot == 4) {
+      gs.setMatchSummaryMatchPlayerSlot4(theText);
+    }
+    log.info("Saved matchPlayerMatchSummary for slot {}: {}", matchPlayerSlot, theText);
   }
 }
