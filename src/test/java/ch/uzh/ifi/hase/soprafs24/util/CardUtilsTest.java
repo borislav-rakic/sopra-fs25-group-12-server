@@ -5,8 +5,10 @@ import ch.uzh.ifi.hase.soprafs24.constant.Rank;
 import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
+import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -133,5 +135,47 @@ public class CardUtilsTest {
     void cardCodeStringMinusCardCode_removesCorrectly() {
         String result = CardUtils.cardCodeStringMinusCardCode("KH,2H,2C", "2H");
         assertEquals("2C,KH", result);
+    }
+
+    @Test
+    void testValidateDrawnCards_validCards() {
+        List<CardResponse> cards = new ArrayList<>();
+
+        for (Rank rank : Rank.values()) {
+            for (Suit suit : Suit.values()) {
+                CardResponse cardResponse = new CardResponse();
+                cardResponse.setCode(rank.toString() + suit.toString());
+
+                cards.add(cardResponse);
+            }
+        }
+
+        boolean expected = true;
+
+        boolean actual = CardUtils.validateDrawnCards(cards);
+
+        assertEquals(expected, actual);
+    }
+
+    @Test
+    void testValidateDrawnCards_duplicateCards() {
+        List<CardResponse> cards = new ArrayList<>();
+
+        for (Rank rank : Rank.values()) {
+            for (Suit suit : Suit.values()) {
+                CardResponse cardResponse = new CardResponse();
+                cardResponse.setCode(rank.toString() + suit.toString());
+
+                cards.add(cardResponse);
+            }
+        }
+
+        cards.get(0).setCode("QS");
+
+        boolean expected = false;
+
+        boolean actual = CardUtils.validateDrawnCards(cards);
+
+        assertEquals(expected, actual);
     }
 }

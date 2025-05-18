@@ -198,6 +198,10 @@ public class GameSetupService {
         Mono<DrawCardResponse> drawCardResponseMono = externalApiClientService.drawCard(game.getDeckId(),
                 GameConstants.FULL_DECK_CARD_COUNT);
         drawCardResponseMono.subscribe(response -> {
+            if (!CardUtils.validateDrawnCards(response.getCards())) {
+                throw new IllegalStateException("Invalid cards in deck");
+            }
+
             // Manually draw fresh game object from DB.
             Game refreshedGame = gameRepository.findById(gameId)
                     .orElseThrow(() -> new EntityNotFoundException("Game not found with id: " + gameId));
