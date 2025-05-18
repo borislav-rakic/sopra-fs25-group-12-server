@@ -2,10 +2,13 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.Rank;
+import ch.uzh.ifi.hase.soprafs24.constant.Suit;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
+import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
 import ch.uzh.ifi.hase.soprafs24.model.DrawCardResponse;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
@@ -179,4 +182,58 @@ public class GameSetupServiceTest {
         });
     }
 
+    @Test
+    void testDistributeCards_invalidDeck() {
+        Game game = new Game();
+        Match match = new Match();
+
+        game.setMatch(match);
+        game.setGameId(1L);
+        game.setDeckId("1234");
+
+        MatchPlayer matchPlayer1 = new MatchPlayer();
+        matchPlayer1.setUser(new User());
+        MatchPlayer matchPlayer2 = new MatchPlayer();
+        matchPlayer2.setUser(new User());
+        MatchPlayer matchPlayer3 = new MatchPlayer();
+        matchPlayer3.setUser(new User());
+        MatchPlayer matchPlayer4 = new MatchPlayer();
+        matchPlayer4.setUser(new User());
+
+        match.setGames(Arrays.asList(game));
+        match.setMatchId(1L);
+        match.setMatchPlayers(Arrays.asList(matchPlayer1, matchPlayer2, matchPlayer3, matchPlayer4));
+
+        List<CardResponse> cards = new ArrayList<>();
+
+        for (Rank rank : Rank.values()) {
+            for (Suit suit : Suit.values()) {
+                CardResponse cardResponse = new CardResponse();
+                cardResponse.setCode(rank.toString() + suit.toString());
+
+                cards.add(cardResponse);
+            }
+        }
+
+        // Making a card appear two times in the deck to see the response of the function
+        cards.get(0).setCode("QS");
+
+        DrawCardResponse drawCardResponse = new DrawCardResponse();
+        drawCardResponse.setDeck_id("1234");
+        drawCardResponse.setRemaining(0);
+        drawCardResponse.setSuccess(true);
+        drawCardResponse.setCards(cards);
+
+        given(externalApiClientService.drawCard(Mockito.anyString(), Mockito.anyInt())).willReturn(Mono.just(drawCardResponse));
+        given(matchRepository.findMatchByMatchId(Mockito.anyLong())).willReturn(match);
+        given(gameRepository.findWaitingGameByMatchid(Mockito.anyLong())).willReturn(Arrays.asList(game));
+        given(matchPlayerRepository.saveAndFlush(Mockito.any())).willReturn(matchPlayer1, matchPlayer2, matchPlayer3, matchPlayer4);
+
+        gameSetupService.distributeCards(match, game, matchRepository, gameRepository, null);
+
+        verify(externalApiClientService, times(1)).drawCard(Mockito.anyString(), Mockito.anyInt());
+        verify(matchRepository, times(1)).findMatchByMatchId(Mockito.anyLong());
+        verify(gameRepository, times(1)).findWaitingGameByMatchid(Mockito.anyLong());
+        verify(matchPlayerRepository, times(8)).saveAndFlush(Mockito.any());
+    }
 }
