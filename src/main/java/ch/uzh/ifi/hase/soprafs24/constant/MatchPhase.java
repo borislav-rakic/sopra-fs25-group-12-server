@@ -24,4 +24,8 @@ public enum MatchPhase {
         return this == SETUP || this == READY || this == IN_PROGRESS || this == BETWEEN_GAMES || this == BEFORE_GAMES;
     }
 
+    public boolean doNotPollYet() {
+        return this == SETUP || this == READY || this == BEFORE_GAMES;
+    }
+
 }

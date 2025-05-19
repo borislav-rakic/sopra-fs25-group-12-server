@@ -664,7 +664,9 @@ public class MatchService {
         }
 
         // Are we still fine about the host being alive?
-        if (secondsSinceHostsLastPolling(match) > GameConstants.HOST_TIME_OUT_SECONDS) {
+        MatchPhase matchPhase = match.getPhase();
+        if (!matchPhase.doNotPollYet()
+                && secondsSinceHostsLastPolling(match) > GameConstants.HOST_TIME_OUT_SECONDS) {
             log.info("Host is not polling anymore.");
             findNewHumanHostOrAbortMatch(match);
         }
