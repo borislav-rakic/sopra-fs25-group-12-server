@@ -495,6 +495,11 @@ public class MatchService {
         // Scoring 0 points in an entire match: + 20 points
         // D. Number of matches played
         // E. Average match ranking
+        // F. Current Match Streak and Longest Match Streak
+        // G. Shot the Moon Count
+        // H. Perfect Games.
+        // I. Number of games played.
+        // J. Update Total Score
 
         for (MatchPlayer matchPlayer : match.getMatchPlayers()) {
             String matchPlayerMatchSummary = "";
@@ -557,6 +562,8 @@ public class MatchService {
                     matchPlayerMatchSummary += "You shot the moon " + shotTheMoonCount + " times: "
                             + (int) (shotTheMoonCount * 2) + "! ";
                 }
+                // Save moon shots with user.
+                user.setMoonShots(user.getMoonShots() + shotTheMoonCount);
             }
 
             // H. Perfect Games.
@@ -569,9 +576,14 @@ public class MatchService {
                     matchPlayerMatchSummary += "You had " + perfectGames + " perfect games: "
                             + (int) (perfectGames) + "! ";
                 }
+                // Save perfect games with user.
+                user.setPerfectGames(user.getPerfectGames() + perfectGames);
             }
+            // I. Number of games played
+            int numberOfGamesInThisMatch = match.getGames() != null ? match.getGames().size() : 0;
+            user.setGamesPlayed(user.getGamesPlayed() + numberOfGamesInThisMatch);
 
-            // I. Update Total Score
+            // J. Update Total Score
             user.setScoreTotal(user.getScoreTotal() + newlyGainedPoints);
             matchPlayerMatchSummary += "You gain " + (int) (newlyGainedPoints) + " points for this match and ";
             matchPlayerMatchSummary += "your overall tally is now " + (int) (user.getScoreTotal()) + " points!";
