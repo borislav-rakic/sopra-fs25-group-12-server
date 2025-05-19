@@ -1,12 +1,9 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.*;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -15,6 +12,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -324,4 +322,64 @@ public class MatchSetupServiceTest {
         assertEquals(joinRequestDTOs.get(0).getStatus(), result.get(0).getStatus());
     }
 
+    @Test
+    public void testRemovePlayer() {
+        MatchPlayer matchPlayer2 = new MatchPlayer();
+        matchPlayer2.setMatchPlayerSlot(2);
+        matchPlayer2.setUser(new User());
+        matchPlayer2.getUser().setId(12L);
+        match.setPlayer2(matchPlayer2.getUser());
+        match.getMatchPlayers().add(matchPlayer2);
+
+        when(matchRepository.findById(Mockito.anyLong())).thenReturn(Optional.of(match));
+        when(matchRepository.save(Mockito.any())).thenReturn(match);
+
+        assertEquals(match.getPlayer2(), matchPlayer2.getUser());
+
+        matchSetupService.removePlayer(1L, 1);
+
+        assertNull(match.getPlayer2());
+    }
+
+    @Test
+    public void testSetMatchPhaseToReadyIfAppropriate_inProgress() {
+        match.setHostId(user.getId());
+        match.setPhase(MatchPhase.SETUP);
+        match.setPlayer2(new User());
+        match.setPlayer3(new User());
+        match.setPlayer4(new User());
+
+        when(matchRepository.save(Mockito.any())).thenReturn(match);
+
+        assertEquals(match.getPhase(), MatchPhase.SETUP);
+
+        matchSetupService.setMatchPhaseToReadyIfAppropriate(match, user);
+
+        assertEquals(match.getPhase(), MatchPhase.READY);
+    }
+
+    @Test
+    public void testStartMatch() {
+        match.setHostId(user.getId());
+        match.setPhase(MatchPhase.SETUP);
+        match.setPlayer2(new User());
+        match.setPlayer3(new User());
+        match.setPlayer4(new User());
+
+        when(matchRepository.save(Mockito.any())).thenReturn(match);
+
+        when(userService.requireUserByToken(Mockito.anyString())).thenReturn(user);
+        when(matchRepository.findMatchForUpdate(Mockito.anyLong())).thenReturn(match);
+        when(gameSetupService.createAndStartGameForMatch(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any()))
+                .thenReturn(new Game());
+        when(gameRepository.save(Mockito.any())).thenReturn(new Game());
+
+        matchSetupService.startMatch(1L, "1234", null);
+
+        verify(matchRepository, times(2)).save(Mockito.any());
+        verify(userService, times(1)).requireUserByToken(Mockito.anyString());
+        verify(gameSetupService, times(1))
+                .createAndStartGameForMatch(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+        verify(gameRepository, times(1)).save(Mockito.any());
+    }
 }
