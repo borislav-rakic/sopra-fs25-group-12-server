@@ -665,7 +665,7 @@ public class MatchService {
 
         // Are we still fine about the host being alive?
         MatchPhase matchPhase = match.getPhase();
-        if (!matchPhase.doNotPollYet()
+        if (!matchPhase.doNotFeelPulseYet()
                 && secondsSinceHostsLastPolling(match) > GameConstants.HOST_TIME_OUT_SECONDS) {
             log.info("Host is not polling anymore.");
             findNewHumanHostOrAbortMatch(match);
@@ -1120,7 +1120,8 @@ public class MatchService {
         for (MatchPlayer mp : match.getMatchPlayers()) {
             if (!mp.getIsAiPlayer() && !mp.getIsHost()) {
                 Duration durationSinceLastPulse = Duration.between(mp.getLastPollTime(), Instant.now());
-                if (durationSinceLastPulse.toSeconds() > GameConstants.NON_HOST_TIME_OUT_SECONDS) {
+                if (match.getPhase().doNotFeelPulseYet()
+                        && durationSinceLastPulse.toSeconds() > GameConstants.NON_HOST_TIME_OUT_SECONDS) {
                     log.info(
                             "MatchPlayerId={} in Match={} (MatchPlayerSlot={}) has not polled in more than {} s and is replaced by an AI Player.",
                             mp.getMatchPlayerId(),
