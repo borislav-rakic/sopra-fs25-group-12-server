@@ -340,7 +340,7 @@ public class MatchServiceExpandedTest {
         matchService.confirmGameResult("token123", 1L);
 
         assertEquals(MatchPhase.FINISHED, match.getPhase());
-        verify(matchRepository).save(match);
+        verify(matchRepository).saveAndFlush(any(Match.class));
     }
 
     @Test

@@ -924,6 +924,21 @@ public class MatchService {
 
         MatchPhase phase = match.getPhase();
 
+        if (phase == MatchPhase.FINISHED || phase == MatchPhase.ABORTED) {
+            // If user was part of the match, confirm their slot
+            if (match.containsPlayer(user.getId())) {
+                int slot = match.getSlotByPlayerId(user.getId());
+                if (slot != -1) {
+                    match.addSlotDidConfirm(slot);
+                    matchRepository.saveAndFlush(match);
+                    log.info("Slot {} confirmed final game result after match finished.", slot);
+                }
+            } else {
+                log.info("User {} is not part of finished/aborted match. Ignored.", user.getId());
+            }
+            return;
+        }
+
         // Early exit if no confirmation needed
         if (phase == MatchPhase.FINISHED || phase == MatchPhase.ABORTED) {
             log.info("Match already finished or aborted. No further confirmation needed.");
@@ -932,9 +947,9 @@ public class MatchService {
 
         // Handle match result confirmation
         if (phase == MatchPhase.RESULT) {
-            Integer slot = getMatchPlayerSlotForUser(match, user);
-            if (slot == null) {
-                log.info("User {} is not a match participant. Ignoring.", user.getId());
+            int slot = match.getSlotByPlayerId(user.getId());
+            if (slot == -1) {
+                log.info("User {} not found in player1–4 for RESULT phase", user.getId());
                 return;
             }
 
@@ -944,7 +959,6 @@ public class MatchService {
 
                 // Transition to FINISHED after first confirmation
                 match.setPhase(MatchPhase.FINISHED);
-                matchRepository.save(match);
                 log.info("Match marked as FINISHED.");
                 handleMatchInResultPhaseOrAborted(match);
             }
@@ -960,6 +974,7 @@ public class MatchService {
 
         player.setReady(true);
         matchPlayerRepository.save(player);
+        matchRepository.saveAndFlush(match);
         log.info("MatchPlayer id={} in slot={} set to ready.", user.getId(), player.getMatchPlayerSlot());
 
         boolean allHumansReady = match.getMatchPlayers().stream()
