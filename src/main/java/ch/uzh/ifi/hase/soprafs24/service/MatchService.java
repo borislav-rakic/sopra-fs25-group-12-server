@@ -512,7 +512,7 @@ public class MatchService {
                 matchPlayerMatchSummary += "You ended up in first place: +10. Congrats! ";
             } else if (ranking == 2) {
                 newlyGainedPoints += 6.0f;
-                matchPlayerMatchSummary += "You ended up in first place: +6. Good Job! ";
+                matchPlayerMatchSummary += "You ended up in second place: +6. Good Job! ";
             } else if (ranking == 3) {
                 newlyGainedPoints += 2.0f;
                 matchPlayerMatchSummary += "You ended up in third place: +2. ";
