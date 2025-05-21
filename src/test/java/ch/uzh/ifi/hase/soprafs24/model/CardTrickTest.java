@@ -32,10 +32,10 @@ public class CardTrickTest {
     @Test
     void testAddCardCodeUnderLimit() {
         CardTrick trick = new CardTrick("");
-        trick.addCardCode("A");
-        trick.addCardCode("K");
-        trick.addCardCode("Q");
-        trick.addCardCode("J");
+        trick.addCardCode("AS");
+        trick.addCardCode("KC");
+        trick.addCardCode("QD");
+        trick.addCardCode("JC");
         assertEquals(4, trick.size());
     }
 

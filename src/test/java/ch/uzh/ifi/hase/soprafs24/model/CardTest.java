@@ -24,14 +24,15 @@ public class CardTest {
     @Test
     void testSetCodeValidThreeChar() {
         Card card = new Card();
-        card.setCode("10S");
+        card.setCode("0S");
 
-        assertEquals("10S", card.getCode());
-        assertEquals("10", card.getRank());
+        assertEquals("0S", card.getCode());
+        assertEquals("0", card.getRank());
         assertEquals("S", card.getSuit());
         assertEquals("Spades", card.getSuitName());
-        assertEquals(0, card.getValue()); // "10" maps to 0 in calculateValue()
-        assertEquals(CardUtils.calculateCardOrder("10S"), card.getCardOrder());
+        assertEquals(10, card.getValue());
+        assertEquals(CardUtils.calculateCardOrder("0S"), card.getCardOrder());
+        assertEquals(CardUtils.calculateCardOrder("0S"), 60);
     }
 
     @Test
@@ -92,7 +93,7 @@ public class CardTest {
     void testCalculateValueDefault() {
         Card card = new Card();
         card.setCode("0H");
-        assertEquals(0, card.getValue()); // Triggers the default branch
+        assertEquals(10, card.getValue()); // Triggers the default branch
     }
 
 }

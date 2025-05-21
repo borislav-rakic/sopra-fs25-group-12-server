@@ -259,11 +259,12 @@ public class PollingService {
                     matchPlayer.getMatchPlayerSlot());
             // ofset by -1 for frontend-logic
             dto.setPassingToPlayerSlot(passingToMatchPlayerSlot - 1);
-            log.info("Getting info on my (MPSlot={}) passing in Game#{}, to: {} in MatchPlayerSlot={}.",
-                    matchPlayer.getMatchPlayerSlot(),
-                    game.getGameNumber(),
-                    passingInfo,
-                    passingToMatchPlayerSlot);
+            // log.info("Getting info on my (MPSlot={}) passing in Game#{}, to: {} in
+            // MatchPlayerSlot={}.",
+            // matchPlayer.getMatchPlayerSlot(),
+            // game.getGameNumber(),
+            // passingInfo,
+            // passingToMatchPlayerSlot);
         } else {
             dto.setPassingInfo("");
             dto.setPassingToPlayerSlot(null);

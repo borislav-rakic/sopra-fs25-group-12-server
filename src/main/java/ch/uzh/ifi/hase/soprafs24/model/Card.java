@@ -45,9 +45,9 @@ public class Card {
     private String extractRank(String code) {
         if (code.length() == 2) {
             String firstChar = code.substring(0, 1);
-            return firstChar.equals("0") ? "10" : firstChar;
+            return firstChar.equals("0") ? "0" : firstChar;
         } else if (code.length() == 3) {
-            return "10";
+            return "0";
         }
         return "Unknown";
     }

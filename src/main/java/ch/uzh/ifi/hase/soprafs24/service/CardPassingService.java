@@ -25,6 +25,7 @@ import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
+import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -87,6 +88,9 @@ public class CardPassingService {
         }
         validateAllCardsPassed(match, game);
 
+        log.info("Checking cards distribution BEFORE passing.");
+        cardRulesService.validateUniqueDeckAcrossPlayers(match);
+
         List<PassedCard> passedCards = passedCardRepository.findByGame(game);
         Map<Integer, List<PassedCard>> cardsByMatchPlayerSlot = mapPassedCardsByMatchPlayerSlot(passedCards);
 
@@ -96,6 +100,7 @@ public class CardPassingService {
         // Delete passed cards
         passedCardRepository.deleteAll(passedCards);
         passedCardRepository.flush();
+
     }
 
     /**
@@ -172,7 +177,7 @@ public class CardPassingService {
 
                 // Add the card to receiver
                 receiver.addCardCodeToHand(cardCode);
-
+                receiver.setHand(CardUtils.normalizeCardCodeString(receiver.getHand()));
                 // Update GameStats: passedBy and passedTo
                 GameStats gameStat = gameStatsRepository.findByRankSuitAndGameAndCardHolder(cardCode, game,
                         fromMatchPlayerSlot);
@@ -184,6 +189,9 @@ public class CardPassingService {
                     throw new GameplayException("Card passing failed: no tracking data for " + cardCode);
                 }
             }
+
+            receiver.setHand(CardUtils.normalizeCardCodeString(receiver.getHand()));
+            sender.setHand(CardUtils.normalizeCardCodeString(sender.getHand()));
 
             // Save sender and receiver after their hand changes
             matchPlayerRepository.save(sender);

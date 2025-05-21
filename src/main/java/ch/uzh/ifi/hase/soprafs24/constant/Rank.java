@@ -16,9 +16,6 @@ public enum Rank {
     }
 
     public static Rank fromSymbol(String symbol) {
-        if ("10".equals(symbol)) {
-            symbol = "0";
-        }
         for (Rank rank : values()) {
             if (rank.getSymbol().equals(symbol)) {
                 return rank;

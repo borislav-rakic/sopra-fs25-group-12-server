@@ -2,6 +2,8 @@ package ch.uzh.ifi.hase.soprafs24.model;
 
 import java.util.*;
 
+import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
+
 public class CardTrick {
     private final List<String> cards;
 
@@ -17,7 +19,11 @@ public class CardTrick {
         if (cards.size() >= 4) {
             throw new IllegalStateException("Trick already has 4 cards.");
         }
-        cards.add(cardCode);
+        if (CardUtils.isValidCardFormat(cardCode)) {
+            cards.add(cardCode);
+        } else {
+            throw new IllegalStateException(String.format("There is no such card in this game: %s.", cardCode));
+        }
     }
 
     public List<String> asList() {

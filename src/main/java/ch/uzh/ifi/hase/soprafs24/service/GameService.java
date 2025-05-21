@@ -621,6 +621,9 @@ public class GameService {
             gameRepository.save(game);
             log.info("/// READY TO PLAY FIRST TRICK ///");
 
+            log.info("Checking cards distribution AFTER passing.");
+            cardRulesService.validateUniqueDeckAcrossPlayers(game.getMatch());
+
         }
         gameRepository.saveAndFlush(game);
     }

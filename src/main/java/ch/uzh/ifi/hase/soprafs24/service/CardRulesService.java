@@ -3,8 +3,10 @@ package ch.uzh.ifi.hase.soprafs24.service;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -436,7 +438,7 @@ public class CardRulesService {
         for (String cardCode : finishedTrick) {
             Card card = CardUtils.fromCode(cardCode);
             String suit = card.getSuit(); // "H", "D", "S", "C"
-            String rank = card.getRank(); // "2", "3", ..., "Q", "K", "A", "10"
+            String rank = card.getRank(); // "2", "3", ..., "0", "J", "Q", "K", "A"
 
             if ("H".equals(suit)) {
                 points += 1; // Each Heart is 1 point
@@ -492,7 +494,8 @@ public class CardRulesService {
             default: // No pass
                 break;
         }
-        log.info("the passMapp is that of case {}.", gameNumber % GameConstants.MAX_TRICK_SIZE);
+        // log.info("the passMap is that of case {}.", gameNumber %
+        // GameConstants.MAX_TRICK_SIZE);
         return passMap;
     }
 
@@ -638,7 +641,7 @@ public class CardRulesService {
         if (toMatchPlayerSlot == null) {
             return String.format("No passing this round (Game #%s).", gameNumber);
         }
-        log.info("toMatchPlayerSlot is {}.", toMatchPlayerSlot);
+        // log.info("toMatchPlayerSlot is {}.", toMatchPlayerSlot);
         return String.format("Your cards will be passed to %s (Game #%s).",
                 match.getNameForMatchPlayerSlot(toMatchPlayerSlot),
                 gameNumber);
@@ -669,6 +672,69 @@ public class CardRulesService {
         }
 
         return true;
+    }
+
+    public void validateUniqueDeckAcrossPlayers(Match match) {
+        if (match == null || match.getMatchPlayers() == null) {
+            System.err.println("Match or match players are null — cannot validate deck.");
+            return;
+        }
+
+        // 1. Define standard 52-card deck
+        List<String> suits = List.of("S", "H", "D", "C");
+        List<String> ranks = List.of("2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "A");
+
+        Set<String> expectedDeck = new HashSet<>();
+        for (String suit : suits) {
+            for (String rank : ranks) {
+                expectedDeck.add(rank + suit);
+            }
+        }
+
+        // 2. Gather all cards from all match players
+        List<String> allCards = new ArrayList<>();
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            String handString = mp.getHand(); // returns a string like "2H,3H,4H"
+
+            if (handString == null || handString.isBlank()) {
+                System.err.println("MatchPlayer (slot " + mp.getMatchPlayerSlot() + ") has no hand.");
+                continue;
+            }
+
+            String[] cards = handString.split(",");
+            if (cards.length != 13) {
+                System.err.println("MatchPlayer (slot " + mp.getMatchPlayerSlot() + ") does not have 13 cards, but "
+                        + cards.length + " cards [" + handString + "].");
+            }
+            for (String card : cards) {
+                allCards.add(card.trim());
+            }
+        }
+
+        // 3. Check card count
+        if (allCards.size() != 52) {
+            System.err.println("Total number of cards is " + allCards.size() + " (expected 52)");
+        }
+
+        // 4. Check for duplicates
+        Set<String> seen = new HashSet<>();
+        for (String card : allCards) {
+            if (!seen.add(card)) {
+                System.err.println("Duplicate card found: " + card);
+            }
+        }
+
+        // 5. Check for missing cards
+        for (String card : expectedDeck) {
+            if (!seen.contains(card)) {
+                System.err.println("Missing card: " + card);
+            }
+        }
+
+        // 6. Success message
+        if (seen.size() == 52 && allCards.size() == 52) {
+            System.out.println("Deck is valid: all 52 unique cards are present.");
+        }
     }
 
 }

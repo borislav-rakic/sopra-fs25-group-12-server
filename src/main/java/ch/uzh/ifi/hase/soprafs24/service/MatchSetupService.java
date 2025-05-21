@@ -215,9 +215,10 @@ public class MatchSetupService {
 
         // Safe to proceed
         match.setPhase(MatchPhase.BEFORE_GAMES);
-        matchRepository.save(match);
 
         match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
+        match.getMatchPlayers().forEach(MatchPlayer::updateLastPollTime);
+        matchRepository.save(match);
 
         Game game = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, seed);
         gameRepository.save(game);

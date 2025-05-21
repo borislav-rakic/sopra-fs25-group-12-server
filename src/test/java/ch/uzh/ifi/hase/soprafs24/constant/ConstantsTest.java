@@ -101,7 +101,7 @@ public class ConstantsTest {
     void testRankEnumConversion() {
         assertEquals("Q", Rank.Q.getSymbol());
         assertEquals(Rank.Q, Rank.fromSymbol("Q"));
-        assertEquals(Rank._0, Rank.fromSymbol("10"));
+        assertEquals(Rank._0, Rank.fromSymbol("0"));
         assertThrows(IllegalArgumentException.class, () -> Rank.fromSymbol("Z"));
     }
 
