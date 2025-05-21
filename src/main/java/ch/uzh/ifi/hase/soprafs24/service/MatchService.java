@@ -1132,7 +1132,7 @@ public class MatchService {
         for (MatchPlayer mp : match.getMatchPlayers()) {
             if (!mp.getIsAiPlayer() && !mp.getIsHost()) {
                 Duration durationSinceLastPulse = Duration.between(mp.getLastPollTime(), Instant.now());
-                if (match.getPhase().doNotFeelPulseYet()
+                if (!match.getPhase().doNotFeelPulseYet()
                         && durationSinceLastPulse.toSeconds() > GameConstants.NON_HOST_TIME_OUT_SECONDS) {
                     log.info(
                             "MatchPlayerId={} in Match={} (MatchPlayerSlot={}) has not polled in more than {} s and is replaced by an AI Player.",
