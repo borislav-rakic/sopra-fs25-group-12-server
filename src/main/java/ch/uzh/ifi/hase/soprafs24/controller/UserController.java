@@ -49,6 +49,13 @@ public class UserController {
     throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
   }
 
+  private String extractTokenOrReturnNull(String authHeader) {
+    if (authHeader != null && authHeader.startsWith("Bearer ")) {
+      return authHeader.substring(7); // remove "Bearer "
+    }
+    return null;
+  }
+
   /**
    * Retrieves the list of all users.
    */
@@ -117,9 +124,19 @@ public class UserController {
    */
   @GetMapping("/users/{userId}")
   @ResponseStatus(HttpStatus.OK)
-  public UserGetDTO getUserById(@PathVariable Long userId) {
-    User user = userService.getUserById(userId);
-    return DTOMapper.INSTANCE.convertEntityToUserGetDTO(user);
+  public UserGetDTO getUserById(@PathVariable Long userId,
+      @RequestHeader(value = "Authorization", required = false) String authHeader) {
+    String token = extractTokenOrReturnNull(authHeader);
+    Long currentUserId = userService.getUserIdFromTokenOrNull(token);
+
+    User requestedUser = userService.getUserById(userId); // Should throw 404 if not found
+
+    boolean isMe = currentUserId != null && userId.equals(currentUserId);
+
+    UserGetDTO dto = DTOMapper.INSTANCE.convertEntityToUserGetDTO(requestedUser);
+    dto.setIsMe(isMe);
+
+    return dto;
   }
 
   /**

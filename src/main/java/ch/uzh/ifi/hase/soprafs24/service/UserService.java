@@ -99,6 +99,17 @@ public class UserService {
     return user.getId();
   }
 
+  public Long getUserIdFromTokenOrNull(String token) {
+    if (token == null) {
+      return null;
+    }
+    User user = userRepository.findUserByToken(token);
+    if (user == null) {
+      return null;
+    }
+    return user.getId();
+  }
+
   public User requireUserByToken(String token) {
     User user = userRepository.findUserByToken(token);
     if (user == null) {

@@ -82,6 +82,7 @@ public interface DTOMapper {
   @Mapping(source = "longestGameStreak", target = "longestGameStreak")
   @Mapping(source = "currentMatchStreak", target = "currentMatchStreak")
   @Mapping(source = "longestMatchStreak", target = "longestMatchStreak")
+  @Mapping(target = "isMe", ignore = true)
   UserGetDTO convertEntityToUserGetDTO(User user);
 
   @Mapping(target = "id", ignore = true)

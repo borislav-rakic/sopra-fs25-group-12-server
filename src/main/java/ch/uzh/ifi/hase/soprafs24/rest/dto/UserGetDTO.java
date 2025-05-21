@@ -26,6 +26,7 @@ public class UserGetDTO {
   private int longestGameStreak;
   private int currentMatchStreak;
   private int longestMatchStreak;
+  private boolean isMe;
 
   public UserGetDTO() {
     // default constructor required by mapping libraries
@@ -207,5 +208,13 @@ public class UserGetDTO {
 
   public void setLongestMatchStreak(int longestMatchStreak) {
     this.longestMatchStreak = longestMatchStreak;
+  }
+
+  public boolean isMe() {
+    return isMe;
+  }
+
+  public void setIsMe(boolean isMe) {
+    this.isMe = isMe;
   }
 }
