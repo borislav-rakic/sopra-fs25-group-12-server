@@ -90,8 +90,14 @@ public class MatchController {
      */
     @GetMapping("/matches/{matchId}")
     @ResponseStatus(HttpStatus.OK)
-    public MatchDTO getMatchDTO(@PathVariable Long matchId) {
-        return matchService.getMatchDTO(matchId);
+    public MatchDTO getMatchDTO(@PathVariable Long matchId,
+            @RequestHeader(value = "Authorization", required = false) String authHeader) {
+        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Missing or invalid Authorization header");
+        }
+
+        String token = authHeader.substring(7); // safely extract token
+        return matchService.getMatchDTO(matchId, token);
     }
 
     /**

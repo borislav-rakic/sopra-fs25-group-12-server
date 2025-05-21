@@ -1,6 +1,7 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
@@ -165,32 +166,71 @@ public class MatchServiceTest {
 
     @Test
     public void testGetMatchDTOError() {
+        String dummyToken = "dummyToken";
+
+        // Mock token lookup to return a valid user (or null if testing auth failure)
+        User dummyUser = new User();
+        dummyUser.setId(99L); // some test ID
+        when(userService.getUserByToken(dummyToken)).thenReturn(dummyUser);
+
+        // Mock match repository to simulate missing match
         when(matchRepository.findMatchByMatchId(1L)).thenReturn(null);
 
         assertThrows(
                 ResponseStatusException.class,
-                () -> matchService.getMatchDTO(1L),
-                "Expected getMatchDTO to throw an exception");
+                () -> matchService.getMatchDTO(1L, dummyToken),
+                "Expected getMatchDTO to throw ResponseStatusException for nonexistent match");
     }
 
     @Test
     public void testGetMatchDTOSuccess() {
+        String token = "dummyToken";
+
+        // 1. Prepare mock user
+        User user = new User();
+        user.setId(11L);
+        user.setUsername("user1");
+        user.setToken(token);
+
+        // 2. Prepare match and assign user to slot 1
+        Match match = new Match();
+        match.setMatchId(1L);
+        match.setHostId(11L);
+        match.setHostUsername("user1");
+        match.setMatchGoal(100);
+        match.setStarted(false);
+        match.setPlayer1(user); // <-- This is important to pass the "isUserInMatch" check
+
+        // 3. Prepare MatchPlayer
+        MatchPlayer mp1 = new MatchPlayer();
+        mp1.setMatchPlayerId(42L);
+        mp1.setMatchPlayerSlot(1);
+        mp1.setUser(user);
+        List<MatchPlayer> matchPlayers = List.of(mp1);
+        match.setMatchPlayers(matchPlayers);
+
+        // 4. Mock dependencies
+        when(userService.getUserByToken(token)).thenReturn(user);
         when(matchRepository.findMatchByMatchId(1L)).thenReturn(match);
 
-        MatchDTO result = matchService.getMatchDTO(1L);
+        // 5. Call service
+        MatchDTO result = matchService.getMatchDTO(1L, token);
 
-        assertEquals(match.getMatchId(), result.getMatchId());
-        assertEquals(match.getHostId(), result.getHostId());
-        assertEquals(match.getHostUsername(), result.getHostUsername());
-        assertEquals(match.getMatchGoal(), result.getMatchGoal());
-        assertEquals(match.getStarted(), result.getStarted());
+        // 6. Verify result
+        assertEquals(1L, result.getMatchId());
+        assertEquals(11L, result.getHostId());
+        assertEquals("user1", result.getHostUsername());
+        assertEquals(100, result.getMatchGoal());
+        assertFalse(result.getStarted());
 
-        // Check if player names map was set correctly
-        for (MatchPlayer mp : match.getMatchPlayers()) {
-            int slotIndex = mp.getMatchPlayerSlot() - 1; // slot 1 → index 0
-            String username = mp.getUser().getUsername();
-            assertEquals(username, result.getPlayerNames().get(slotIndex));
-        }
+        // 7. Verify player names
+        assertEquals("user1", result.getPlayerNames().get(0));
+        assertEquals("", result.getPlayerNames().get(1));
+        assertEquals("", result.getPlayerNames().get(2));
+        assertEquals("", result.getPlayerNames().get(3));
+
+        // 8. Verify matchPlayerIds (should be list of Longs!)
+        assertEquals(List.of(42L), result.getMatchPlayerIds());
     }
 
     @Test
@@ -410,8 +450,21 @@ public class MatchServiceTest {
 
     @Test
     void getMatchDTO_notFound_throws() {
+        String token = "dummyToken";
+
+        // Mock a valid user from token
+        User user = new User();
+        user.setId(1L);
+        when(userService.getUserByToken(token)).thenReturn(user);
+
+        // Simulate match not found
         when(matchRepository.findMatchByMatchId(42L)).thenReturn(null);
-        assertThrows(ResponseStatusException.class, () -> matchService.getMatchDTO(42L));
+
+        // Assert 404 is thrown
+        ResponseStatusException thrown = assertThrows(ResponseStatusException.class,
+                () -> matchService.getMatchDTO(42L, token));
+
+        assertEquals(HttpStatus.NOT_FOUND, thrown.getStatus());
     }
 
     @Test

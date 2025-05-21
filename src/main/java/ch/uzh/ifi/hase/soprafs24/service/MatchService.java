@@ -97,10 +97,16 @@ public class MatchService {
         return matchRepository.findAll();
     }
 
-    public MatchDTO getMatchDTO(Long matchId) {
+    public MatchDTO getMatchDTO(Long matchId, String token) {
+        User user = userService.getUserByToken(token);
+        if (user == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Invalid token");
+        }
         Match match = matchRepository.findMatchByMatchId(matchId);
         if (match == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Match not found");
+        } else if (!isUserInMatch(user, match)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Player is not part of this match.");
         }
 
         MatchDTO dto = DTOMapper.INSTANCE.convertEntityToMatchDTO(match);
@@ -114,6 +120,20 @@ public class MatchService {
                 || match.getPlayer4() == null);
 
         return dto;
+    }
+
+    /**
+     * States if user is part of given match.
+     * 
+     * @param user  Relevant User object.
+     * @param match Relevant Match object.
+     * @return true, if user is part of match, else false.
+     **/
+    private boolean isUserInMatch(User user, Match match) {
+        return (match.getPlayer1() != null && match.getPlayer1().getId().equals(user.getId()))
+                || (match.getPlayer2() != null && match.getPlayer2().getId().equals(user.getId()))
+                || (match.getPlayer3() != null && match.getPlayer3().getId().equals(user.getId()))
+                || (match.getPlayer4() != null && match.getPlayer4().getId().equals(user.getId()));
     }
 
     /*
