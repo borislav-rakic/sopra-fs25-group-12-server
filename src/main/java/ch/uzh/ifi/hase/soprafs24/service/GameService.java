@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -24,10 +25,12 @@ import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
+import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
@@ -54,6 +57,7 @@ public class GameService {
     private final MatchMessageService matchMessageService;
     private final MatchPlayerRepository matchPlayerRepository;
     private final MatchSummaryService matchSummaryService;
+    private final UserRepository userRepository;
 
     // or via constructor injection
 
@@ -68,7 +72,8 @@ public class GameService {
             @Qualifier("matchMessageService") MatchMessageService matchMessageService,
             @Qualifier("matchRepository") MatchRepository matchRepository,
             @Qualifier("matchPlayerRepository") MatchPlayerRepository matchPlayerRepository,
-            @Qualifier("matchSummaryService") MatchSummaryService matchSummaryService) {
+            @Qualifier("matchSummaryService") MatchSummaryService matchSummaryService,
+            @Qualifier("userRepository") UserRepository userRepository) {
         this.aiPlayingService = aiPlayingService;
         this.cardPassingService = cardPassingService;
         this.cardRulesService = cardRulesService;
@@ -79,6 +84,7 @@ public class GameService {
         this.matchRepository = matchRepository;
         this.matchPlayerRepository = matchPlayerRepository;
         this.matchSummaryService = matchSummaryService;
+        this.userRepository = userRepository;
 
     }
 
@@ -468,6 +474,26 @@ public class GameService {
                         mp.getUser().getUsername());
             }
         }
+        // Assign dense rankings (1224-style) based on game score (lower is better)
+        List<MatchPlayer> playersToRank = new ArrayList<>(match.getMatchPlayers());
+        playersToRank.sort(Comparator.comparingInt(MatchPlayer::getGameScore)); // Ascending
+
+        int currentRank = 1;
+        int previousScore = Integer.MIN_VALUE;
+        int playersRanked = 0;
+
+        for (int i = 0; i < playersToRank.size(); i++) {
+            MatchPlayer mp = playersToRank.get(i);
+            int score = mp.getGameScore();
+
+            if (score != previousScore) {
+                currentRank = playersRanked + 1;
+            }
+
+            mp.setRankingInGame(currentRank);
+            previousScore = score;
+            playersRanked++;
+        }
 
         // Handle perfect games (only if nobody shot the moon, though)
         if (!moonShot) {
@@ -484,8 +510,10 @@ public class GameService {
             for (MatchPlayer mp : match.getMatchPlayers()) {
                 if (mp.getGameScore() == 0) {
                     mp.setGameScore(26);
+                    mp.setRankingInGame(4);
                 } else if (mp.getGameScore() == -1) {
                     mp.setGameScore(0);
+                    mp.setRankingInGame(1);
                 }
             }
         }
@@ -504,9 +532,25 @@ public class GameService {
         for (MatchPlayer mp : sortedPlayers) {
             mp.setMatchScore(mp.getMatchScore() + mp.getGameScore());
             mp.setGameScore(0);
-            if (mp.getUser() != null && !mp.getIsAiPlayer()) {
-                mp.setReady(false);
+
+            User user = mp.getUser();
+            if (user != null) {
+                float oldAvg = user.getAvgGameRanking();
+                int oldGames = user.getGamesPlayed();
+                int newGames = oldGames + 1;
+
+                float newAvg = (oldAvg * oldGames + mp.getRankingInGame()) / newGames;
+
+                user.setAvgGameRanking(newAvg);
+                user.setGamesPlayed(newGames);
+
+                if (!mp.getIsAiPlayer()) {
+                    mp.setReady(false);
+                }
+
+                userRepository.save(user);
             }
+
             matchPlayerRepository.save(mp);
         }
 

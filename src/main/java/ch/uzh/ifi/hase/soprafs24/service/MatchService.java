@@ -546,7 +546,7 @@ public class MatchService {
                 newlyGainedPoints += 2.0f;
                 matchPlayerMatchSummary += "You ended up in third place: +2. ";
             } else if (ranking == 4) {
-                newlyGainedPoints += 1.0f;
+                newlyGainedPoints -= 1.0f;
                 matchPlayerMatchSummary += "You ended up in fourth place: -1. Sorry! ";
             }
             // B. AI bonus, only for human players
@@ -608,10 +608,6 @@ public class MatchService {
                 // Save perfect games with user.
                 user.setPerfectGames(user.getPerfectGames() + perfectGames);
             }
-            // I. Number of games played
-            int numberOfGamesInThisMatch = match.getGames() != null ? match.getGames().size() : 0;
-            user.setGamesPlayed(user.getGamesPlayed() + numberOfGamesInThisMatch);
-
             // J. Update Total Score
             user.setScoreTotal(user.getScoreTotal() + newlyGainedPoints);
             matchPlayerMatchSummary += "You gain " + (int) (newlyGainedPoints) + " points for this match and ";
