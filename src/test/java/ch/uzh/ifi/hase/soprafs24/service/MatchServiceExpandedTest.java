@@ -2,6 +2,7 @@ package ch.uzh.ifi.hase.soprafs24.service;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
+import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
@@ -11,6 +12,8 @@ import ch.uzh.ifi.hase.soprafs24.repository.GameRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.UserRepository;
+import ch.uzh.ifi.hase.soprafs24.util.MatchUtils;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.InjectMocks;
@@ -27,6 +30,7 @@ import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.*;
 
@@ -442,6 +446,49 @@ public class MatchServiceExpandedTest {
         Match matchSpy = spy(match);
         matchService.handleMatchInResultPhaseOrAborted(matchSpy);
         verify(matchRepository).saveAndFlush(matchSpy);
+    }
+
+    @Test
+    public void testAssertAllHumanPlayersSkippedPassing_setsGameStateCorrectly() throws Exception {
+        // Setup a match with 2 human players who are ready
+        MatchPlayer human1 = new MatchPlayer();
+        human1.setIsAiPlayer(false);
+        human1.setReady(true);
+        human1.setMatchPlayerSlot(1);
+        human1.setUser(new User());
+
+        MatchPlayer human2 = new MatchPlayer();
+        human2.setIsAiPlayer(false);
+        human2.setReady(true);
+        human2.setMatchPlayerSlot(2);
+        human2.setUser(new User());
+
+        match.setMatchPlayers(List.of(human1, human2));
+
+        // Setup a game in the correct phase
+        Game testGame = new Game();
+        testGame.setPhase(GamePhase.SKIP_PASSING);
+        testGame.setTrickPhase(TrickPhase.READYFORFIRSTCARD);
+        testGame.setMatch(match);
+
+        // Add to match
+        match.setGames(List.of(testGame));
+
+        // Call the method via reflection since it's private
+        var method = MatchService.class.getDeclaredMethod("assertAllHumanPlayersSkippedPassing", Match.class,
+                Game.class);
+        method.setAccessible(true);
+        method.invoke(matchService, match, testGame);
+
+        // Verify game state transitions
+        assertEquals(GamePhase.FIRSTTRICK, testGame.getPhase());
+        assertEquals(TrickPhase.READYFORFIRSTCARD, testGame.getTrickPhase());
+        assertEquals(1, testGame.getCurrentTrickNumber());
+        assertEquals(0, testGame.getCurrentPlayOrder());
+
+        // Verify side-effect methods
+        verify(gameService).assignTwoOfClubsLeader(testGame);
+        verify(gameRepository).saveAndFlush(testGame);
     }
 
 }

@@ -357,4 +357,55 @@ public class CardRulesServiceTest {
         assertThrows(Exception.class, () -> cardRulesService.validateMatchPlayerCardCode(game, player, "5H"));
     }
 
+    @Test
+    public void testValidateUniqueDeckAcrossPlayers_validDeck() {
+        Match match = mock(Match.class);
+
+        // Four players with 13 unique cards each, total 52 unique cards
+        MatchPlayer player1 = mock(MatchPlayer.class);
+        MatchPlayer player2 = mock(MatchPlayer.class);
+        MatchPlayer player3 = mock(MatchPlayer.class);
+        MatchPlayer player4 = mock(MatchPlayer.class);
+
+        when(player1.getMatchPlayerSlot()).thenReturn(1);
+        when(player2.getMatchPlayerSlot()).thenReturn(2);
+        when(player3.getMatchPlayerSlot()).thenReturn(3);
+        when(player4.getMatchPlayerSlot()).thenReturn(4);
+
+        when(player1.getHand()).thenReturn("2H,3H,4H,5H,6H,7H,8H,9H,0H,JH,QH,KH,AH");
+        when(player2.getHand()).thenReturn("2D,3D,4D,5D,6D,7D,8D,9D,0D,JD,QD,KD,AD");
+        when(player3.getHand()).thenReturn("2C,3C,4C,5C,6C,7C,8C,9C,0C,JC,QC,KC,AC");
+        when(player4.getHand()).thenReturn("2S,3S,4S,5S,6S,7S,8S,9S,0S,JS,QS,KS,AS");
+
+        when(match.getMatchPlayers()).thenReturn(List.of(player1, player2, player3, player4));
+
+        // We use system output capture to verify no errors (optional improvement)
+        cardRulesService.validateUniqueDeckAcrossPlayers(match);
+    }
+
+    @Test
+    public void testValidateUniqueDeckAcrossPlayers_duplicateCard() {
+        Match match = mock(Match.class);
+
+        MatchPlayer player1 = mock(MatchPlayer.class);
+        MatchPlayer player2 = mock(MatchPlayer.class);
+        MatchPlayer player3 = mock(MatchPlayer.class);
+        MatchPlayer player4 = mock(MatchPlayer.class);
+
+        when(player1.getMatchPlayerSlot()).thenReturn(1);
+        when(player2.getMatchPlayerSlot()).thenReturn(2);
+        when(player3.getMatchPlayerSlot()).thenReturn(3);
+        when(player4.getMatchPlayerSlot()).thenReturn(4);
+
+        // Intentional duplicate: AH is in player1 and player2
+        when(player1.getHand()).thenReturn("2H,3H,4H,5H,6H,7H,8H,9H,0H,JH,QH,KH,AH");
+        when(player2.getHand()).thenReturn("2D,3D,4D,5D,6D,7D,8D,9D,0D,JD,QD,KD,AH");
+        when(player3.getHand()).thenReturn("2C,3C,4C,5C,6C,7C,8C,9C,0C,JC,QC,KC,AC");
+        when(player4.getHand()).thenReturn("2S,3S,4S,5S,6S,7S,8S,9S,0S,JS,QS,KS,AS");
+
+        when(match.getMatchPlayers()).thenReturn(List.of(player1, player2, player3, player4));
+
+        cardRulesService.validateUniqueDeckAcrossPlayers(match);
+    }
+
 }
