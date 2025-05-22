@@ -19,4 +19,8 @@ public interface PassedCardRepository extends JpaRepository<PassedCard, Long> {
     boolean existsByGameAndRankSuit(Game game, String rankSuit);
 
     int countByGame(Game game);
+
+    // Count cards passed by player in specific game round
+    int countByGameAndFromMatchPlayerSlotAndGameNumber(Game game, int fromMatchPlayerSlot, int gameNumber);
+
 }

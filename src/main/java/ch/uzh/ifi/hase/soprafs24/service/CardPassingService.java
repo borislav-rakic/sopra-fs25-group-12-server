@@ -267,6 +267,13 @@ public class CardPassingService {
         int matchPlayerSlot = matchPlayer.getMatchPlayerSlot();
         int playerSlot = matchPlayerSlot - 1; // client logic.
 
+        int alreadyPassed = passedCardRepository
+                .countByGameAndFromMatchPlayerSlotAndGameNumber(game, matchPlayerSlot, game.getGameNumber());
+
+        if (alreadyPassed > 0) {
+            throw new ResponseStatusException(HttpStatus.CONFLICT, "You have already passed cards this round.");
+        }
+
         if (cardsToPass == null || cardsToPass.size() != 3) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exactly 3 cards must be passed.");
         }

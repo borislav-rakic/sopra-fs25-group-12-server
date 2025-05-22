@@ -4,6 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -489,22 +490,18 @@ public class GameService {
             }
         }
 
-        List<Integer> gameScores = match.getMatchPlayers().stream()
-                .map(MatchPlayer::getGameScore)
-                .toList();
+        // Finalize and validate game scores
+        List<MatchPlayer> sortedPlayers = match.getMatchPlayersSortedBySlot();
 
+        // Step 1: Capture game scores before they get reset
+        List<Integer> gameScores = sortedPlayers.stream()
+                .map(MatchPlayer::getGameScore)
+                .collect(Collectors.toList());
         game.setGameScoresList(gameScores);
         gameRepository.save(game);
 
-        // Remember the Titans' names
-
-        List<String> playerNames = match.getMatchPlayers().stream()
-                .map(mp -> mp.getUser() != null ? mp.getUser().getUsername() : "AI")
-                .toList();
-
-        match.setMatchPlayerNames(playerNames);
-
-        for (MatchPlayer mp : match.getMatchPlayers()) {
+        // Step 2: Update player match scores and reset game scores
+        for (MatchPlayer mp : sortedPlayers) {
             mp.setMatchScore(mp.getMatchScore() + mp.getGameScore());
             mp.setGameScore(0);
             if (mp.getUser() != null && !mp.getIsAiPlayer()) {
@@ -513,21 +510,23 @@ public class GameService {
             matchPlayerRepository.save(mp);
         }
 
-        gameScores = match.getMatchPlayers().stream()
-                .sorted(Comparator.comparingInt(MatchPlayer::getMatchPlayerSlot))
+        // Step 3: Write updated names and scores (ordered by slot)
+        List<String> playerNames = sortedPlayers.stream()
+                .map(mp -> mp.getUser() != null ? mp.getUser().getUsername() : "AI")
+                .collect(Collectors.toList());
+        List<Integer> matchScores = sortedPlayers.stream()
                 .map(MatchPlayer::getMatchScore)
-                .toList();
+                .collect(Collectors.toList());
 
-        match.setMatchScoresList(gameScores);
+        match.setMatchPlayerNames(playerNames);
+        match.setMatchScoresList(matchScores);
 
-        ///// MAKE SUMMARY HERE!
+        // Save summary and match
         log.info("finalizeGameScores calling buildGameResultHtml");
         matchSummaryService.saveGameResultHtml(match, game, newsFlash);
-        ////
 
-        //// Is BETWEEN_GAMES still in use?
-        // match.setPhase(MatchPhase.BETWEEN_GAMES);
         matchRepository.save(match);
+
     }
 
     /**

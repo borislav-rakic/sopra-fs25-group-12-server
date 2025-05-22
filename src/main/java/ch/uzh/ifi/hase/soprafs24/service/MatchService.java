@@ -214,14 +214,12 @@ public class MatchService {
         match.setHostId(newHumanHostMatchPlayer.getUser().getId());
         match.setHostUsername(newHumanHostMatchPlayer.getUser().getUsername());
 
-        gameService.relayMessageToMatchMessageService(match, MatchMessageType.PLAYER_LEFT,
-                previousHostUser.getUsername());
-        gameService.relayMessageToMatchMessageService(match, MatchMessageType.HOST_CHANGED,
-                newHumanHostMatchPlayer.getUser().getUsername());
-
         // 4. Replace former host with AI player in their slot
         int slotToBeReplaced = previousHostMatchPlayer.getMatchPlayerSlot();
         replaceMatchPlayerSlotWithAiPlayer(match, slotToBeReplaced); // ← Delegated to utility method
+
+        gameService.relayMessageToMatchMessageService(match, MatchMessageType.PLAYER_LEFT,
+                previousHostUser.getUsername());
 
         // 5. Persist updated host
         matchPlayerRepository.save(newHumanHostMatchPlayer);
@@ -278,6 +276,8 @@ public class MatchService {
                 .findFirst()
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No player in that slot."));
 
+        String nameOfReplacedPlayer = replaced.getUser().getUsername();
+
         // Swap in AI player
         replaced.setUser(newAiUser);
         replaced.setIsAiPlayer(true);
@@ -303,6 +303,11 @@ public class MatchService {
         }
 
         // Notify system
+        gameService.relayMessageToMatchMessageService(match, MatchMessageType.PLAYER_LEFT,
+                nameOfReplacedPlayer);
+
+        log.info("Player at slot {} ({}) left the match and was replaced by an AI player.",
+                replaced.getMatchPlayerSlot(), nameOfReplacedPlayer);
         gameService.relayMessageToMatchMessageService(match, MatchMessageType.PLAYER_JOINED, newAiUser.getUsername());
         // update AI Player's name in list of names for match.
         match.setNameForMatchPlayerSlot(matchPlayerSlot, newAiUser.getUsername());
@@ -358,10 +363,6 @@ public class MatchService {
 
         int slot = leavingMatchPlayer.getMatchPlayerSlot();
         replaceMatchPlayerSlotWithAiPlayer(match, slot);
-
-        gameService.relayMessageToMatchMessageService(match, MatchMessageType.PLAYER_LEFT, user.getUsername());
-
-        log.info("Player at slot {} left the match and was replaced by an AI player.", slot);
         matchRepository.save(match);
     }
 

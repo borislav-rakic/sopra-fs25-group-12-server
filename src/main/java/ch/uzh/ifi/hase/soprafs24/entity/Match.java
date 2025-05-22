@@ -9,6 +9,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 
@@ -257,7 +258,7 @@ public class Match implements Serializable {
     @Transient
     public Map<Integer, Integer> getMatchScoresMap() {
         List<Integer> scores = getMatchScoresList();
-        Map<Integer, Integer> scoreMap = new HashMap<>();
+        Map<Integer, Integer> scoreMap = new LinkedHashMap<>();
         for (int i = 0; i < scores.size(); i++) {
             scoreMap.put(i, scores.get(i)); // index (0-based) -> score
         }
