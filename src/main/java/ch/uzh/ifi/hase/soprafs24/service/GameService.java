@@ -539,6 +539,20 @@ public class GameService {
         matchRepository.save(match);
     }
 
+    public void maybeTriggerAiCardPassing(Game game) {
+        if (game == null) {
+            log.warn("maybeTriggerAiCardPassing: game is null");
+            return;
+        }
+
+        if (game.getPhase() != GamePhase.PASSING) {
+            log.info("maybeTriggerAiCardPassing: Skipping because game is not in PASSING phase.");
+            return;
+        }
+
+        cardPassingService.maybeTriggerAiPassing(game);
+    }
+
     @Transactional
     public void resetNonAiPlayersReady(Game game) {
         Match match = game.getMatch();

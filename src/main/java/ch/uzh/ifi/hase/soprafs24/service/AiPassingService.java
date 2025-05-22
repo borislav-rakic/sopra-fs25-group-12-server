@@ -308,20 +308,31 @@ public class AiPassingService {
                 throw new IllegalStateException(
                         String.format("There is no match player in playerSlot %d.", playerSlot));
             }
-            if (Boolean.TRUE.equals(matchPlayer.getIsAiPlayer())) {
-                Strategy strategy = getStrategyForUserId(matchPlayer.getUser().getId());
 
-                List<String> cardsToPass = selectCardsToPass(matchPlayer, strategy);
-                for (String cardCode : cardsToPass) {
-                    if (!passedCardRepository.existsByGameAndRankSuit(game, cardCode)) {
-                        PassedCard passedCard = new PassedCard(game, cardCode, matchPlayerSlot, game.getGameNumber());
-                        passedCard.setGame(game);
-                        passedCardRepository.save(passedCard);
-                        // DO NOT REMOVE CARDS FROM AI MATCHPLAYERS' HANDS, YET!
-                    }
+            if (!Boolean.TRUE.equals(matchPlayer.getIsAiPlayer())) {
+                continue;
+            }
+
+            int alreadyPassed = passedCardRepository
+                    .countByGameAndFromMatchPlayerSlotAndGameNumber(game, matchPlayerSlot, game.getGameNumber());
+
+            if (alreadyPassed > 0) {
+                log.info("AI in slot {} already passed cards; skipping.", matchPlayerSlot);
+                continue;
+            }
+
+            Strategy strategy = getStrategyForUserId(matchPlayer.getUser().getId());
+            List<String> cardsToPass = selectCardsToPass(matchPlayer, strategy);
+
+            for (String cardCode : cardsToPass) {
+                if (!passedCardRepository.existsByGameAndRankSuit(game, cardCode)) {
+                    PassedCard passedCard = new PassedCard(game, cardCode, matchPlayerSlot, game.getGameNumber());
+                    passedCard.setGame(game);
+                    passedCardRepository.save(passedCard);
                 }
             }
         }
+
     }
 
     /**

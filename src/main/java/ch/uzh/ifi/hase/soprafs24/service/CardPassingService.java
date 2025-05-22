@@ -335,6 +335,36 @@ public class CardPassingService {
     }
 
     /**
+     * If the game is in the PASSING phase and fewer than 12 cards have been passed,
+     * and all human players have completed their passing,
+     * this method triggers AI players to pass their cards.
+     */
+    public void maybeTriggerAiPassing(Game game) {
+        if (game == null || game.getMatch() == null) {
+            log.warn("maybeTriggerAiPassing: game or match is null");
+            return;
+        }
+
+        Match match = game.getMatch();
+        int totalPassed = passedCardRepository.countByGame(game);
+
+        if (totalPassed >= 12) {
+            return; // Passing already complete
+        }
+
+        int expectedHumanPasses = (int) match.getMatchPlayers().stream()
+                .filter(mp -> mp.getUser() != null && !Boolean.TRUE.equals(mp.getUser().getIsAiPlayer()))
+                .count() * 3;
+
+        if (totalPassed == expectedHumanPasses) {
+            log.info("All human passes complete. Triggering AI passing.");
+            aiPassingService.passForAllAiPlayers(game);
+        } else {
+            log.info("maybeTriggerAiPassing: Not all human players have passed yet.");
+        }
+    }
+
+    /**
      * Validates whether the given card code matches the expected card format.
      * Uses a regular expression defined in {@code GameConstants.CARD_CODE_REGEX}.
      *

@@ -225,6 +225,11 @@ public class MatchService {
         matchPlayerRepository.save(newHumanHostMatchPlayer);
         matchRepository.save(match);
 
+        Game game = GameEnforcer.getOnlyActiveGameOrNull(match);
+        if (game.getPhase() == GamePhase.PASSING && game != null) {
+            gameService.maybeTriggerAiCardPassing(game);
+        }
+
         log.info("Host transferred from MatchPlayerSlot {} to {}.",
                 slotToBeReplaced, newHumanHostMatchPlayer.getMatchPlayerSlot());
     }
