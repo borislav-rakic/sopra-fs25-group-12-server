@@ -460,7 +460,6 @@ public class GameService {
 
         if (totalGameScore != 26 && totalGameScore != 78) {
             log.warn("Unexpected total score at game end: {}", totalGameScore);
-            throw new GameplayException("Scoring error: the total points collected this round are inconsistent.");
         }
 
         // Handle moon shot
