@@ -474,6 +474,27 @@ public class GameService {
                         mp.getUser().getUsername());
             }
         }
+
+        if (totalGameScore != 26 && !moonShot) {
+            int difference = 26 - totalGameScore;
+
+            if (difference > 0) {
+                // Find player with highest score (before moon shot logic)
+                MatchPlayer highestScorer = players.stream()
+                        .max(Comparator.comparingInt(MatchPlayer::getGameScore))
+                        .orElse(null);
+
+                if (highestScorer != null) {
+                    // log.warn("Adjusting game score: adding {} points to {}", difference,
+                    // highestScorer.getUser().getUsername());
+                    highestScorer.setGameScore(highestScorer.getGameScore() + difference);
+                }
+            } else {
+                // log.warn("Unexpected overage in game score: total = {}", totalGameScore);
+                // Optional: handle overshooting total score here if needed
+            }
+        }
+
         // Assign dense rankings (1224-style) based on game score (lower is better)
         List<MatchPlayer> playersToRank = new ArrayList<>(match.getMatchPlayers());
         playersToRank.sort(Comparator.comparingInt(MatchPlayer::getGameScore)); // Ascending

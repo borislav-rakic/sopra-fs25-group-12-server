@@ -6,6 +6,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import javax.transaction.Transactional;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -153,9 +155,17 @@ public class CardPassingService {
      * @throws GamepplayException    if a GameStat
      *                               entry is missing
      */
-    private void reassignPassedCards(Game game, Map<Integer, List<PassedCard>> cardsByMatchPlayerSlot,
+    @Transactional
+    public void reassignPassedCards(Game game, Map<Integer, List<PassedCard>> cardsByMatchPlayerSlot,
             Map<Integer, Integer> passTo) {
         List<GameStats> updatedGameStats = new ArrayList<>(); // Collect for batch update
+
+        for (Map.Entry<Integer, List<PassedCard>> entry : cardsByMatchPlayerSlot.entrySet()) {
+            if (entry.getValue().size() != 3) {
+                throw new GameplayException(
+                        "Player " + entry.getKey() + " passed " + entry.getValue().size() + " cards (expected 3)");
+            }
+        }
 
         for (Map.Entry<Integer, List<PassedCard>> entry : cardsByMatchPlayerSlot.entrySet()) {
             int fromMatchPlayerSlot = entry.getKey();
@@ -177,7 +187,6 @@ public class CardPassingService {
 
                 // Add the card to receiver
                 receiver.addCardCodeToHand(cardCode);
-                receiver.setHand(CardUtils.normalizeCardCodeString(receiver.getHand()));
                 // Update GameStats: passedBy and passedTo
                 GameStats gameStat = gameStatsRepository.findByRankSuitAndGameAndCardHolder(cardCode, game,
                         fromMatchPlayerSlot);
@@ -189,14 +198,14 @@ public class CardPassingService {
                     throw new GameplayException("Card passing failed: no tracking data for " + cardCode);
                 }
             }
-
-            receiver.setHand(CardUtils.normalizeCardCodeString(receiver.getHand()));
-            sender.setHand(CardUtils.normalizeCardCodeString(sender.getHand()));
-
-            // Save sender and receiver after their hand changes
-            matchPlayerRepository.saveAndFlush(sender);
-            matchPlayerRepository.saveAndFlush(receiver);
         }
+        Match match = game.getMatch();
+        List<MatchPlayer> allPlayers = match.getMatchPlayersSortedBySlot(); // or match.getMatchPlayers()
+        for (MatchPlayer mp : allPlayers) {
+            mp.setHand(CardUtils.normalizeCardCodeString(mp.getHand()));
+        }
+        matchPlayerRepository.saveAll(allPlayers);
+        matchPlayerRepository.flush();
 
         // Save all updated GameStats in one batch at the end
         gameStatsRepository.saveAll(updatedGameStats);
