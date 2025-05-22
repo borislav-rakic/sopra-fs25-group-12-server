@@ -300,6 +300,7 @@ public class GameService {
         if (!matchPlayer.removeCardCodeFromHand(cardCode)) {
             throw new IllegalStateException("Tried to remove a card that wasn't in hand: " + cardCode);
         }
+        matchPlayerRepository.saveAndFlush(matchPlayer);
 
         log.info("    + executeValidatedCardPlay just about to addCardToTrick({}). GamePhase={}.", cardCode,
                 game.getPhase());
