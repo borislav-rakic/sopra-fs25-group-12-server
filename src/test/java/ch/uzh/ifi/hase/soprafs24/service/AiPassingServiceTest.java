@@ -118,7 +118,6 @@ public class AiPassingServiceTest {
         aiPassingService.passForAllAiPlayers(game);
 
         verify(passedCardRepository, times(3)).save(any());
-        verify(matchPlayerRepository, atLeastOnce()).flush();
     }
 
     @Test

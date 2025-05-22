@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.MatchPhase;
 import ch.uzh.ifi.hase.soprafs24.constant.PriorEngagement;
 import ch.uzh.ifi.hase.soprafs24.constant.UserStatus;
@@ -75,7 +76,8 @@ public class UserService {
   }
 
   public void populateUsersFromSQL() {
-    if (userRepository.count() > 10) {
+    if (!GameConstants.DO_POPULATE_TEST_USERS
+        || userRepository.count() > 10) {
       return;
     }
     try {

@@ -317,10 +317,7 @@ public class AiPassingService {
                         PassedCard passedCard = new PassedCard(game, cardCode, matchPlayerSlot, game.getGameNumber());
                         passedCard.setGame(game);
                         passedCardRepository.save(passedCard);
-
-                        // Also remove the passed card from AI hand
-                        matchPlayer.removeCardCodeFromHand(cardCode);
-                        matchPlayerRepository.flush();
+                        // DO NOT REMOVE CARDS FROM AI MATCHPLAYERS' HANDS, YET!
                     }
                 }
             }

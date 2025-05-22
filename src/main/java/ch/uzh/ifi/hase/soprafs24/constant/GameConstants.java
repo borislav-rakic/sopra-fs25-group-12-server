@@ -35,6 +35,8 @@ public final class GameConstants {
     // This is not final, because it may change.
     public static boolean HOSTS_ARE_ALLOWED_TO_LEAVE_THE_MATCH = true;
 
+    public static boolean DO_POPULATE_TEST_USERS = false;
+
     private GameConstants() {
         // Prevent instantiation
     }
