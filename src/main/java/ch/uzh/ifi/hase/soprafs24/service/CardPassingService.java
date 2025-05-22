@@ -194,8 +194,8 @@ public class CardPassingService {
             sender.setHand(CardUtils.normalizeCardCodeString(sender.getHand()));
 
             // Save sender and receiver after their hand changes
-            matchPlayerRepository.save(sender);
-            matchPlayerRepository.save(receiver);
+            matchPlayerRepository.saveAndFlush(sender);
+            matchPlayerRepository.saveAndFlush(receiver);
         }
 
         // Save all updated GameStats in one batch at the end
