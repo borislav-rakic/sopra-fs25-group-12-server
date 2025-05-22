@@ -1152,6 +1152,8 @@ public class MatchService {
      * @param match Relevant Match object.
      **/
     private void feelAllHumanNonHostMatchPlayersPulse(Match match) {
+        List<MatchPlayer> toReplace = new ArrayList<>();
+
         for (MatchPlayer mp : match.getMatchPlayers()) {
             if (!mp.getIsAiPlayer() && !mp.getIsHost()) {
                 Duration durationSinceLastPulse = Duration.between(mp.getLastPollTime(), Instant.now());
@@ -1163,9 +1165,13 @@ public class MatchService {
                             match.getMatchId(),
                             mp.getMatchPlayerSlot(),
                             GameConstants.NON_HOST_TIME_OUT_SECONDS);
-                    replaceMatchPlayerSlotWithAiPlayer(match, mp.getMatchPlayerSlot());
+                    toReplace.add(mp);
                 }
             }
+        }
+
+        for (MatchPlayer mp : toReplace) {
+            replaceMatchPlayerSlotWithAiPlayer(match, mp.getMatchPlayerSlot());
         }
     }
 
