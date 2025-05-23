@@ -6,7 +6,6 @@ import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
-import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.TrickDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.TrickDTO.TrickCard;
@@ -20,12 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 
 // import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
@@ -37,16 +31,13 @@ public class GameTrickService {
 
     private final MatchPlayerRepository matchPlayerRepository;
     private final CardRulesService cardRulesService;
-    private final GameStatsRepository gameStatsRepository;
 
     @Autowired
     public GameTrickService(
             MatchPlayerRepository matchPlayerRepository,
-            CardRulesService cardRulesService,
-            GameStatsRepository gameStatsRepository) {
+            CardRulesService cardRulesService) {
         this.matchPlayerRepository = matchPlayerRepository;
         this.cardRulesService = cardRulesService;
-        this.gameStatsRepository = gameStatsRepository;
     }
 
     public void addCardToTrick(Match match, Game game, MatchPlayer matchPlayer, String cardCode) {
@@ -236,7 +227,7 @@ public class GameTrickService {
         for (String trickCard : trickCards) {
             for (MatchPlayer mp : matchPlayers) {
                 if (CardUtils.isCardCodeInHand(mp.getHand(), trickCard)) {
-                    log.info("MatchPlayer " + mp.getMatchPlayerId() + " still had the card []" + trickCard
+                    log.info("MatchPlayer " + mp.getMatchPlayerId() + " still had the card [" + trickCard
                             + "] in his hand after trick " + trick + "had been played. Removed.");
                     mp.setHand(CardUtils.getHandWithCardCodeRemoved(mp.getHand(), trickCard));
                     matchPlayerRepository.saveAndFlush(mp);

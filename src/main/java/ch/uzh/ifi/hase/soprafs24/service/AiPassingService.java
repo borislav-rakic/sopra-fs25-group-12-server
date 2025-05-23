@@ -19,7 +19,6 @@ import ch.uzh.ifi.hase.soprafs24.entity.PassedCard;
 import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.repository.PassedCardRepository;
 import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
-import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,12 +28,10 @@ import org.slf4j.LoggerFactory;
 public class AiPassingService {
     private static final Logger log = LoggerFactory.getLogger(AiPassingService.class);
 
-    private final MatchPlayerRepository matchPlayerRepository;
     private final PassedCardRepository passedCardRepository;
 
     @Autowired
-    public AiPassingService(MatchPlayerRepository matchPlayerRepository, PassedCardRepository passedCardRepository) {
-        this.matchPlayerRepository = matchPlayerRepository;
+    public AiPassingService(PassedCardRepository passedCardRepository) {
         this.passedCardRepository = passedCardRepository;
     }
 

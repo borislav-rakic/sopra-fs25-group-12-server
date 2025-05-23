@@ -65,7 +65,6 @@ public class MatchService {
     private final UserRepository userRepository;
     private final UserService userService;
     private final MatchRepository matchRepository;
-    private final MatchSetupService matchSetupService;
 
     @Autowired
     public MatchService(
@@ -78,8 +77,7 @@ public class MatchService {
             @Qualifier("matchRepository") MatchRepository matchRepository,
             @Qualifier("pollingService") PollingService pollingService,
             @Qualifier("userRepository") UserRepository userRepository,
-            @Qualifier("userService") UserService userService,
-            @Qualifier("matchSetupService") MatchSetupService matchSetupService) {
+            @Qualifier("userService") UserService userService) {
         this.gameRepository = gameRepository;
         this.gameService = gameService;
         this.gameSetupService = gameSetupService;
@@ -90,7 +88,6 @@ public class MatchService {
         this.pollingService = pollingService;
         this.userRepository = userRepository;
         this.userService = userService;
-        this.matchSetupService = matchSetupService;
 
     }
 
@@ -587,10 +584,10 @@ public class MatchService {
             if (shotTheMoonCount > 0) {
                 newlyGainedPoints += shotTheMoonCount * 2;
                 if (shotTheMoonCount == 1) {
-                    matchPlayerMatchSummary += "You shot the moon: +2! ";
+                    matchPlayerMatchSummary += "You shot the moon: +2, good job! ";
                 } else {
-                    matchPlayerMatchSummary += "You shot the moon " + shotTheMoonCount + " times: "
-                            + (int) (shotTheMoonCount * 2) + "! ";
+                    matchPlayerMatchSummary += "You shot the moon " + shotTheMoonCount + " times: +"
+                            + (int) (shotTheMoonCount * 2) + ", amazing! ";
                 }
                 // Save moon shots with user.
                 user.setMoonShots(user.getMoonShots() + shotTheMoonCount);
@@ -601,10 +598,10 @@ public class MatchService {
             if (perfectGames > 0) {
                 newlyGainedPoints += perfectGames;
                 if (perfectGames == 1) {
-                    matchPlayerMatchSummary += "You had a perfect game: +1! ";
+                    matchPlayerMatchSummary += "You had a perfect game: +1, yeah! ";
                 } else {
-                    matchPlayerMatchSummary += "You had " + perfectGames + " perfect games: "
-                            + (int) (perfectGames) + "! ";
+                    matchPlayerMatchSummary += "You had " + perfectGames + " perfect games: +"
+                            + (int) (perfectGames) + ", wow! ";
                 }
                 // Save perfect games with user.
                 user.setPerfectGames(user.getPerfectGames() + perfectGames);

@@ -17,7 +17,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
@@ -38,7 +37,7 @@ class GameTrickServiceTest {
         cardRulesService = mock(CardRulesService.class);
         gameStatsRepository = mock(GameStatsRepository.class);
 
-        gameTrickService = new GameTrickService(matchPlayerRepository, cardRulesService, gameStatsRepository);
+        gameTrickService = new GameTrickService(matchPlayerRepository, cardRulesService);
 
         game = new Game();
         game.setCurrentPlayOrder(0);

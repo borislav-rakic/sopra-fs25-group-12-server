@@ -159,8 +159,6 @@ public class GameSimulationServiceTest {
 
         GameSimulationService simService = new GameSimulationService(
                 gameRepository,
-                mock(CardRulesService.class),
-                mock(GameService.class),
                 mock(GameStatsRepository.class),
                 matchPlayerRepository);
 
@@ -177,7 +175,7 @@ public class GameSimulationServiceTest {
     public void isTrickComplete_returnsTrueWhenTrickHas4Cards() {
         Game game = new Game();
         game.setCurrentTrick(Arrays.asList("2H", "3D", "QC", "AS"));
-        GameSimulationService simService = new GameSimulationService(null, null, null, null, null);
+        GameSimulationService simService = new GameSimulationService(null, null, null);
 
         assertTrue(simService.isTrickComplete(game));
     }
@@ -193,7 +191,7 @@ public class GameSimulationServiceTest {
         p3.setMatchScore(14);
         match.setMatchPlayers(Arrays.asList(p1, p2, p3));
 
-        GameSimulationService simService = new GameSimulationService(null, null, null, null, null);
+        GameSimulationService simService = new GameSimulationService(null, null, null);
         int max = simService.getMaxScore(match, new Game());
 
         assertEquals(28, max);

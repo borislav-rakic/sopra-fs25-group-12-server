@@ -92,8 +92,7 @@ public class MatchServiceTest {
             matchRepository,
             pollingService,
             userRepository,
-            userService,
-            matchSetupService
+            userService
     // alphabetical order
     );
 

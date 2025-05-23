@@ -25,8 +25,6 @@ import javax.transaction.Transactional;
 public class GameSimulationService {
     private static final Logger log = LoggerFactory.getLogger(GameSimulationService.class);
 
-    private final CardRulesService cardRulesService;
-    private final GameService gameService;
     private final GameRepository gameRepository;
     private final GameStatsRepository gameStatsRepository;
     private final MatchPlayerRepository matchPlayerRepository;
@@ -36,13 +34,9 @@ public class GameSimulationService {
     @Autowired
     public GameSimulationService(
             GameRepository gameRepository,
-            CardRulesService cardRulesService,
-            GameService gameService,
-            ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository gameStatsRepository,
+            GameStatsRepository gameStatsRepository,
             MatchPlayerRepository matchPlayerRepository) {
         this.gameRepository = gameRepository;
-        this.cardRulesService = cardRulesService;
-        this.gameService = gameService;
         this.gameStatsRepository = gameStatsRepository;
         this.matchPlayerRepository = matchPlayerRepository;
     }

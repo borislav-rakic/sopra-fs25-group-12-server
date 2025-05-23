@@ -384,26 +384,6 @@ public class MatchSetupService {
         }
     }
 
-    private void validateInvitationConditions(Long userId) {
-        // 🔍 Query all invites across all matches that contain this user
-        boolean alreadyInvited = matchRepository.existsUserInAnyMatchInvite(userId);
-
-        if (alreadyInvited) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User already invited to another match");
-        }
-
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
-
-        if (Boolean.TRUE.equals(user.getIsAiPlayer())) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Cannot invite AI player");
-        }
-
-        if (!user.getStatus().equals(UserStatus.ONLINE)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "User must be online");
-        }
-    }
-
     /**
      * Cancels an invitation previously sent to a specific slot in the match.
      *
