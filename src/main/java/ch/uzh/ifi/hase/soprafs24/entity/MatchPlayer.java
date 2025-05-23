@@ -202,13 +202,6 @@ public class MatchPlayer {
         this.shotTheMoonCount = 0;
     }
 
-    public void resetMatchStats() {
-        this.setMatchScore(0);
-        this.setPerfectGames(0);
-        this.setShotTheMoonCount(0);
-        this.setTakenCards("");
-    }
-
     public String getInfo() {
         return this.getMatch().getMatchId() + "/" + this.getMatchPlayerSlot();
     }

@@ -205,7 +205,7 @@ public class GameService {
         cardRulesService.validateMatchPlayerCardCode(game, matchPlayer, cardCode);
         log.info(
                 "= About to executeValidatedCardPlay");
-        executeValidatedCardPlay(game, matchPlayer, cardCode);
+        executeValidatedCardPlay(game, matchPlayer.getMatchPlayerId(), cardCode);
         log.info("=== PLAY CARD AS HUMAN CONCLUDED ({}) ===", game.getCurrentPlayOrder());
 
     }
@@ -270,7 +270,7 @@ public class GameService {
         }
 
         cardRulesService.validateMatchPlayerCardCode(game, aiPlayer, cardCode);
-        executeValidatedCardPlay(game, aiPlayer, cardCode);
+        executeValidatedCardPlay(game, aiPlayer.getMatchPlayerId(), cardCode);
     }
 
     /**
@@ -294,8 +294,11 @@ public class GameService {
      *                               player's hand (e.g., not present)
      */
     @Transactional
-    public void executeValidatedCardPlay(Game game, MatchPlayer matchPlayer, String cardCode) {
+    public void executeValidatedCardPlay(Game game, Long matchPlayerId, String cardCode) {
         log.info("   +-- executeValidatedCardPlay ---");
+
+        MatchPlayer matchPlayer = matchPlayerRepository.findById(matchPlayerId)
+                .orElseThrow(() -> new GameplayException("MatchPlayer not found with ID: " + matchPlayerId));
 
         String hand = matchPlayer.getHand();
         if (!CardUtils.isCardCodeInHand(hand, cardCode)) {
@@ -305,9 +308,10 @@ public class GameService {
         String newHand = CardUtils.getHandWithCardCodeRemoved(hand, cardCode);
         matchPlayer.setHand(newHand);
         matchPlayerRepository.saveAndFlush(matchPlayer);
-
         // Double-check that persistence worked
-        MatchPlayer verified = matchPlayerRepository.findById(matchPlayer.getMatchPlayerId()).orElseThrow();
+        MatchPlayer verified = matchPlayerRepository.findById(matchPlayer.getMatchPlayerId())
+                .orElseThrow(() -> new GameplayException(
+                        "MatchPlayer not found with ID: " + matchPlayer.getMatchPlayerId()));
 
         if (CardUtils.isCardCodeInHand(verified.getHand(), cardCode)) {
             log.warn("Card still present after save. Retrying...");
@@ -363,12 +367,19 @@ public class GameService {
     }
 
     void cardParanoia(Game game) {
-        // cards in trick
         String txt = "";
         int totalNumberOfCards = 0;
+        // cards in trick
         String trick = game.getCurrentTrickAsString();
         int trickSize = CardUtils.countValidUniqueCardsInString(trick);
-        totalNumberOfCards += trickSize;
+        // If trick was only just completed, it remains filled, even though it is
+        // technically empty.
+        if (trickSize == 4 && game.getTrickPhase() == TrickPhase.TRICKJUSTCOMPLETED) {
+            trick = "";
+            trickSize = 0;
+        } else {
+            totalNumberOfCards += trickSize;
+        }
         txt += "In the Trick: " + trickSize + " cards: [" + trick + "]; ";
         Match match = game.getMatch();
         List<MatchPlayer> matchPlayers = match.getMatchPlayers();
@@ -386,7 +397,9 @@ public class GameService {
             txt += mpTakenCardsCount + " cards: [" + mpTakenCards + "]); ";
             totalNumberOfCards += mpTakenCardsCount;
         }
-        log.info("PARANOIA! #" + game.getCurrentPlayOrder() + "; there are " + totalNumberOfCards
+        log.info("🌀PARANOIA in Match " + game.getMatch().getMatchId() + " / Game " + game.getGameNumber()
+                + "! PlayOrder=" + game.getCurrentPlayOrder()
+                + "; there are " + totalNumberOfCards
                 + " cards accounted for. " + txt);
     }
 
@@ -581,6 +594,7 @@ public class GameService {
         for (MatchPlayer mp : sortedPlayers) {
             mp.setMatchScore(mp.getMatchScore() + mp.getGameScore());
             mp.setGameScore(0);
+            mp.setTakenCards("");
             User user = mp.getUser();
             if (user != null) {
                 // Game Streak

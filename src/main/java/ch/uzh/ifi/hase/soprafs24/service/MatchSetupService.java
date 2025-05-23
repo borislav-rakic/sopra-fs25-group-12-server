@@ -1,5 +1,6 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
+import java.time.Instant;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -216,12 +217,20 @@ public class MatchSetupService {
         // Safe to proceed
         match.setPhase(MatchPhase.BEFORE_GAMES);
 
-        match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
+        List<MatchPlayer> sortedMatchPlayers = match.getMatchPlayersSortedBySlot();
+        for (MatchPlayer matchPlayer : sortedMatchPlayers) {
+            matchPlayer.setMatchScore(0);
+            matchPlayer.setPerfectGames(0);
+            matchPlayer.setShotTheMoonCount(0);
+            matchPlayer.setTakenCards("");
+            matchPlayer.setLastPollTime(Instant.now());
+        }
+        matchPlayerRepository.saveAll(sortedMatchPlayers);
 
-        match.getMatchPlayers().forEach(MatchPlayer::updateLastPollTime);
         matchRepository.save(match);
 
-        Game game = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository, seed);
+        Game game = gameSetupService.createAndStartGameForMatch(match, matchRepository, gameRepository,
+                seed);
         gameRepository.save(game);
     }
 

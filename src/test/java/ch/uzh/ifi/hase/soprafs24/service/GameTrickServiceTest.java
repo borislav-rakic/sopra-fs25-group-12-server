@@ -235,27 +235,60 @@ class GameTrickServiceTest {
     }
 
     @Test
-    void harmonizeHands_runsWithoutError_withMinimalValidInput() {
+    void testHarmonizeHands_removesCardsStillInHandThatWerePlayedInTrick() {
+        // Arrange
         Match match = new Match();
         Game game = new Game();
-        game.setCurrentTrickNumber(0);
-        game.setMatch(match);
+        match.setMatchId(1L);
 
-        MatchPlayer player = new MatchPlayer();
-        player.setMatchPlayerSlot(1);
-        player.setHand("2H,3D,4S");
-        player.setGameScore(0);
-        player.setTakenCards("QS,5H"); // 14 points
+        MatchPlayer player1 = new MatchPlayer();
+        player1.setMatchPlayerSlot(1);
+        player1.setMatchPlayerId(101L);
+        player1.setHand("5C,KS,2H");
 
-        match.setMatchPlayers(List.of(player));
+        MatchPlayer player2 = new MatchPlayer();
+        player2.setMatchPlayerSlot(2);
+        player2.setMatchPlayerId(102L);
+        player2.setHand("6C,QS,3H");
 
-        given(matchPlayerRepository.findByMatch(match)).willReturn(List.of(player));
-        when(matchPlayerRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        MatchPlayer player3 = new MatchPlayer();
+        player3.setMatchPlayerSlot(3);
+        player3.setMatchPlayerId(103L);
+        player3.setHand("7C,JS,4H");
+
+        MatchPlayer player4 = new MatchPlayer();
+        player4.setMatchPlayerSlot(4);
+        player4.setMatchPlayerId(104L);
+        player4.setHand("8C,0S,5H");
+
+        match.setMatchPlayers(List.of(player1, player2, player3, player4));
+
+        List<String> trick = List.of("6C", "JS", "5H");
+        game.setCurrentTrick(trick);
 
         gameTrickService.harmonizeHands(match, game);
 
-        // Basic assertion: score correction applied to the same player
-        assertEquals(12, player.getGameScore()); // 26 - 14 = 12 correction
+        // Assert
+        String hand1 = player1.getHand();
+        String hand2 = player2.getHand();
+        String hand3 = player3.getHand();
+        String hand4 = player4.getHand();
+
+        assertTrue(hand1.contains("5C"));
+        assertTrue(hand1.contains("KS"));
+        assertTrue(hand1.contains("2H"));
+
+        assertFalse(hand2.contains("6C"), "Player2 should no longer have 6C");
+        assertTrue(hand2.contains("QS"));
+        assertTrue(hand2.contains("3H"));
+
+        assertTrue(hand3.contains("7C"));
+        assertFalse(hand3.contains("JS"), "Player3 should no longer have JS");
+        assertTrue(hand3.contains("4H"));
+
+        assertTrue(hand4.contains("8C"));
+        assertTrue(hand4.contains("0S"));
+        assertFalse(hand4.contains("5H"), "Player4 should no longer have 5H");
     }
 
 }
