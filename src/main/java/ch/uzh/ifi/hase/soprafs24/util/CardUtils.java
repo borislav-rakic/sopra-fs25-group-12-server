@@ -3,6 +3,7 @@ package ch.uzh.ifi.hase.soprafs24.util;
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
+import ch.uzh.ifi.hase.soprafs24.exceptions.GameplayException;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 
 import java.util.ArrayList;
@@ -142,10 +143,14 @@ public class CardUtils {
 
         return Arrays.stream(cardCodes.split(","))
                 .map(String::trim)
-                .filter(code -> !code.isEmpty())
-                .peek(CardUtils::isValidCardFormat) // Silently skips doubles.
-                .distinct() // Remove duplicates
-                .sorted(CardUtils::compareCards) // Sort by card order
+                .filter(code -> {
+                    if (!CardUtils.isValidCardFormat(code)) {
+                        throw new GameplayException("Invalid card format during normalization: " + code);
+                    }
+                    return true;
+                })
+                .distinct()
+                .sorted(CardUtils::compareCards)
                 .collect(Collectors.joining(","));
     }
 

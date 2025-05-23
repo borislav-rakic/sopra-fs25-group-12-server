@@ -1,9 +1,12 @@
 package ch.uzh.ifi.hase.soprafs24.service;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import javax.transaction.Transactional;
@@ -158,8 +161,11 @@ public class CardPassingService {
     @Transactional
     public void reassignPassedCards(Game game, Map<Integer, List<PassedCard>> cardsByMatchPlayerSlot,
             Map<Integer, Integer> passTo) {
-        List<GameStats> updatedGameStats = new ArrayList<>(); // Collect for batch update
 
+        List<GameStats> updatedGameStats = new ArrayList<>();
+        Set<MatchPlayer> modifiedPlayers = new HashSet<>();
+
+        // Validate input
         for (Map.Entry<Integer, List<PassedCard>> entry : cardsByMatchPlayerSlot.entrySet()) {
             if (entry.getValue().size() != 3) {
                 throw new GameplayException(
@@ -172,54 +178,62 @@ public class CardPassingService {
             Integer toMatchPlayerSlot = passTo.get(fromMatchPlayerSlot);
 
             if (toMatchPlayerSlot == null || toMatchPlayerSlot < 1 || toMatchPlayerSlot > 4) {
-                int fromPlayerSlot = (int) fromMatchPlayerSlot;
-                throw new IllegalStateException("Invalid passing target playerSlot for playerSlot: " + fromPlayerSlot);
+                throw new IllegalStateException(
+                        "Invalid passing target playerSlot for playerSlot: " + fromMatchPlayerSlot);
             }
 
             MatchPlayer sender = findMatchPlayer(game, fromMatchPlayerSlot);
             MatchPlayer receiver = findMatchPlayer(game, toMatchPlayerSlot);
 
-            String hand = "";
-            String newHand = "";
+            // Work with mutable copies of the hands
+            String senderHand = sender.getHand();
+            List<String> receiverHandList = receiver.getHand().isEmpty()
+                    ? new ArrayList<>()
+                    : new ArrayList<>(Arrays.asList(receiver.getHand().split(",")));
 
             for (PassedCard card : entry.getValue()) {
                 String cardCode = card.getRankSuit();
 
-                // Remove the card from sender
-                hand = sender.getHand();
-                newHand = CardUtils.getHandWithCardCodeRemoved(hand, cardCode);
-                sender.setHand(newHand);
+                // Remove from sender
+                senderHand = CardUtils.getHandWithCardCodeRemoved(senderHand, cardCode);
 
-                // Add the card to receiver
-                if (receiver.getHand().isEmpty()) {
-                    receiver.setHand(cardCode);
-                } else {
-                    receiver.setHand(receiver.getHand() + "," + cardCode);
-                }
-                // Update GameStats: passedBy and passedTo
+                // Add to receiver
+                receiverHandList.add(cardCode);
+
+                // Update GameStats
                 GameStats gameStat = gameStatsRepository.findByRankSuitAndGameAndCardHolder(cardCode, game,
                         fromMatchPlayerSlot);
                 if (gameStat != null) {
                     gameStat.setPassedBy(fromMatchPlayerSlot);
                     gameStat.setPassedTo(toMatchPlayerSlot);
-                    updatedGameStats.add(gameStat); // Collect to batch-save later
+                    updatedGameStats.add(gameStat);
                 } else {
                     throw new GameplayException("Card passing failed: no tracking data for " + cardCode);
                 }
             }
+
+            // Update hands
+            sender.setHand(senderHand);
+            receiver.setHand(String.join(",", receiverHandList));
+
+            // Track for batch save
+            modifiedPlayers.add(sender);
+            modifiedPlayers.add(receiver);
         }
-        Match match = game.getMatch();
-        List<MatchPlayer> allPlayers = match.getMatchPlayersSortedBySlot(); // or match.getMatchPlayers()
-        for (MatchPlayer mp : allPlayers) {
+
+        // Normalize and persist hands
+        for (MatchPlayer mp : modifiedPlayers) {
             mp.setHand(CardUtils.normalizeCardCodeString(mp.getHand()));
         }
-        matchPlayerRepository.saveAll(allPlayers);
+
+        matchPlayerRepository.saveAll(modifiedPlayers);
         matchPlayerRepository.flush();
 
-        // Save all updated GameStats in one batch at the end
         gameStatsRepository.saveAll(updatedGameStats);
-        gameStatsRepository.flush(); // Optional but ensures immediate write
+        gameStatsRepository.flush();
+
         gameRepository.flush();
+        cardRulesService.checkHandsConsistency(game.getMatch());
     }
 
     /**
@@ -271,6 +285,7 @@ public class CardPassingService {
      *                                 don't own,
      *                                 - the same card is passed multiple times
      */
+    @Transactional
     public int passingAcceptCards(Game game, MatchPlayer matchPlayer, GamePassingDTO passingDTO,
             Boolean pickRandomly) {
         List<String> cardsToPass;

@@ -677,7 +677,7 @@ public class CardRulesService {
 
     public void validateUniqueDeckAcrossPlayers(Match match) {
         if (match == null || match.getMatchPlayers() == null) {
-            System.err.println("Match or match players are null — cannot validate deck.");
+            log.info("Match or match players are null — cannot validate deck.");
             return;
         }
 
@@ -698,13 +698,13 @@ public class CardRulesService {
             String handString = mp.getHand(); // returns a string like "2H,3H,4H"
 
             if (handString == null || handString.isBlank()) {
-                System.err.println("MatchPlayer (slot " + mp.getMatchPlayerSlot() + ") has no hand.");
+                log.info("MatchPlayer (slot " + mp.getMatchPlayerSlot() + ") has no hand.");
                 continue;
             }
 
             String[] cards = handString.split(",");
             if (cards.length != 13) {
-                System.err.println("MatchPlayer (slot " + mp.getMatchPlayerSlot() + ") does not have 13 cards, but "
+                log.info("MatchPlayer (slot " + mp.getMatchPlayerSlot() + ") does not have 13 cards, but "
                         + cards.length + " cards [" + handString + "].");
             }
             for (String card : cards) {
@@ -714,28 +714,95 @@ public class CardRulesService {
 
         // 3. Check card count
         if (allCards.size() != 52) {
-            System.err.println("Total number of cards is " + allCards.size() + " (expected 52)");
+            log.info("Total number of cards is " + allCards.size() + " (expected 52)");
         }
 
         // 4. Check for duplicates
         Set<String> seen = new HashSet<>();
         for (String card : allCards) {
             if (!seen.add(card)) {
-                System.err.println("Duplicate card found: " + card);
+                log.error("Duplicate card found: " + card);
             }
         }
 
         // 5. Check for missing cards
         for (String card : expectedDeck) {
             if (!seen.contains(card)) {
-                System.err.println("Missing card: " + card);
+                log.info("Missing card: " + card);
             }
         }
 
         // 6. Success message
         if (seen.size() == 52 && allCards.size() == 52) {
-            System.out.println("Deck is valid: all 52 unique cards are present.");
+            log.info("Deck is valid: all 52 unique cards are present.");
         }
+    }
+
+    /**
+     * Validates that the four match players in a match each have exactly 13 unique
+     * cards,
+     * and that the combined total across all players forms a complete, valid
+     * 52-card deck.
+     *
+     * Throws a GameplayException if any inconsistencies are found.
+     *
+     * @param match the match containing the four players
+     */
+    public void checkHandsConsistency(Match match) {
+        if (match == null || match.getMatchPlayers() == null || match.getMatchPlayers().size() != 4) {
+            throw new GameplayException("Invalid match state: expected exactly 4 players.");
+        }
+
+        List<String> suits = List.of("S", "H", "D", "C");
+        List<String> ranks = List.of("2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "A");
+
+        Set<String> expectedDeck = new HashSet<>();
+        for (String suit : suits) {
+            for (String rank : ranks) {
+                expectedDeck.add(rank + suit);
+            }
+        }
+
+        List<String> allCards = new ArrayList<>();
+        for (MatchPlayer mp : match.getMatchPlayers()) {
+            String hand = mp.getHand();
+            if (hand == null || hand.isBlank()) {
+                throw new GameplayException("MatchPlayer slot " + mp.getMatchPlayerSlot() + " has no hand.");
+            }
+
+            String[] cards = hand.split(",");
+            if (cards.length != 13) {
+                throw new GameplayException("MatchPlayer slot " + mp.getMatchPlayerSlot()
+                        + " should have 13 cards but has " + cards.length + ": " + hand);
+            }
+
+            for (String card : cards) {
+                String trimmedCard = card.trim();
+                if (!CardUtils.isValidCardFormat(trimmedCard)) {
+                    throw new GameplayException("Invalid card format in hand: " + trimmedCard);
+                }
+                allCards.add(trimmedCard);
+            }
+        }
+
+        if (allCards.size() != 52) {
+            throw new GameplayException("Total card count is " + allCards.size() + " (expected 52)");
+        }
+
+        Set<String> seen = new HashSet<>();
+        for (String card : allCards) {
+            if (!seen.add(card)) {
+                throw new GameplayException("Duplicate card detected: " + card);
+            }
+        }
+
+        for (String expectedCard : expectedDeck) {
+            if (!seen.contains(expectedCard)) {
+                throw new GameplayException("Missing card in hands: " + expectedCard);
+            }
+        }
+
+        log.info("Hands consistency validated: all 52 unique cards correctly distributed across 4 players.");
     }
 
 }
