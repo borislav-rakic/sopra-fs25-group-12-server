@@ -225,7 +225,7 @@ public class GameTrickService {
         game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
         log.info(" & TrickPhase set to JUSTCOMPLETED at {}", game.getTrickJustCompletedTime());
 
-        harmonizeHands(match, game);
+        // harmonizeHands(match, game);
         // STOP HERE AND WAIT FOR A POLLING BY THE MATCH OWNER TO PICK UP WHERE YOU
         // LEFT.
     }
