@@ -493,26 +493,6 @@ public class GameService {
             }
         }
 
-        if (totalGameScore != 26 && !moonShot) {
-            int difference = 26 - totalGameScore;
-
-            if (difference > 0) {
-                // Find player with highest score (before moon shot logic)
-                MatchPlayer highestScorer = players.stream()
-                        .max(Comparator.comparingInt(MatchPlayer::getGameScore))
-                        .orElse(null);
-
-                if (highestScorer != null) {
-                    log.warn("Adjusting game score: adding {} points to {}", difference,
-                            highestScorer.getUser().getUsername());
-                    highestScorer.setGameScore(highestScorer.getGameScore() + difference);
-                }
-            } else {
-                log.warn("Unexpected overage in game score: total = {}", totalGameScore);
-                // Optional: handle overshooting total score here if needed
-            }
-        }
-
         // Assign dense rankings (1224-style) based on game score (lower is better)
         List<MatchPlayer> playersToRank = new ArrayList<>(match.getMatchPlayers());
         playersToRank.sort(Comparator.comparingInt(MatchPlayer::getGameScore)); // Ascending
@@ -571,9 +551,18 @@ public class GameService {
         for (MatchPlayer mp : sortedPlayers) {
             mp.setMatchScore(mp.getMatchScore() + mp.getGameScore());
             mp.setGameScore(0);
-
             User user = mp.getUser();
             if (user != null) {
+                // Game Streak
+                if (mp.getRankingInGame() == 1) {
+                    user.setCurrentGameStreak(user.getCurrentGameStreak() + 1);
+                    if (user.getCurrentGameStreak() > user.getLongestGameStreak()) {
+                        user.setLongestGameStreak(user.getCurrentGameStreak());
+                    }
+                } else {
+                    user.setCurrentGameStreak(0);
+                }
+
                 float oldAvg = user.getAvgGameRanking();
                 int oldGames = user.getGamesPlayed();
                 int newGames = oldGames + 1;
