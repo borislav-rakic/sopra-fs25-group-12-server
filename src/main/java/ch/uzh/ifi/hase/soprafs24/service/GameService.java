@@ -357,7 +357,37 @@ public class GameService {
         gameTrickService.afterCardPlayed(game);
         gameStatsService.recordCardPlay(game, matchPlayer, cardCode);
 
+        cardParanoia(game);
+
         log.info("   +--- executeValidatedCardPlay ---");
+    }
+
+    void cardParanoia(Game game) {
+        // cards in trick
+        String txt = "";
+        int totalNumberOfCards = 0;
+        String trick = game.getCurrentTrickAsString();
+        int trickSize = CardUtils.countValidUniqueCardsInString(trick);
+        totalNumberOfCards += trickSize;
+        txt += "In the Trick: " + trickSize + " cards: [" + trick + "]; ";
+        Match match = game.getMatch();
+        List<MatchPlayer> matchPlayers = match.getMatchPlayers();
+        matchPlayers.sort(Comparator.comparingInt(MatchPlayer::getMatchPlayerSlot));
+        for (MatchPlayer mp : matchPlayers) {
+            String mpHand = mp.getHand();
+            String mpSlot = String.valueOf(mp.getMatchPlayerSlot());
+            int mpHandCount = CardUtils.countValidUniqueCardsInString(mpHand);
+            totalNumberOfCards += mpHandCount;
+
+            String mpTakenCards = mp.getTakenCards();
+            int mpTakenCardsCount = CardUtils.countValidUniqueCardsInString(mpTakenCards);
+            txt += " MatchPlayer " + mpSlot + ": " + mpHandCount;
+            txt += "cards: [" + mpHand + "] (has already taken ";
+            txt += mpTakenCardsCount + " cards: [" + mpTakenCards + "]); ";
+            totalNumberOfCards += mpTakenCardsCount;
+        }
+        log.info("PARANOIA! #" + game.getCurrentPlayOrder() + "; there are " + totalNumberOfCards
+                + " cards accounted for. " + txt);
     }
 
     /**
@@ -708,6 +738,7 @@ public class GameService {
 
             log.info("Checking cards distribution AFTER passing.");
             cardRulesService.validateUniqueDeckAcrossPlayers(game.getMatch());
+            cardParanoia(game);
 
         }
         gameRepository.saveAndFlush(game);
