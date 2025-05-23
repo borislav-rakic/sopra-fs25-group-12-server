@@ -429,6 +429,7 @@ public class GameService {
                         .toMillis() > GameConstants.TRICK_DELAY_MS) {
 
             game.setTrickPhase(TrickPhase.PROCESSINGTRICK);
+            gameTrickService.harmonizeHands(game.getMatch(), game);
             gameRepository.save(game);
             log.info("Trick marked READY for clearing on next poll.");
             if (cardRulesService.trickConsistsOnlyOfHearts(game.getCurrentTrick())

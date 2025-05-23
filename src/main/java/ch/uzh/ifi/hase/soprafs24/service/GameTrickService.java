@@ -226,6 +226,7 @@ public class GameTrickService {
         // LEFT.
     }
 
+    @Transactional
     public void harmonizeHands(Match match, Game game) {
         // if some trick cards sneak past the guards, they get removed now.
         List<MatchPlayer> matchPlayers = match.getMatchPlayersSortedBySlot();
@@ -238,11 +239,13 @@ public class GameTrickService {
                     log.info("MatchPlayer " + mp.getMatchPlayerId() + " still had the card []" + trickCard
                             + "] in his hand after trick " + trick + "had been played. Removed.");
                     mp.setHand(CardUtils.getHandWithCardCodeRemoved(mp.getHand(), trickCard));
+                    matchPlayerRepository.saveAndFlush(mp);
                 }
             }
         }
     }
 
+    @Transactional
     public void clearTrick(Match match, Game game) {
         game.setPreviousTrick(game.getCurrentTrick());
         game.clearCurrentTrick();
