@@ -4,7 +4,6 @@ import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.GamePhase;
 import ch.uzh.ifi.hase.soprafs24.constant.TrickPhase;
 import ch.uzh.ifi.hase.soprafs24.entity.Game;
-import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.Match;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
@@ -186,18 +185,15 @@ public class GameTrickService {
         log.info(" & Trick winnerMatchPlayerSlot {} ({} points)", winnerMatchPlayerSlot, points);
 
         // Step A3: Collect cards played in the current trick
-        // List<String> currentTrickCardCodes = game.getCurrentTrick();
-        List<GameStats> currentTrickStats = gameStatsRepository.findByGameAndTrickNumber(game,
-                game.getCurrentTrickNumber());
-
-        List<String> takenCardsThisTrick = currentTrickStats.stream()
-                .map(GameStats::getRankSuit)
-                .toList();
+        List<String> takenCardsThisTrick = game.getCurrentTrick();
 
         if (winnerMatchPlayer.getTakenCards() == null) {
-            winnerMatchPlayer.setTakenCards(new ArrayList<>());
+            winnerMatchPlayer.setTakenCards("");
         }
-        winnerMatchPlayer.getTakenCards().addAll(takenCardsThisTrick);
+        String winnerMatchPlayersTakenCards = winnerMatchPlayer.getTakenCards();
+        String winnerMatchPlayersNewTakenCards = CardUtils.getHandWithCardCodesAdded(winnerMatchPlayersTakenCards,
+                takenCardsThisTrick);
+        winnerMatchPlayer.setTakenCards(winnerMatchPlayersNewTakenCards);
 
         // Step A4: Archive the trick
         // move current trick to previous, but do not clear it just yet.
@@ -245,11 +241,16 @@ public class GameTrickService {
             int slot = p.getMatchPlayerSlot();
             slotMap.put(slot, p);
 
+            // Parse and clean hand + taken cards
             List<String> hand = p.getHand() != null
-                    ? new ArrayList<>(CardUtils.splitCardCodesAsListOfStrings(p.getHand()))
+                    ? CardUtils.splitCardCodesAsListOfStrings(p.getHand())
                     : new ArrayList<>();
-            List<String> taken = p.getTakenCards() != null ? new ArrayList<>(p.getTakenCards()) : new ArrayList<>();
 
+            List<String> taken = p.getTakenCards() != null
+                    ? CardUtils.splitCardCodesAsListOfStrings(p.getTakenCards())
+                    : new ArrayList<>();
+
+            // Deduplicate hand
             List<String> dedupedHand = new ArrayList<>();
             for (String c : hand) {
                 if (allUsedCards.add(c)) {
@@ -257,16 +258,23 @@ public class GameTrickService {
                 }
             }
 
+            // Deduplicate taken cards and count points
             List<String> dedupedTaken = new ArrayList<>();
             for (String c : taken) {
                 if (allUsedCards.add(c)) {
                     dedupedTaken.add(c);
-                    totalPoints += "QS".equals(c) ? 13 : (c.endsWith("H") ? 1 : 0);
+                    if ("QS".equals(c)) {
+                        totalPoints += 13;
+                    } else if (c.endsWith("H")) {
+                        totalPoints += 1;
+                    }
                 }
             }
 
             hands.put(slot, dedupedHand);
             takenCards.put(slot, dedupedTaken);
+
+            // Add game score from entity
             totalPoints += p.getGameScore();
         }
 
@@ -310,8 +318,17 @@ public class GameTrickService {
         // Step 6: Apply everything back to entities
         for (int slot : slotMap.keySet()) {
             MatchPlayer p = slotMap.get(slot);
-            p.setHand(String.join(",", hands.get(slot)));
-            p.setTakenCards(takenCards.get(slot));
+
+            // Convert updated hand to a comma-separated string
+            List<String> updatedHand = hands.getOrDefault(slot, List.of());
+            p.setHand(String.join(",", updatedHand));
+
+            // Add new taken cards to existing string and sort/merge them
+            String existingTaken = p.getTakenCards(); // may be null
+            List<String> newlyTaken = takenCards.getOrDefault(slot, List.of());
+            String mergedTaken = CardUtils.getHandWithCardCodesAdded(existingTaken, newlyTaken);
+
+            p.setTakenCards(mergedTaken);
             matchPlayerRepository.save(p);
         }
 

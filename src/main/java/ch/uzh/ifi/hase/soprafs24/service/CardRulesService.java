@@ -108,11 +108,11 @@ public class CardRulesService {
         int handLeadingSuitSize = CardUtils.sizeOfCardCodeString(handLeadingSuit);
         // log.info(" ¦ handLeadingSuitSize: {}.", handLeadingSuitSize);
 
-        String handLeadingSuitNonQS = CardUtils.cardCodeStringMinusCardCode(handLeadingSuit,
+        String handLeadingSuitNonQS = CardUtils.getHandWithCardCodeRemoved(handLeadingSuit,
                 GameConstants.QUEEN_OF_SPADES);
         // log.info(" ¦ handLeadingSuitNonQS: {}.", handLeadingSuitNonQS);
 
-        String handNonHeartsNonQS = CardUtils.cardCodeStringMinusCardCode(handNonHearts,
+        String handNonHeartsNonQS = CardUtils.getHandWithCardCodeRemoved(handNonHearts,
                 GameConstants.QUEEN_OF_SPADES);
         int handNonHeartsNonQSSize = CardUtils.sizeOfCardCodeString(handNonHeartsNonQS);
         // log.info(" ¦ handNonHeartsNonQSSize: {}.", handNonHeartsNonQSSize);
@@ -258,9 +258,10 @@ public class CardRulesService {
      *                                 held by the player
      */
     public void validateMatchPlayerCardCode(Game game, MatchPlayer matchPlayer, String cardCode) {
+        String hand = matchPlayer.getHand();
         log.info("+++ VALIDATEPLAYERCARDCODE: Trick #{} +++", game.getCurrentTrickNumber());
         log.info("+ Game ID: {}, Player: {}, Attempting to play: {}, Hand: {}",
-                game.getGameId(), matchPlayer.getInfo(), cardCode, matchPlayer.getHand());
+                game.getGameId(), matchPlayer.getInfo(), cardCode, hand);
 
         // 1. Format check
         if (!CardUtils.isValidCardFormat(cardCode)) {
@@ -274,7 +275,7 @@ public class CardRulesService {
         // 3. Check if card is playable
         if (!cardIsPlayable) {
             log.info("+ Only legal cards: {} | Hand: {} | Trick so far: {} | # of Trick: {} | Hearts {}broken",
-                    playableCards, matchPlayer.getHand(), game.getCurrentTrick(), game.getCurrentTrickNumber(),
+                    playableCards, hand, game.getCurrentTrick(), game.getCurrentTrickNumber(),
                     game.getHeartsBroken() ? "" : "not ");
 
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
@@ -283,7 +284,7 @@ public class CardRulesService {
         }
 
         // 4. Confirm the card is in hand
-        if (!matchPlayer.hasCardCodeInHand(cardCode)) {
+        if (!CardUtils.isCardCodeInHand(hand, cardCode)) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     String.format("MatchPlayer %s does not hold card %s in their hand.",
                             matchPlayer.getInfo(), cardCode));

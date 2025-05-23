@@ -9,7 +9,9 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import ch.uzh.ifi.hase.soprafs24.model.CardResponse;
@@ -245,6 +247,19 @@ public class CardUtils {
                 .collect(Collectors.toList());
     }
 
+    public static String getHandFromListOfCardCodes(List<String> cardCodes) {
+        if (cardCodes == null || cardCodes.isEmpty()) {
+            return "";
+        }
+
+        return cardCodes.stream()
+                .map(String::trim)
+                .filter(code -> !code.isEmpty())
+                .peek(CardUtils::requireValidCardFormat)
+                .sorted()
+                .collect(Collectors.joining(","));
+    }
+
     public static List<String> splitCardCodesAsListOfStrings(String cardCodes) {
         if (cardCodes == null || cardCodes.isBlank()) {
             return List.of();
@@ -386,31 +401,6 @@ public class CardUtils {
                 .collect(Collectors.joining(","));
     }
 
-    public static String cardCodeStringMinusCardCode(String cardCodeString, String cardCodeToRemove) {
-        if (cardCodeString == null || cardCodeString.isBlank()) {
-            return "";
-        }
-
-        if (cardCodeToRemove == null || cardCodeToRemove.isBlank()) {
-            return normalizeCardCodeString(cardCodeString); // nothing to remove
-        }
-
-        String cardToRemove = cardCodeToRemove.trim();
-
-        List<String> remainingCards = splitCardCodesAsListOfStrings(cardCodeString).stream()
-                .map(String::trim)
-                .filter(code -> !code.equals(cardToRemove))
-                .distinct()
-                .sorted(CardUtils::compareCards)
-                .collect(Collectors.toList());
-
-        if (remainingCards.isEmpty()) {
-            return "";
-        }
-
-        return String.join(",", remainingCards);
-    }
-
     public static boolean validateDrawnCards(List<CardResponse> cards) {
         // Check size
         if (cards == null || cards.size() != GameConstants.FULL_DECK_CARD_COUNT) {
@@ -474,11 +464,136 @@ public class CardUtils {
             mp.setMatchPlayerSlot(i + 1);
             List<String> handCards = deck.subList(i * cardsPerPlayer, (i + 1) * cardsPerPlayer);
             mp.setHand(String.join(",", handCards));
-            mp.setTakenCards(new ArrayList<>());
+            mp.setTakenCards("");
             mp.setGameScore(0);
             players.add(mp);
         }
 
         return players;
+    }
+
+    // Formerly matchPlayer.removeCardCodeFromHand(String cardCode)
+    public static String getHandWithCardCodeRemoved(String hand, String cardCode) {
+        if (hand == null || hand.isBlank()) {
+            return "";
+        }
+
+        return Arrays.stream(hand.split(","))
+                .map(String::trim)
+                .filter(c -> !c.equals(cardCode) && !c.isEmpty())
+                .sorted(Comparator.comparingInt(CardUtils::calculateCardOrder)) // sort here
+                .collect(Collectors.joining(","));
+    }
+
+    public static boolean isCardCodeInHand(String hand, String cardCode) {
+        if (hand == null || hand.isBlank()) {
+            return false;
+        }
+
+        String[] cards = hand.split(",");
+        for (String card : cards) {
+            if (card.equals(cardCode)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    public static String getHandWithCardCodesAdded(String hand, List<String> newCards) {
+        Set<String> cardSet = new HashSet<>();
+
+        if (hand != null && !hand.isBlank()) {
+            for (String card : hand.split(",")) {
+                String trimmed = card.trim();
+                if (!trimmed.isEmpty()) {
+                    CardUtils.requireValidCardFormat(trimmed);
+                    cardSet.add(trimmed);
+                }
+            }
+        }
+
+        if (newCards != null) {
+            for (String card : newCards) {
+                String trimmed = card.trim();
+                if (!trimmed.isEmpty()) {
+                    CardUtils.requireValidCardFormat(trimmed);
+                    cardSet.add(trimmed);
+                }
+            }
+        }
+
+        return cardSet.stream()
+                .sorted(Comparator.comparingInt(CardUtils::calculateCardOrder))
+                .collect(Collectors.joining(","));
+    }
+
+    public static int countUniqueCardsInHand(String cardCodes) {
+        if (cardCodes == null || cardCodes.isBlank()) {
+            return 0;
+        }
+
+        return (int) Arrays.stream(cardCodes.split(","))
+                .map(String::trim)
+                .filter(code -> !code.isEmpty())
+                .distinct()
+                .count();
+    }
+
+    public static int countValidUniqueCardsInString(String cardCodes) {
+        if (cardCodes == null || cardCodes.isBlank()) {
+            return 0;
+        }
+
+        return (int) Arrays.stream(cardCodes.split(","))
+                .map(String::trim)
+                .filter(code -> !code.isEmpty())
+                .filter(CardUtils::isValidCardFormat) // validate format
+                .distinct()
+                .count();
+    }
+
+    public static String reduceHandToCardsInSuit(String hand, char suit) {
+        if (hand == null || hand.isBlank()) {
+            return "";
+        }
+
+        return Arrays.stream(hand.split(","))
+                .map(String::trim)
+                .filter(card -> !card.isEmpty() && card.charAt(card.length() - 1) == suit)
+                .sorted(Comparator.comparingInt(CardUtils::calculateCardOrder))
+                .collect(Collectors.joining(","));
+    }
+
+    public static String reduceHandToCardsInSuit(String hand, String suit) {
+        if (suit == null || suit.length() < 1) {
+            return "";
+        }
+        if (suit.length() == 1) {
+            return reduceHandToCardsInSuit(hand, suit.charAt(0));
+        }
+        return reduceHandToCardsInSuit(hand, suit.charAt(1));
+    }
+
+    public static String reduceToCardsNotInSuit(String hand, char suit) {
+        if (hand == null || hand.isBlank()) {
+            return "";
+        }
+
+        return Arrays.stream(hand.split(","))
+                .map(String::trim)
+                .filter(card -> !card.isEmpty() && card.charAt(card.length() - 1) != suit)
+                .sorted(Comparator.comparingInt(CardUtils::calculateCardOrder))
+                .collect(Collectors.joining(","));
+    }
+
+    public static String reduceToCardsNotInSuit(String hand, String suit) {
+        if (suit == null || suit.length() < 1) {
+            return hand;
+        }
+        if (suit.length() == 1) {
+            return reduceToCardsNotInSuit(hand, suit.charAt(0));
+        }
+        return reduceToCardsNotInSuit(hand, suit.charAt(1));
     }
 }

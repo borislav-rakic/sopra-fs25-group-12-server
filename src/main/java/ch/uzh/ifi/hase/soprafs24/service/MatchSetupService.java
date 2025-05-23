@@ -217,6 +217,7 @@ public class MatchSetupService {
         match.setPhase(MatchPhase.BEFORE_GAMES);
 
         match.getMatchPlayers().forEach(MatchPlayer::resetMatchStats);
+
         match.getMatchPlayers().forEach(MatchPlayer::updateLastPollTime);
         matchRepository.save(match);
 

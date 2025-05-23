@@ -7,7 +7,6 @@ import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -218,26 +217,35 @@ public class CardPassingServiceTest {
 
     @Test
     void passingAcceptCards_validInput_savesCards() {
-        Game game = mock(Game.class);
-        MatchPlayer matchPlayer = mock(MatchPlayer.class);
+        // Arrange
+        Game game = new Game();
+        Match match = new Match();
+        MatchPlayer matchPlayer = new MatchPlayer();
+
+        matchPlayer.setMatchPlayerSlot(1);
+        matchPlayer.setHand("2H,3D,4S");
+        matchPlayer.setMatch(match);
+        match.setMatchPlayers(List.of(matchPlayer));
+        game.setMatch(match);
+
         GamePassingDTO dto = new GamePassingDTO();
         dto.setCards(List.of("2H", "3D", "4S"));
 
-        when(matchPlayer.getMatchPlayerSlot()).thenReturn(1);
-        when(matchPlayer.getMatch()).thenReturn(new Match());
-        when(matchPlayer.hasCardCodeInHand(any())).thenReturn(true);
-
+        // Mock repository behavior: all cards not passed before
         for (String card : dto.getCards()) {
             when(passedCardRepository.existsByGameAndFromMatchPlayerSlotAndRankSuit(game, 1, card)).thenReturn(false);
             when(passedCardRepository.existsByGameAndRankSuit(game, card)).thenReturn(false);
         }
 
-        when(passedCardRepository.countByGame(game)).thenReturn(3);
+        when(passedCardRepository.countByGame(game)).thenReturn(3); // Initial state before passing
 
-        int count = cardPassingService.passingAcceptCards(game, matchPlayer, dto, false);
+        // Act
+        int result = cardPassingService.passingAcceptCards(game, matchPlayer, dto, false);
 
-        assertEquals(3, count);
+        // Assert
+        assertEquals(3, result);
         verify(passedCardRepository, times(1)).saveAll(any());
+        verify(passedCardRepository, times(1)).flush();
     }
 
     @Test

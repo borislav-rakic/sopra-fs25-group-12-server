@@ -131,8 +131,10 @@ public class PollingService {
         // index 0, etc.)
         // The frontend rotates these values based on the client's relative position.
         Map<Integer, Integer> handCounts = new HashMap<>();
+        String hand = "";
         for (MatchPlayer mp : match.getMatchPlayers()) {
-            int count = mp.getHandCardsArray().length;
+            hand = mp.getHand();
+            int count = CardUtils.countValidUniqueCardsInString(hand);
             handCounts.put(mp.getMatchPlayerSlot() - 1, count);
         }
 
@@ -175,7 +177,7 @@ public class PollingService {
                 })
                 .collect(Collectors.toList());
 
-        String hand = CardUtils.normalizeCardCodeString(matchPlayer.getHand());
+        hand = CardUtils.normalizeCardCodeString(matchPlayer.getHand());
 
         // Playable cards in my hand
         List<PlayerCardDTO> playableCardDTOList = new ArrayList<>();

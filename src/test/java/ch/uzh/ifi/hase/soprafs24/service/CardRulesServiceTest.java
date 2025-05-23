@@ -91,39 +91,6 @@ public class CardRulesServiceTest {
         assertEquals("2H,3H,KH", playable);
     }
 
-    // @Test
-    // public void testValidateMatchPlayerCardCode() {
-    // Game game = mock(Game.class);
-    // MatchPlayer player = mock(MatchPlayer.class);
-
-    // when(game.getCurrentTrickNumber()).thenReturn(1);
-    // when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
-    // when(player.getMatchPlayerSlot()).thenReturn(1);
-    // when(player.getHand()).thenReturn("2C,3C,4C");
-
-    // assertDoesNotThrow(() -> {
-    // cardRulesService.validateMatchPlayerCardCode(game, player, "2C"); // Valid
-    // card in hand
-    // });
-    // }
-
-    // @Test
-    // public void testValidateMatchPlayerCardCode_IllegalCardPlayed() {
-    // Game game = mock(Game.class);
-    // MatchPlayer player = mock(MatchPlayer.class);
-
-    // when(game.getCurrentTrickNumber()).thenReturn(1);
-    // when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
-    // when(player.getMatchPlayerSlot()).thenReturn(1);
-    // when(player.getHand()).thenReturn("2C,3C,4C");
-    // when(game.getCurrentTrickAsString()).thenReturn("5H");
-
-    // assertThrows(ResponseStatusException.class, () -> {
-    // cardRulesService.validateMatchPlayerCardCode(game, player, "3H"); // 3H is
-    // not playable in the current trick
-    // });
-    // }
-
     @Test
     public void testDetermineTrickWinner() {
         Game game = mock(Game.class);
@@ -301,7 +268,6 @@ public class CardRulesServiceTest {
     public void testValidateMatchPlayerCardCode_validCard() {
         Game game = mock(Game.class);
         MatchPlayer player = mock(MatchPlayer.class);
-
         when(game.getPhase()).thenReturn(GamePhase.NORMALTRICK);
         when(game.getCurrentMatchPlayerSlot()).thenReturn(1);
         when(player.getMatchPlayerSlot()).thenReturn(1);
@@ -311,7 +277,7 @@ public class CardRulesServiceTest {
         when(game.getHeartsBroken()).thenReturn(false);
         when(game.getCurrentPlayOrder()).thenReturn(0);
 
-        when(player.hasCardCodeInHand("2C")).thenReturn(true);
+        when(player.getHand()).thenReturn("2C,3C");
         when(player.getInfo()).thenReturn("Tester");
 
         assertDoesNotThrow(() -> cardRulesService.validateMatchPlayerCardCode(game, player, "2C"));
@@ -325,14 +291,14 @@ public class CardRulesServiceTest {
         when(game.getPhase()).thenReturn(GamePhase.FIRSTTRICK);
         when(game.getCurrentMatchPlayerSlot()).thenReturn(1);
         when(player.getMatchPlayerSlot()).thenReturn(1);
-        when(player.getHand()).thenReturn("2C,3C");
+        when(player.getHand()).thenReturn("2C,3C"); // no 3H in hand
         when(game.getCurrentPlayOrder()).thenReturn(0);
         when(game.getCurrentTrickAsString()).thenReturn("3H");
         when(game.getCurrentTrickNumber()).thenReturn(1);
         when(game.getHeartsBroken()).thenReturn(false);
-
-        when(player.hasCardCodeInHand("3H")).thenReturn(true);
         when(player.getInfo()).thenReturn("Tester");
+
+        // Don't stub CardUtils — real logic will check and return false
 
         assertThrows(Exception.class, () -> cardRulesService.validateMatchPlayerCardCode(game, player, "3H"));
     }
@@ -350,10 +316,9 @@ public class CardRulesServiceTest {
         when(game.getCurrentTrickNumber()).thenReturn(1);
         when(game.getHeartsBroken()).thenReturn(false);
         when(game.getCurrentPlayOrder()).thenReturn(0);
-
-        when(player.hasCardCodeInHand("5H")).thenReturn(false);
         when(player.getInfo()).thenReturn("Tester");
 
+        // Card "5H" is not in hand -> should throw
         assertThrows(Exception.class, () -> cardRulesService.validateMatchPlayerCardCode(game, player, "5H"));
     }
 

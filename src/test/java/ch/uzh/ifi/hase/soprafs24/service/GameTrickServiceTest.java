@@ -200,7 +200,7 @@ class GameTrickServiceTest {
         dummyPlayer.setMatchPlayerSlot(1);
         dummyPlayer.setGameScore(0);
         dummyPlayer.setHand("2H,3D,4S");
-        dummyPlayer.setTakenCards(new ArrayList<>());
+        dummyPlayer.setTakenCards("");
 
         List<MatchPlayer> players = List.of(dummyPlayer);
         match.setMatchPlayers(players);
@@ -219,7 +219,7 @@ class GameTrickServiceTest {
         MatchPlayer winner = new MatchPlayer();
         winner.setMatchPlayerSlot(2);
         winner.setGameScore(0);
-        winner.setTakenCards(new ArrayList<>());
+        winner.setTakenCards("");
         when(matchPlayerRepository.findByMatchAndMatchPlayerSlot(match, 2)).thenReturn(winner);
 
         GameStats stat1 = new GameStats();
@@ -229,7 +229,7 @@ class GameTrickServiceTest {
         gameTrickService.handlePotentialTrickCompletion(match, game);
 
         assertEquals(13, winner.getGameScore());
-        assertEquals(List.of("QS"), winner.getTakenCards());
+        assertEquals("AC,2D,QS,KH", winner.getTakenCards());
         assertEquals("QS", game.getPreviousTrick().get(0));
         assertEquals(2, game.getPreviousTrickWinnerMatchPlayerSlot());
     }
@@ -245,7 +245,7 @@ class GameTrickServiceTest {
         player.setMatchPlayerSlot(1);
         player.setHand("2H,3D,4S");
         player.setGameScore(0);
-        player.setTakenCards(new ArrayList<>(List.of("QS", "5H"))); // 14 points
+        player.setTakenCards("QS,5H"); // 14 points
 
         match.setMatchPlayers(List.of(player));
 

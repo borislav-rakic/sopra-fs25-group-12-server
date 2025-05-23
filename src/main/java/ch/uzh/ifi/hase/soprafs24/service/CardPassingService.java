@@ -179,14 +179,23 @@ public class CardPassingService {
             MatchPlayer sender = findMatchPlayer(game, fromMatchPlayerSlot);
             MatchPlayer receiver = findMatchPlayer(game, toMatchPlayerSlot);
 
+            String hand = "";
+            String newHand = "";
+
             for (PassedCard card : entry.getValue()) {
                 String cardCode = card.getRankSuit();
 
                 // Remove the card from sender
-                sender.removeCardCodeFromHand(cardCode);
+                hand = sender.getHand();
+                newHand = CardUtils.getHandWithCardCodeRemoved(hand, cardCode);
+                sender.setHand(newHand);
 
                 // Add the card to receiver
-                receiver.addCardCodeToHand(cardCode);
+                if (receiver.getHand().isEmpty()) {
+                    receiver.setHand(cardCode);
+                } else {
+                    receiver.setHand(receiver.getHand() + "," + cardCode);
+                }
                 // Update GameStats: passedBy and passedTo
                 GameStats gameStat = gameStatsRepository.findByRankSuitAndGameAndCardHolder(cardCode, game,
                         fromMatchPlayerSlot);
@@ -287,6 +296,8 @@ public class CardPassingService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Exactly 3 cards must be passed.");
         }
 
+        String hand = matchPlayer.getHand();
+
         // Check for duplicate cards in the selection
         long distinctCount = cardsToPass.stream().distinct().count();
         if (distinctCount != cardsToPass.size()) {
@@ -299,7 +310,7 @@ public class CardPassingService {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid card format: " + cardCode);
             }
 
-            if (!matchPlayer.hasCardCodeInHand(cardCode)) {
+            if (!CardUtils.isCardCodeInHand(hand, cardCode)) {
                 throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                         "Card " + cardCode + " is not owned by player in playerSlot " + playerSlot);
             }

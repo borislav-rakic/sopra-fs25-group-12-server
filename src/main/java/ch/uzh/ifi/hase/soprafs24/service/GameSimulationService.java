@@ -80,7 +80,7 @@ public class GameSimulationService {
 
             for (int i = 0; i < matchPlayers.size(); i++) {
                 MatchPlayer tmp = matchPlayers.get(i);
-                tmp.addToMatchScore(randomScores.get(i));
+                tmp.setMatchScore(tmp.getMatchScore() + randomScores.get(i));
                 matchPlayerRepository.save(tmp);
             }
 
@@ -134,7 +134,7 @@ public class GameSimulationService {
 
             for (int i = 0; i < matchPlayers.size(); i++) {
                 MatchPlayer tmp = matchPlayers.get(i);
-                tmp.addToMatchScore(randomScores.get(i));
+                tmp.setMatchScore(tmp.getMatchScore() + randomScores.get(i));
                 matchPlayerRepository.save(tmp);
             }
 
@@ -180,7 +180,7 @@ public class GameSimulationService {
 
             for (int i = 0; i < matchPlayers.size(); i++) {
                 MatchPlayer tmp = matchPlayers.get(i);
-                tmp.addToMatchScore(randomScores.get(i));
+                tmp.setMatchScore(tmp.getMatchScore() + randomScores.get(i));
                 matchPlayerRepository.save(tmp);
             }
 
@@ -237,7 +237,7 @@ public class GameSimulationService {
 
             for (int i = 0; i < matchPlayers.size(); i++) {
                 MatchPlayer tmp = matchPlayers.get(i);
-                tmp.addToMatchScore(randomScores.get(i));
+                tmp.setMatchScore(tmp.getMatchScore() + randomScores.get(i));
                 matchPlayerRepository.save(tmp);
             }
 

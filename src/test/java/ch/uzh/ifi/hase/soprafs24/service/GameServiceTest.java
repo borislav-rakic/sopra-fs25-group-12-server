@@ -4,7 +4,6 @@ import ch.uzh.ifi.hase.soprafs24.constant.*;
 import ch.uzh.ifi.hase.soprafs24.entity.*;
 import ch.uzh.ifi.hase.soprafs24.repository.*;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.GamePassingDTO;
-import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -15,10 +14,8 @@ import org.mockito.Mockito;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.any;
@@ -102,9 +99,7 @@ public class GameServiceTest {
             mp.setGameScore(i == 0 ? 26 : 0); // Simulate a moon shot by first player
 
             if (i == 0) {
-                mp.addCardCodeToHand("5C");
-                mp.addCardCodeToHand("KH");
-                mp.addCardCodeToHand("7S");
+                mp.setHand("5C,KH,7S");
             }
 
             matchPlayersList.add(mp);
@@ -146,6 +141,7 @@ public class GameServiceTest {
         userAI.setIsAiPlayer(true);
 
         MatchPlayer aiPlayer = new MatchPlayer();
+        aiPlayer.setMatchPlayerId(42L); // <-- Fix: assign ID
         aiPlayer.setUser(userAI);
         aiPlayer.setMatch(match);
         aiPlayer.setMatchPlayerSlot(2);
@@ -158,7 +154,9 @@ public class GameServiceTest {
         given(aiPlayingService.selectCardToPlay(any(), any(), any())).willReturn("3C");
         doNothing().when(cardRulesService).validateMatchPlayerCardCode(any(), any(), any());
         doNothing().when(gameStatsService).recordCardPlay(any(), any(), any());
+
         given(matchPlayerRepository.findByMatchAndMatchPlayerSlot(any(), anyInt())).willReturn(aiPlayer);
+        given(matchPlayerRepository.findById(42L)).willReturn(Optional.of(aiPlayer)); // <-- Fix: stub findById
 
         // Act
         boolean result = gameService.playSingleAiTurn(match, game, aiPlayer);
@@ -179,14 +177,26 @@ public class GameServiceTest {
         game.setCurrentPlayOrder(4);
         game.setCurrentTrickNumber(2);
 
-        Mockito.doNothing().when(cardRulesService).validateMatchPlayerCardCode(Mockito.any(), Mockito.any(),
-                Mockito.any());
-        Mockito.doNothing().when(gameStatsService).recordCardPlay(Mockito.any(), Mockito.any(), Mockito.any());
+        // Use real objects instead of mocks
+        User user = new User();
+        user.setId(42L);
+
+        MatchPlayer matchPlayer = new MatchPlayer();
+        matchPlayer.setMatch(match);
+        matchPlayer.setMatchPlayerId(42L); // Ensure this is used as the primary key
+        matchPlayer.setMatchPlayerSlot(1);
+        matchPlayer.setHand("5C");
+        matchPlayer.setUser(new User()); // Prevents NPE on getUser()
+
+        when(matchPlayerRepository.findById(42L)).thenReturn(Optional.of(matchPlayer));
+
+        doNothing().when(cardRulesService).validateMatchPlayerCardCode(any(), any(), any());
+        doNothing().when(gameStatsService).recordCardPlay(any(), any(), any());
 
         gameService.playCardAsHuman(game, matchPlayer, "5C");
 
-        verify(cardRulesService).validateMatchPlayerCardCode(Mockito.any(), Mockito.any(), Mockito.any());
-        verify(gameStatsService).recordCardPlay(Mockito.any(), Mockito.any(), Mockito.any());
+        verify(cardRulesService).validateMatchPlayerCardCode(any(), any(), any());
+        verify(gameStatsService).recordCardPlay(any(), any(), any());
     }
 
     @Test
@@ -305,7 +315,11 @@ public class GameServiceTest {
         gamePassingDTO.setCards(cards);
         gamePassingDTO.setPlayerId(1L);
 
-        matchPlayer.addCardCodeToHand("2C");
+        if (matchPlayer.getHand().isEmpty()) {
+            matchPlayer.setHand("2C");
+        } else {
+            matchPlayer.setHand(matchPlayer.getHand() + ",2C");
+        }
 
         given(cardPassingService.passingAcceptCards(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyBoolean()))
                 .willReturn(12);

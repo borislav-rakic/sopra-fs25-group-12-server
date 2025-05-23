@@ -6,6 +6,8 @@ import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
 import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.entity.User;
 import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
+import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
+
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.*;
@@ -36,7 +38,7 @@ public class AiPlayingServiceHypatiaGaryAdaTest {
     private MatchPlayer createMatchPlayer(long userId, int slot, List<String> takenCards) {
         MatchPlayer player = new MatchPlayer();
         player.setMatchPlayerSlot(slot);
-        player.setTakenCards(takenCards); // fixed line
+        player.setTakenCards(CardUtils.getHandWithCardCodesAdded(player.getTakenCards(), takenCards));
         User user = new User();
         user.setId(userId);
         player.setUser(user);

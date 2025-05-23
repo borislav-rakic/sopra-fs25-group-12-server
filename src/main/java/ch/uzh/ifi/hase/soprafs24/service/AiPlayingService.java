@@ -78,7 +78,12 @@ public class AiPlayingService {
 
         String cardCode;
         switch (strategy) {
-            case LEFTMOST -> cardCode = legalCards[0];
+            case LEFTMOST -> {
+                cardCode = Arrays.stream(legalCards)
+                        .sorted(Comparator.comparingInt(CardUtils::calculateCardOrder))
+                        .findFirst()
+                        .orElseThrow(() -> new GameplayException("No card to play"));
+            }
             case RANDOM -> cardCode = legalCards[random.nextInt(legalCards.length)];
             case DUMPHIGHESTFACEFIRST -> {
                 List<String> sorted = Arrays.stream(legalCards)
@@ -448,11 +453,11 @@ public class AiPlayingService {
      *         otherwise
      */
     private boolean isAttemptingMoonShot(MatchPlayer player) {
-        List<String> taken = player.getTakenCards(); // e.g., "QH,AS,5H"
-        if (taken == null || taken.isEmpty()) {
+        String takenString = player.getTakenCards(); // e.g., "QH,AS,5H"
+        if (takenString == null || takenString.isEmpty()) {
             return false;
         }
-
+        List<String> taken = CardUtils.splitCardCodesAsListOfStrings(takenString);
         long heartCount = taken.stream().filter(card -> card.endsWith("H")).count();
         boolean hasQS = taken.contains("QS");
 

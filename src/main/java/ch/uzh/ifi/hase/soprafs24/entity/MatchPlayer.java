@@ -1,15 +1,11 @@
 package ch.uzh.ifi.hase.soprafs24.entity;
 
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.persistence.*;
 
 import ch.uzh.ifi.hase.soprafs24.constant.AiMatchPlayerState;
-import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.constant.Strategy;
-import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
 /**
  * The MATCH_PLAYER relation saves the ids of the players that are in a match,
@@ -79,8 +75,8 @@ public class MatchPlayer {
     @Column
     boolean isHost = false;
 
-    @Transient // Not persisted in DB unless you want it to be
-    private List<String> takenCards = new ArrayList<>();
+    @Column // Not persisted in DB unless you want it to be
+    private String takenCards;
 
     private int rankingInMatch;
 
@@ -113,7 +109,7 @@ public class MatchPlayer {
     }
 
     public String getHand() {
-        return CardUtils.normalizeCardCodeString(hand);
+        return hand;
     }
 
     public void setHand(String hand) {
@@ -198,30 +194,6 @@ public class MatchPlayer {
 
     // === Optional helpers ===
 
-    public void addToMatchScore(int points) {
-        this.matchScore += points;
-    }
-
-    public void addToGameScore(int points) {
-        this.gameScore += points;
-    }
-
-    public void resetGameScore() {
-        this.gameScore = 0;
-    }
-
-    public void resetReady() {
-        this.ready = false;
-    }
-
-    public void resetPerfectGames() {
-        this.perfectGames = 0;
-    }
-
-    public void incrementPerfectGames() {
-        this.perfectGames++;
-    }
-
     public void incrementShotTheMoonCount() {
         this.shotTheMoonCount++;
     }
@@ -234,145 +206,7 @@ public class MatchPlayer {
         this.setMatchScore(0);
         this.setPerfectGames(0);
         this.setShotTheMoonCount(0);
-    }
-
-    // === HAND MANIPULATION HELPERS (PURE STRING ONLY) ===
-
-    public void addCardCodeToHand(String cardCode) {
-        if (hand == null || hand.isBlank()) {
-            hand = cardCode;
-        } else {
-            hand += "," + cardCode;
-        }
-    }
-
-    public boolean removeCardCodeFromHand(String cardCode) {
-        if (hand == null || hand.isBlank()) {
-            return false;
-        }
-
-        String[] cards = hand.split(",");
-        StringBuilder newHand = new StringBuilder();
-        boolean removed = false;
-
-        for (String card : cards) {
-            if (!card.equals(cardCode)) {
-                if (newHand.length() > 0) {
-                    newHand.append(",");
-                }
-                newHand.append(card);
-            } else {
-                removed = true;
-            }
-        }
-
-        hand = newHand.toString();
-        return removed;
-    }
-
-    public boolean hasCardCodeInHand(String cardCode) {
-        if (hand == null || hand.isBlank()) {
-            return false;
-        }
-        String[] cards = hand.split(",");
-        for (String card : cards) {
-            if (card.equals(cardCode)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    public int numberOfCardsInHand() {
-        if (hand == null || hand.isBlank()) {
-            return 0;
-        }
-        return hand.split(",").length;
-    }
-
-    public void clearHand() {
-        this.hand = "";
-    }
-
-    public boolean isProperHandFormat() {
-        if (hand == null || hand.isBlank()) {
-            return true; // Empty hand is OK
-        }
-        return hand.matches(GameConstants.CARD_CODE_HAND_REGEX);
-    }
-
-    public boolean hasNoDuplicateCards() {
-        if (hand == null || hand.isBlank()) {
-            return true; // Empty hand, no duplicates
-        }
-        String[] cards = hand.split(",");
-        java.util.Set<String> seen = new java.util.HashSet<>();
-        for (String card : cards) {
-            if (!seen.add(card)) {
-                return false; // Card already seen -> duplicate
-            }
-        }
-        return true;
-    }
-
-    public boolean isValidHand() {
-        return isProperHandFormat() && hasNoDuplicateCards();
-    }
-
-    public void sortHand() {
-        if (hand == null || hand.isBlank()) {
-            return;
-        }
-        String[] cards = hand.split(",");
-        java.util.Arrays.sort(cards, java.util.Comparator.comparingInt(CardUtils::calculateCardOrder));
-        hand = String.join(",", cards);
-    }
-
-    public String getCardsOfSuit(char suit) {
-        if (hand == null || hand.isBlank()) {
-            return "";
-        }
-
-        StringBuilder result = new StringBuilder();
-        String[] cards = hand.split(",");
-
-        for (String card : cards) {
-            if (!card.isEmpty() && card.charAt(card.length() - 1) == suit) {
-                if (result.length() > 0) {
-                    result.append(",");
-                }
-                result.append(card);
-            }
-        }
-
-        return result.toString();
-    }
-
-    public String getCardsNotOfSuit(char suit) {
-        if (hand == null || hand.isBlank()) {
-            return "";
-        }
-
-        StringBuilder result = new StringBuilder();
-        String[] cards = hand.split(",");
-
-        for (String card : cards) {
-            if (!card.isEmpty() && card.charAt(card.length() - 1) != suit) {
-                if (result.length() > 0) {
-                    result.append(",");
-                }
-                result.append(card);
-            }
-        }
-
-        return result.toString();
-    }
-
-    public String[] getHandCardsArray() {
-        if (hand == null || hand.isBlank()) {
-            return new String[0];
-        }
-        return hand.split(",");
+        this.setTakenCards("");
     }
 
     public String getInfo() {
@@ -403,17 +237,12 @@ public class MatchPlayer {
         this.isHost = isHost;
     }
 
-    ///////// TAKEN CARD HELPERS
-    public List<String> getTakenCards() {
+    public String getTakenCards() {
         return takenCards;
     }
 
-    public void setTakenCards(List<String> takenCards) {
+    public void setTakenCards(String takenCards) {
         this.takenCards = takenCards;
-    }
-
-    public void addTakenCard(String cardCode) {
-        this.takenCards.add(cardCode);
     }
 
     public int getRankingInMatch() {

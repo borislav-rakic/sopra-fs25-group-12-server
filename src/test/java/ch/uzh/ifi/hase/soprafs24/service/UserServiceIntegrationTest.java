@@ -18,8 +18,6 @@ import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.*;
 
-import org.apache.tomcat.jni.Poll;
-
 /**
  * Test class for the UserService integration test.
  */

@@ -73,7 +73,10 @@ public class AiPassingService {
 
         switch (effectiveStrategy) {
             case LEFTMOST:
-                selectedCards = cards.subList(0, 3);
+                selectedCards = cards.stream()
+                        .sorted(Comparator.comparingInt(CardUtils::calculateCardOrder))
+                        .limit(3)
+                        .collect(Collectors.toList());
                 break;
 
             case RANDOM:

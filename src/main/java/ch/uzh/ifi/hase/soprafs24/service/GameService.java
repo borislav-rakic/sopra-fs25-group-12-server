@@ -4,11 +4,7 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
@@ -248,7 +244,7 @@ public class GameService {
                     String.format("The AiPlayer {} has no cards in hand.", aiPlayer.getInfo()));
         }
 
-        if (!aiPlayer.hasCardCodeInHand(cardCode)) {
+        if (!CardUtils.isCardCodeInHand(hand, cardCode)) {
             int playerSlot = aiPlayer.getMatchPlayerSlot();
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
                     "The AiPlayer in playerSlot " + playerSlot + " does not have the card " + cardCode
@@ -301,21 +297,41 @@ public class GameService {
     public void executeValidatedCardPlay(Game game, MatchPlayer matchPlayer, String cardCode) {
         log.info("   +-- executeValidatedCardPlay ---");
 
-        if (!matchPlayer.removeCardCodeFromHand(cardCode)) {
+        String hand = matchPlayer.getHand();
+        if (!CardUtils.isCardCodeInHand(hand, cardCode)) {
             throw new IllegalStateException("Tried to remove a card that wasn't in hand: " + cardCode);
         }
+
+        String newHand = CardUtils.getHandWithCardCodeRemoved(hand, cardCode);
+        matchPlayer.setHand(newHand);
         matchPlayerRepository.saveAndFlush(matchPlayer);
+
+        // Double-check that persistence worked
+        MatchPlayer verified = matchPlayerRepository.findById(matchPlayer.getMatchPlayerId()).orElseThrow();
+
+        if (CardUtils.isCardCodeInHand(verified.getHand(), cardCode)) {
+            log.warn("Card still present after save. Retrying...");
+
+            // Forcefully reload and retry
+            MatchPlayer retry = matchPlayerRepository.findById(matchPlayer.getMatchPlayerId()).orElseThrow();
+            String updatedHand = CardUtils.getHandWithCardCodeRemoved(retry.getHand(), cardCode);
+            retry.setHand(updatedHand);
+            matchPlayerRepository.saveAndFlush(retry);
+
+            MatchPlayer confirm = matchPlayerRepository.findById(matchPlayer.getMatchPlayerId()).orElseThrow();
+            if (CardUtils.isCardCodeInHand(confirm.getHand(), cardCode)) {
+
+                log.error("Failed after retry. Original hand: [{}], New hand: [{}]", hand, newHand);
+                throw new IllegalStateException("Failed to remove card even after retry: " + cardCode);
+            }
+        }
 
         log.info("    + executeValidatedCardPlay just about to addCardToTrick({}). GamePhase={}.", cardCode,
                 game.getPhase());
         gameTrickService.addCardToTrick(game.getMatch(), game, matchPlayer, cardCode);
-        log.info("    + executeValidatedCardPlay just after addCardToTrick({}). GamePhase={}.", cardCode,
-                game.getPhase());
+
         gameTrickService.updateGamePhaseBasedOnPlayOrder(game);
 
-        log.info("    + executeValidatedCardPlay just after updateGamePhaseBasedOnPlayOrder({}). GamePhase={}.",
-                cardCode,
-                game.getPhase());
         if (GameConstants.QUEEN_OF_SPADES.equals(cardCode)) {
             matchMessageService.addMessage(
                     game.getMatch(),
@@ -338,9 +354,7 @@ public class GameService {
         }
 
         gameStatsService.updateGameStatsAfterTrickChange(game);
-
-        gameTrickService.afterCardPlayed(game); // advancing state + checking trick completion
-
+        gameTrickService.afterCardPlayed(game);
         gameStatsService.recordCardPlay(game, matchPlayer, cardCode);
 
         log.info("   +--- executeValidatedCardPlay ---");
@@ -489,12 +503,12 @@ public class GameService {
                         .orElse(null);
 
                 if (highestScorer != null) {
-                    // log.warn("Adjusting game score: adding {} points to {}", difference,
-                    // highestScorer.getUser().getUsername());
+                    log.warn("Adjusting game score: adding {} points to {}", difference,
+                            highestScorer.getUser().getUsername());
                     highestScorer.setGameScore(highestScorer.getGameScore() + difference);
                 }
             } else {
-                // log.warn("Unexpected overage in game score: total = {}", totalGameScore);
+                log.warn("Unexpected overage in game score: total = {}", totalGameScore);
                 // Optional: handle overshooting total score here if needed
             }
         }
@@ -731,7 +745,7 @@ public class GameService {
         }
 
         for (MatchPlayer player : players) {
-            player.resetReady(); // Custom logic
+            player.setReady(false);
         }
     }
 
@@ -837,8 +851,10 @@ public class GameService {
      */
     public void assignTwoOfClubsLeader(Game game) {
         Match match = game.getMatch();
+        String hand = "";
         for (MatchPlayer player : match.getMatchPlayers()) {
-            if (player.hasCardCodeInHand(GameConstants.TWO_OF_CLUBS)) {
+            hand = player.getHand();
+            if (CardUtils.isCardCodeInHand(hand, GameConstants.TWO_OF_CLUBS)) {
                 int slot = player.getMatchPlayerSlot();
                 game.setCurrentMatchPlayerSlot(slot);
                 game.setTrickLeaderMatchPlayerSlot(slot);

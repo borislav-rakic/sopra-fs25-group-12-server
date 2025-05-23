@@ -133,7 +133,7 @@ public class CardUtilsTest {
 
     @Test
     void cardCodeStringMinusCardCode_removesCorrectly() {
-        String result = CardUtils.cardCodeStringMinusCardCode("KH,2H,2C", "2H");
+        String result = CardUtils.getHandWithCardCodeRemoved("KH,2H,2C", "2H");
         assertEquals("2C,KH", result);
     }
 
@@ -178,4 +178,59 @@ public class CardUtilsTest {
 
         assertEquals(expected, actual);
     }
+
+    @Test
+    void getHandWithCardCodeRemoved_removesAndSortsCorrectly() {
+        String result = CardUtils.getHandWithCardCodeRemoved("KH,2C,2H", "2H");
+        assertEquals("2C,KH", result);
+    }
+
+    @Test
+    void isCardCodeInHand_correctlyDetectsPresence() {
+        assertTrue(CardUtils.isCardCodeInHand("2C,KH,0D", "KH"));
+        assertFalse(CardUtils.isCardCodeInHand("2C,KH,0D", "QS"));
+    }
+
+    @Test
+    void getHandWithCardCodesAdded_mergesDeduplicatesAndSorts() {
+        String result = CardUtils.getHandWithCardCodesAdded("2C,KH", List.of("0D", "2C"));
+        assertEquals("2C,0D,KH", result);
+    }
+
+    @Test
+    void countUniqueCardsInHand_countsDistinctCards() {
+        int count = CardUtils.countUniqueCardsInHand("2C,2C,KH");
+        assertEquals(2, count);
+    }
+
+    @Test
+    void countValidUniqueCardsInString_countsOnlyValidDistinctCards() {
+        int count = CardUtils.countValidUniqueCardsInString("2C,KH,INVALID,2C");
+        assertEquals(2, count);
+    }
+
+    @Test
+    void reduceHandToCardsInSuit_filtersAndSortsSuit() {
+        String result = CardUtils.reduceHandToCardsInSuit("2C,3H,KH,4H", 'H');
+        assertEquals("3H,4H,KH", result);
+    }
+
+    @Test
+    void reduceHandToCardsInSuit_withStringSuit_filtersAndSortsSuit() {
+        String result = CardUtils.reduceHandToCardsInSuit("2C,3H,KH,4H", "H");
+        assertEquals("3H,4H,KH", result);
+    }
+
+    @Test
+    void reduceToCardsNotInSuit_filtersAndSorts() {
+        String result = CardUtils.reduceToCardsNotInSuit("2C,3H,KH,4H", 'H');
+        assertEquals("2C", result);
+    }
+
+    @Test
+    void reduceToCardsNotInSuit_withStringSuit_filtersAndSorts() {
+        String result = CardUtils.reduceToCardsNotInSuit("2C,3H,KH,4H", "H");
+        assertEquals("2C", result);
+    }
+
 }

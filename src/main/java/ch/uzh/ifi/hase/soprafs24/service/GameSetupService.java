@@ -348,8 +348,10 @@ public class GameSetupService {
     // Careful: this is an exact copy of a similar method in CardPassingService.
     public void assignTwoOfClubsLeader(Game game) {
         Match match = game.getMatch();
+        String hand = "";
         for (MatchPlayer player : match.getMatchPlayers()) {
-            if (player.hasCardCodeInHand(GameConstants.TWO_OF_CLUBS)) {
+            hand = player.getHand();
+            if (CardUtils.isCardCodeInHand(hand, GameConstants.TWO_OF_CLUBS)) {
                 int slot = player.getMatchPlayerSlot();
                 game.setCurrentMatchPlayerSlot(slot);
                 game.setTrickLeaderMatchPlayerSlot(slot);
