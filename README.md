@@ -99,77 +99,118 @@ Make sure you have the following installed:
 ### Clone The Repository
 
 ```shell
-git clone https://github.com/borislav-rakic/sopra-fs25-group-12-client
+git clone https://github.com/borislav-rakic/sopra-fs25-group-12-server
 ```
 
 ```shell
-cd sopra-fs25-student-client
+cd sopra-fs25-group-12-server
 ```
 
-### Setup Script
+## Building with Gradle
+You can use the local Gradle Wrapper to build the application.
+-   macOS: `./gradlew`
+-   Linux: `./gradlew`
+-   Windows: `./gradlew.bat`
 
-```shell
-source setup.sh
+More Information about [Gradle Wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html) and [Gradle](https://gradle.org/docs/).
+
+### Build
+
+```bash
+./gradlew build
 ```
 
-### External Dependencies
+### Run
 
-**Backend Repository:**
-[sopra-fs25-group-12-server](https://github.com/borislav-rakic/sopra-fs25-group-12-server)
-
-### Start Development Server
-
-```shell
-npm start
+```bash
+./gradlew bootRun
 ```
 
-or
+You can verify that the server is running by visiting `localhost:8080` in your browser.
 
-```shell
-npm run dev
-```
+### Test
 
-### Running Tests
-
-```shell
-npm test
-```
-
-### Releases
-
-```shell
-npm run build
+```bash
+./gradlew test
 ```
 
 ## Illustrations
 
-### 1. Login / Registration / Play as Guest
+### 1. Landing Page
+The page users land on initially.
+<img width="1280" alt="Landing Page" src="public/ReadmeImages/Landing Page.png" />
 
-<img width="1280" alt="Screenshot 2025-05-14 at 23 59 00" src="https://github.com/user-attachments/assets/1a69e996-5e8a-416f-87fd-18ecad47f5e7" />
+### 2. Login
+Standard login page.
+<img width="1280" alt="Login Page" src="public/ReadmeImages/Login.png" />
 
-### 2. Landing Page
+### 3. Register
+Standard registration page.
+<img width="1280" alt="Register Page" src="public/ReadmeImages/Register.png" />
 
-<img width="1280" alt="Screenshot 2025-05-15 at 00 04 42" src="https://github.com/user-attachments/assets/f64d92dd-6ec7-4c71-b5ff-ecfa9ad6ca1c" />
+### 4. Logged in Landing Page
+Once a user is logged in, they are brought to this page.
+<img width="1280" alt="Logged in Landing Page" src="public/ReadmeImages/Landing Page Logged in.png" />
 
-### 3. Start / Join a Game
+### 5. Rules
+An overview of the rules of the game.
+<img width="1280" alt="Rules Page" src="public/ReadmeImages/Rules.png" />
 
-<img width="1280" alt="Screenshot 2025-05-14 at 23 59 52" src="https://github.com/user-attachments/assets/3ca46ab9-7219-4566-ab3a-c6ee811ccfda" />
+### 6. User Profile
+Where a player can see the stats of both themselves and other players.
+<img width="1280" alt="User Profile" src="public/ReadmeImages/Profile.png" />
 
-### 4. Play
+### 7. Personal User Profile
+Where a user can change their user profile.
+<img width="1280" alt="Personal User Profile" src="public/ReadmeImages/Stats.png" />
 
-<img width="1280" alt="Screenshot 2025-05-15 at 00 08 15" src="https://github.com/user-attachments/assets/53a7f5c4-12d9-442d-986e-9ac4bdc288fe" />
+### 8. Friends Page
+Where a user can manage their friends list.
+<img width="1280" alt="Friends Page" src="public/ReadmeImages/Friends.png" />
 
-### 5. Watch your or other player's progress
+### 9. Match Setup
+Upon selecting start match, a user is brought to this setup screen.
+<img width="1280" alt="Match Setup" src="public/ReadmeImages/Match Setup.png" />
 
-<img width="1280" alt="Screenshot 2025-05-15 at 00 00 19" src="https://github.com/user-attachments/assets/c269d883-9a0e-4882-88f6-022e91345b90" />
+### 10. Player Invitation
+How the host sees the players they can invite.
+<img width="1280" alt="Player Invitation" src="public/ReadmeImages/invite Players.png" />
 
-### 6. Edit your profile
+### 11. Invitation Popup
+What a player sees when the host invites them to join their game.
+<img width="1280" alt="Invitation Popup" src="public/ReadmeImages/Invite popup.png" />
 
-<img width="1280" alt="Screenshot 2025-05-15 at 00 01 59" src="https://github.com/user-attachments/assets/80e407b5-89bd-41b7-b07c-6f387007d40f" />
+### 12. Join Page
+A list of all joinable games.
+<img width="1280" alt="Join Page" src="public/ReadmeImages/Join.png" />
 
-### 7. Add your friends
+### 13. Join Popup
+The host sees this popup if a player would like to join.
+<img width="1280" alt="Join Popup" src="public/ReadmeImages/Join popup.png" />
 
-<img width="1280" alt="Screenshot 2025-05-21 at 10 29 09" src="https://github.com/user-attachments/assets/904fbd45-9a44-47b9-aad0-ac83884e3734" />
+### 14. Match Page
+Once a match starts, users see this page. The entire game takes place on this page.
+<img width="1280" alt="Match Page" src="public/ReadmeImages/Match Page Beginning.png" />
+
+### 15. Middle of Match
+During a match, cards are placed in the middle and when it’s the player’s turn, the cards they can play are highlighted.
+<img width="1280" alt="Middle of Match" src="public/ReadmeImages/During Match.png" />
+
+### 16. Settings
+Allows the user to select different colored gameboards and cardbacks.
+<img width="1280" alt="Settings" src="public/ReadmeImages/Settings.png" />
+
+### 17. Round End
+A brief summary of the total points and rounds played so far, as well as information regarding certain events, like a perfect game or moon shot.
+<img width="1280" alt="Round End" src="public/ReadmeImages/Game End.png" />
+
+### 18. Match End
+A total summary of the game, as well as how many points you earned for the global leaderboard.
+<img width="1280" alt="Match End" src="public/ReadmeImages/Match End.png" />
+
+### 19. Leaderboard
+Shows the stats of all users ranked on a leaderboard
+<img width="1280" alt="Leaderboard" src="public/ReadmeImages/Leaderboard.png" />
 
 ## Roadmap
 
