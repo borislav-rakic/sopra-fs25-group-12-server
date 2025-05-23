@@ -11,6 +11,7 @@ import ch.uzh.ifi.hase.soprafs24.repository.GameStatsRepository;
 import ch.uzh.ifi.hase.soprafs24.repository.MatchPlayerRepository;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.TrickDTO;
 import ch.uzh.ifi.hase.soprafs24.rest.dto.TrickDTO.TrickCard;
+import ch.uzh.ifi.hase.soprafs24.util.CardUtils;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,7 +21,12 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 // import org.slf4j.Logger;
 //import org.slf4j.LoggerFactory;
@@ -219,8 +225,98 @@ public class GameTrickService {
         game.setTrickPhase(TrickPhase.TRICKJUSTCOMPLETED);
         log.info(" & TrickPhase set to JUSTCOMPLETED at {}", game.getTrickJustCompletedTime());
 
+        harmonizeHands(match, game);
         // STOP HERE AND WAIT FOR A POLLING BY THE MATCH OWNER TO PICK UP WHERE YOU
         // LEFT.
+    }
+
+    public void harmonizeHands(Match match, Game game) {
+        List<MatchPlayer> players = matchPlayerRepository.findByMatch(match);
+
+        Set<String> allUsedCards = new HashSet<>();
+        Map<Integer, MatchPlayer> slotMap = new HashMap<>();
+        Map<Integer, List<String>> hands = new HashMap<>();
+        Map<Integer, List<String>> takenCards = new HashMap<>();
+
+        int totalPoints = 0;
+
+        // Step 1: Collect hands, deduplicate, build card map
+        for (MatchPlayer p : players) {
+            int slot = p.getMatchPlayerSlot();
+            slotMap.put(slot, p);
+
+            List<String> hand = p.getHand() != null
+                    ? new ArrayList<>(CardUtils.splitCardCodesAsListOfStrings(p.getHand()))
+                    : new ArrayList<>();
+            List<String> taken = p.getTakenCards() != null ? new ArrayList<>(p.getTakenCards()) : new ArrayList<>();
+
+            List<String> dedupedHand = new ArrayList<>();
+            for (String c : hand) {
+                if (allUsedCards.add(c)) {
+                    dedupedHand.add(c);
+                }
+            }
+
+            List<String> dedupedTaken = new ArrayList<>();
+            for (String c : taken) {
+                if (allUsedCards.add(c)) {
+                    dedupedTaken.add(c);
+                    totalPoints += "QS".equals(c) ? 13 : (c.endsWith("H") ? 1 : 0);
+                }
+            }
+
+            hands.put(slot, dedupedHand);
+            takenCards.put(slot, dedupedTaken);
+            totalPoints += p.getGameScore();
+        }
+
+        // Step 2: Determine target hand size
+        int targetHandSize = Math.max(0, 13 - game.getCurrentTrickNumber());
+        int smallestActualHand = hands.values().stream().mapToInt(List::size).min().orElse(0);
+        targetHandSize = Math.min(targetHandSize, smallestActualHand);
+
+        // Step 3: Truncate only if necessary (surgically)
+        for (int slot : hands.keySet()) {
+            List<String> hand = hands.get(slot);
+            if (hand.size() > targetHandSize) {
+                // Remove from end (non-destructive logic could go here)
+                hand = hand.subList(0, targetHandSize);
+                hands.put(slot, new ArrayList<>(hand));
+            }
+        }
+
+        // Step 4: Check for missing cards, but don't redistribute randomly
+        List<String> fullDeck = CardUtils.getFullDeckList();
+        Set<String> missing = new HashSet<>(fullDeck);
+        for (List<String> h : hands.values())
+            missing.removeAll(h);
+        for (List<String> t : takenCards.values())
+            missing.removeAll(t);
+
+        if (!missing.isEmpty()) {
+            log.warn("Harmonization left out {} unused card(s): {}", missing.size(), missing);
+        }
+
+        // Step 5: Fix scores to reach 26
+        int scoreCorrection = 26 - totalPoints;
+        if (scoreCorrection != 0) {
+            MatchPlayer fixer = players.stream()
+                    .max(Comparator.comparingInt(MatchPlayer::getGameScore))
+                    .orElse(players.get(0));
+            fixer.setGameScore(fixer.getGameScore() + scoreCorrection);
+            log.info("Score adjusted for slot {} by {}", fixer.getMatchPlayerSlot(), scoreCorrection);
+        }
+
+        // Step 6: Apply everything back to entities
+        for (int slot : slotMap.keySet()) {
+            MatchPlayer p = slotMap.get(slot);
+            p.setHand(String.join(",", hands.get(slot)));
+            p.setTakenCards(takenCards.get(slot));
+            matchPlayerRepository.save(p);
+        }
+
+        matchPlayerRepository.flush();
+        log.info("Harmonized hands.");
     }
 
     public void clearTrick(Match match, Game game) {

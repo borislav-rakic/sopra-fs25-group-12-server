@@ -2,10 +2,12 @@ package ch.uzh.ifi.hase.soprafs24.util;
 
 import ch.uzh.ifi.hase.soprafs24.constant.GameConstants;
 import ch.uzh.ifi.hase.soprafs24.entity.GameStats;
+import ch.uzh.ifi.hase.soprafs24.entity.MatchPlayer;
 import ch.uzh.ifi.hase.soprafs24.model.Card;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -441,5 +443,42 @@ public class CardUtils {
         }
 
         return seenCodes.size() == GameConstants.FULL_DECK_CARD_COUNT;
+    }
+
+    private static final String[] RANKS = { "2", "3", "4", "5", "6", "7", "8", "9", "0", "J", "Q", "K", "A" };
+    private static final String[] SUITS = { "C", "D", "S", "H" }; // Hearts, Diamonds, Clubs, Spades
+
+    public static List<String> getFullDeckList() {
+        List<String> deck = new ArrayList<>();
+        for (String rank : RANKS) {
+            for (String suit : SUITS) {
+                deck.add(rank + suit);
+            }
+        }
+        return deck;
+    }
+
+    /**
+     * Utility to evenly distribute all 52 cards into hands for 4 players.
+     * Sets 13 cards per player in their `hand` field, clears takenCards.
+     */
+    public static List<MatchPlayer> generateBalancedMatchPlayersWithFullDeck() {
+        List<String> deck = getFullDeckList();
+        Collections.shuffle(deck);
+
+        List<MatchPlayer> players = new ArrayList<>();
+        int cardsPerPlayer = 13;
+
+        for (int i = 0; i < 4; i++) {
+            MatchPlayer mp = new MatchPlayer();
+            mp.setMatchPlayerSlot(i + 1);
+            List<String> handCards = deck.subList(i * cardsPerPlayer, (i + 1) * cardsPerPlayer);
+            mp.setHand(String.join(",", handCards));
+            mp.setTakenCards(new ArrayList<>());
+            mp.setGameScore(0);
+            players.add(mp);
+        }
+
+        return players;
     }
 }

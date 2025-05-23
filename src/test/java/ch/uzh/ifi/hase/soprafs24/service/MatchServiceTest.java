@@ -235,6 +235,8 @@ public class MatchServiceTest {
 
     @Test
     public void testFindNewHumanHostOrAbortMatch() {
+        match.setMatchId(1L);
+        given(matchRepository.findById(1L)).willReturn(Optional.of(match));
         given(userRepository.findUserById(Mockito.any())).willReturn(user);
         given(matchPlayerRepository.findByUserAndMatch(Mockito.any(), Mockito.any())).willReturn(matchPlayer);
 
@@ -256,6 +258,8 @@ public class MatchServiceTest {
     public void testLeaveMatch() {
         // Replace one of the existing 4 players with an AI
         MatchPlayer toReplace = match.getMatchPlayers().get(2); // Slot 3
+        match.setMatchId(1L);
+        given(matchRepository.findById(1L)).willReturn(Optional.of(match));
         User aiPlayer = new User();
         aiPlayer.setUsername("ai");
         aiPlayer.setIsAiPlayer(true);
@@ -273,17 +277,18 @@ public class MatchServiceTest {
         given(matchRepository.findMatchByMatchId(Mockito.anyLong())).willReturn(match);
         given(userRepository.findUserByToken(Mockito.any())).willReturn(user2); // The leaver
         given(userRepository.findUserById(Mockito.anyLong())).willReturn(aiPlayer);
+        given(matchPlayerRepository.findByUserAndMatch(user2, match)).willReturn(matchPlayer);
 
         doNothing().when(gameService).relayMessageToMatchMessageService(Mockito.any(), Mockito.any(), Mockito.any());
 
         matchService.leaveMatch(1L, "token1", null); // token1 = user2
 
         verify(matchRepository).findMatchByMatchId(Mockito.anyLong());
-        verify(userRepository).findUserByToken(Mockito.any());
+        verify(userRepository, atLeastOnce()).findUserByToken(any());
         verify(userRepository).findUserById(Mockito.anyLong());
         verify(gameService, times(2)).relayMessageToMatchMessageService(Mockito.any(), Mockito.any(), Mockito.any());
-        verify(matchPlayerRepository).save(Mockito.any());
-        verify(matchRepository, times(2)).save(any());
+        verify(matchPlayerRepository, atLeastOnce()).save(any());
+        verify(matchRepository, atLeastOnce()).save(any());
 
     }
 

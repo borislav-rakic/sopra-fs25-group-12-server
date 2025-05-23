@@ -17,6 +17,8 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
 import static org.mockito.Mockito.*;
 
 class GameTrickServiceTest {
@@ -192,7 +194,19 @@ class GameTrickServiceTest {
 
     @Test
     void handlePotentialTrickCompletion_recordsAndTransfersCards() {
-        Match match = mock(Match.class);
+        Match match = new Match();
+
+        MatchPlayer dummyPlayer = new MatchPlayer();
+        dummyPlayer.setMatchPlayerSlot(1);
+        dummyPlayer.setGameScore(0);
+        dummyPlayer.setHand("2H,3D,4S");
+        dummyPlayer.setTakenCards(new ArrayList<>());
+
+        List<MatchPlayer> players = List.of(dummyPlayer);
+        match.setMatchPlayers(players);
+
+        given(matchPlayerRepository.findByMatch(match)).willReturn(players);
+
         Game game = new Game();
         game.setCurrentTrick(List.of("QS", "KH", "2D", "AC"));
         game.setCurrentTrickNumber(1);
@@ -218,6 +232,30 @@ class GameTrickServiceTest {
         assertEquals(List.of("QS"), winner.getTakenCards());
         assertEquals("QS", game.getPreviousTrick().get(0));
         assertEquals(2, game.getPreviousTrickWinnerMatchPlayerSlot());
+    }
+
+    @Test
+    void harmonizeHands_runsWithoutError_withMinimalValidInput() {
+        Match match = new Match();
+        Game game = new Game();
+        game.setCurrentTrickNumber(0);
+        game.setMatch(match);
+
+        MatchPlayer player = new MatchPlayer();
+        player.setMatchPlayerSlot(1);
+        player.setHand("2H,3D,4S");
+        player.setGameScore(0);
+        player.setTakenCards(new ArrayList<>(List.of("QS", "5H"))); // 14 points
+
+        match.setMatchPlayers(List.of(player));
+
+        given(matchPlayerRepository.findByMatch(match)).willReturn(List.of(player));
+        when(matchPlayerRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        gameTrickService.harmonizeHands(match, game);
+
+        // Basic assertion: score correction applied to the same player
+        assertEquals(12, player.getGameScore()); // 26 - 14 = 12 correction
     }
 
 }

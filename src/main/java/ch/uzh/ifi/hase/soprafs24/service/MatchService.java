@@ -280,12 +280,15 @@ public class MatchService {
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "No player in that slot."));
 
         String nameOfReplacedPlayer = replaced.getUser().getUsername();
+        // Just in case this player is blocking the game while game results are shown.
+        confirmGameResult(replaced.getUser().getToken(), match.getMatchId());
 
         // Swap in AI player
         replaced.setUser(newAiUser);
         replaced.setIsAiPlayer(true);
         replaced.setAiMatchPlayerState(AiMatchPlayerState.READY);
         replaced.setIsHost(false); // Ensure AI doesn't remain host accidentally
+        replaced.setReady(true); // Set to true in case people are waiting for this player
 
         // Update player reference in Match
         switch (matchPlayerSlot) {
